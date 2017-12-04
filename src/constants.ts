@@ -90,3 +90,7 @@ export const LOCAL_STORAGE_KEYS = Object.freeze({
   LAST_USED_USER: 'keymail@last-used-user',
   USED_NETWORKS: 'keymail@used-networks'
 })
+
+export const FETCH_MESSAGES_INTERVAL = 3000
+
+export const PRE_KEY_ID_BYTES_LENGTH = 2

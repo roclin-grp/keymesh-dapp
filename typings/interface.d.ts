@@ -57,6 +57,7 @@ export interface IsendingLifecycle extends transactionLifecycle {
 }
 
 export interface IenvelopeHeader {
+  fingerprint: keys.IdentityKey
   mac: Uint8Array
   baseKey: keys.PublicKey
   sessionTag: string
@@ -116,3 +117,15 @@ export type TableSessions = Dexie.Table<Isession, string>
 export type TableMessages = Dexie.Table<Imessage, [string, number]>
 
 export type web3BlockType = web3.BlockType
+
+interface ItrustbaseRawMessage {
+  message: string
+  timestamp: number
+}
+
+interface IdecryptedTrustbaseMessage {
+  decryptedPaddedMessage: Uint8Array
+  fingerprint: keys.IdentityKey
+  timestamp: number
+  messageByteLength: number
+}

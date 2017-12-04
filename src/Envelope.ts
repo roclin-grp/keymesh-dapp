@@ -21,6 +21,10 @@ class Envelope {
     for (let i = 0; i <= nprops - 1; i += 1) {
       switch (d.u8()) {
         case 0: {
+          (header as IenvelopeHeader).fingerprint = keys.IdentityKey.decode(d)
+          break
+        }
+        case 1: {
           const npropsMac = d.object()
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
@@ -33,11 +37,11 @@ class Envelope {
           }
           break
         }
-        case 1: {
+        case 2: {
           (header as IenvelopeHeader).baseKey = keys.PublicKey.decode(d)
           break
         }
-        case 2: {
+        case 3: {
           const npropsMac = d.object()
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
@@ -50,11 +54,11 @@ class Envelope {
           }
           break
         }
-        case 3: {
+        case 4: {
           (header as IenvelopeHeader).isPreKeyMessage = d.bool()
           break
         }
-        case 4: {
+        case 5: {
           const npropsMac = d.object()
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
@@ -67,7 +71,7 @@ class Envelope {
           }
           break
         }
-        case 5: {
+        case 6: {
           cipherMessage = message.CipherMessage.decode(d)
           break
         }
@@ -117,6 +121,7 @@ class Envelope {
 
   public encode(e: CBOR.Encoder) {
     const {
+      fingerprint,
       mac, // Message authentication code
       baseKey,
       sessionTag,
@@ -126,22 +131,24 @@ class Envelope {
 
     e.object(7)
     e.u8(0)
+    fingerprint.encode(e)
+    e.u8(1)
     e.object(1)
     e.u8(0)
     e.bytes(mac)
-    e.u8(1)
-    baseKey.encode(e)
     e.u8(2)
+    baseKey.encode(e)
+    e.u8(3)
     e.object(1)
     e.u8(0)
     e.bytes(sodium.from_hex(sessionTag.slice(2)))
-    e.u8(3)
-    e.bool(Number(isPreKeyMessage))
     e.u8(4)
+    e.bool(Number(isPreKeyMessage))
+    e.u8(5)
     e.object(1)
     e.u8(0)
     e.bytes(new Uint8Array(Uint16Array.from([messageByteLength]).buffer))
-    e.u8(5)
+    e.u8(6)
     this.cipherMessage.encode(e)
   }
 }

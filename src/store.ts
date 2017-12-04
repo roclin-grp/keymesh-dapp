@@ -40,7 +40,9 @@ import {
   InetworkSettings,
   IsendingLifecycle,
   IenvelopeHeader,
-  Iuser
+  Iuser,
+  ItrustbaseRawMessage,
+  IdecryptedTrustbaseMessage
 } from '../typings/interface.d'
 
 import {
@@ -49,7 +51,9 @@ import {
   SENDING_FAIL_CODE,
   NETWORKS,
   MESSAGE_TYPE,
-  LOCAL_STORAGE_KEYS
+  LOCAL_STORAGE_KEYS,
+  FETCH_MESSAGES_INTERVAL,
+  PRE_KEY_ID_BYTES_LENGTH
 } from './constants'
 
 const {
@@ -73,7 +77,10 @@ const SESSION_PRE_PAGE = 25
 
 type IloadedUserData = [
   Iuser | undefined,
-  Cryptobox | undefined,
+  [
+    IndexedDBStore | undefined,
+    Cryptobox | undefined
+  ],
   string[],
   web3BlockType,
   Isession[]
@@ -93,11 +100,13 @@ export class Store {
   @observable.ref public currentUserContacts: string[] = []
   @observable.ref private currentUserSessions: Isession[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
+  private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
   private preKeysContract: PreKeys
   private messagesContract: Messages
-  private accountChangeTimeout: number
+  private detectAccountChangeTimeout: number
+  private fetchMessagesTimeout: number
   private db: DB
 
   constructor() {
@@ -151,8 +160,7 @@ export class Store {
            */
           const web3 = getWeb3()
           const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
-          // FIXME
-          let loadedResult: any
+          let loadedResult: [InetworkSettings, Iuser[], IloadedUserData]
           if (typeof currentNetworkId !== 'undefined') {
             const usernameHash: string = getNetworkLastUsedUsernameHash(currentNetworkId)
             loadedResult = await Promise.all([
@@ -176,7 +184,10 @@ export class Store {
                 this.currentNetworkUsers,
                 [
                   this.currentUser,
-                  this.box,
+                  [
+                    this.indexedDBStore,
+                    this.box
+                  ],
                   this.currentUserContacts,
                   this.currentUserlastFetchBlock,
                   this.currentUserSessions
@@ -195,6 +206,10 @@ export class Store {
           }
           window.setTimeout(waitForAccount, 100)
         } else {
+          /**
+           * In this case, we can't instantiate web3, user need to refresh the
+           * page to retry.
+           */
           const usedNetworks: NETWORKS[] = getUsedNetworks()
           if (!lastUsedNetworkId && usedNetworks.length > 0) {
             lastUsedNetworkId = usedNetworks[0]
@@ -203,10 +218,6 @@ export class Store {
             this.selectOfflineNetwork(lastUsedNetworkId, true, globalSettings, err)
           } else {
             runInAction(() => {
-              /**
-               * In this case, we can't instantiate web3, user need to refresh the
-               * page to retry.
-               */
               this.globalSettings = globalSettings
               this.offlineAvailableNetworks = usedNetworks
               this.offlineSelectedEthereumNetwork = lastUsedNetworkId
@@ -218,6 +229,9 @@ export class Store {
       })
   }
 
+  /**
+   * TODO: handle user switch Ethereum network/account during register ?
+   */
   public register = async (username: string, {
     transactionWillCreate = noop,
     transactionDidCreate = noop,
@@ -455,7 +469,15 @@ export class Store {
       session = await this.box.session_load(sessionTag).catch((err) => {
         if (err.name !== 'RecordNotFoundError') {
           // Maybe we have a corrupted session on local, delete it.
-          (this.box as Cryptobox).session_delete(sessionTag)
+          return Promise.all([
+            (this.box as Cryptobox).session_delete(sessionTag).then(noop),
+            this.db.getSession(sessionTag).then((session) => {
+              if (session) {
+                return this.db.deleteSession(this.currentUser as Iuser, session)
+              }
+              return
+            })
+          ]).then(() => null)
         }
         return null
       })
@@ -477,6 +499,7 @@ export class Store {
     })
 
     const fromUsername = currentUser.username
+    const fingerprint = (this.box as Cryptobox).identity.public_key
     const isFromYourself = true
     const {
       messageType,
@@ -509,6 +532,7 @@ export class Store {
         const preKeyMessage: proteusMessage.PreKeyMessage = proteusEnvelope.message as any
         const cipherMessage = preKeyMessage.message
         const header = {
+          fingerprint,
           mac: proteusEnvelope.mac,
           baseKey: preKeyMessage.base_key,
           sessionTag: sessionTag === '' ? makeSessionTag() : sessionTag,
@@ -545,6 +569,7 @@ export class Store {
             const preKeyMessage = envelope.message
             cipherMessage = preKeyMessage.message
             header = {
+              fingerprint,
               mac: envelope.mac,
               baseKey: preKeyMessage.base_key,
               isPreKeyMessage: true,
@@ -557,6 +582,7 @@ export class Store {
 
           cipherMessage = envelope.message as any
           header = {
+            fingerprint,
             mac: envelope.mac,
             baseKey: keys.KeyPair.new().public_key, // generate a new one
             isPreKeyMessage: false,
@@ -577,60 +603,60 @@ export class Store {
 
     transactionWillCreate()
     await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
-    .on('transactionHash', transactionDidCreate)
-    .on('confirmation', async (confirmationNumber, receipt) => {
-      if (confirmationNumber === 10) {
-        if (!receipt.events) {
-          sendingDidFail(new Error('Unknown error'))
-          return
-        }
-        const confirmedTimestamp: number = Number(
-          (((receipt.events.Publish || {}).returnValues || {}) as any).timestamp || Math.round(Date.now() / 1000))
+      .on('transactionHash', transactionDidCreate)
+      .on('confirmation', async (confirmationNumber, receipt) => {
+        if (confirmationNumber === 10) {
+          if (!receipt.events) {
+            sendingDidFail(new Error('Unknown error'))
+            return
+          }
+          const confirmedTimestamp: number = Number(
+            (((receipt.events.Publish || {}).returnValues || {}) as any).timestamp || Math.round(Date.now() / 1000))
 
-        const createNewSession = async () => {
-          await this.db.createSession({
-            user: currentUser,
-            contact: toUsername,
-            subject,
-            sessionTag: usingSessionTag,
-            messageType,
-            timestamp: confirmedTimestamp,
-            plainText,
-            isFromYourself,
-            fromUsername
-          })
-        }
-        if (sessionTag === usingSessionTag) {
-          await createNewSession()
-        } else {
-          // cryptobox session corrupted
-          const oldSession = await this.db.getSession(sessionTag)
-          if (!oldSession) {
-            await createNewSession()
-          } else {
-            await this.db.createMessage({
+          const createNewSession = async () => {
+            await this.db.createSession({
               user: currentUser,
+              contact: toUsername,
+              subject,
+              sessionTag: usingSessionTag,
               messageType,
-              sessionTag,
               timestamp: confirmedTimestamp,
               plainText,
-              isFromYourself
+              isFromYourself,
+              fromUsername
             })
-            await this.db.addContact(currentUser, toUsername)
           }
-        }
+          if (sessionTag === usingSessionTag) {
+            await createNewSession()
+          } else {
+            // cryptobox session corrupted
+            const oldSession = await this.db.getSession(sessionTag)
+            if (!oldSession) {
+              await createNewSession()
+            } else {
+              await this.db.createMessage({
+                user: currentUser,
+                messageType,
+                sessionTag,
+                timestamp: confirmedTimestamp,
+                plainText,
+                isFromYourself
+              })
+              await this.db.addContact(currentUser, toUsername)
+            }
+          }
 
-        const newSessions = await this.db.getSessions(currentUser)
-        runInAction(() => {
-          if (!this.currentUserContacts.includes(toUsername)) {
-            this.currentUserContacts = this.currentUserContacts.concat(toUsername)
-          }
-          this.currentUserSessions = newSessions
-        })
-        return sendingDidComplete()
-      }
-    })
-    .on('error', transactionCreationDidCatch)
+          const newSessions = await this.db.getSessions(currentUser)
+          runInAction(() => {
+            if (!this.currentUserContacts.includes(toUsername)) {
+              this.currentUserContacts = this.currentUserContacts.concat(toUsername)
+            }
+            this.currentUserSessions = newSessions
+          })
+          return sendingDidComplete()
+        }
+      })
+      .on('error', transactionCreationDidCatch)
   }
 
   public useUser = async (user: Iuser) => {
@@ -639,7 +665,10 @@ export class Store {
     runInAction(() => {
       [
         this.currentUser,
-        this.box,
+        [
+          this.indexedDBStore,
+          this.box,
+        ],
         this.currentUserContacts,
         this.currentUserlastFetchBlock,
         this.currentUserSessions
@@ -689,12 +718,47 @@ export class Store {
       this.offlineSelectedEthereumNetwork = networkId
       {[
         this.currentUser,
-        , // this.box,
+        , // [
+            // this.indexedDBStore
+            // this.box,
+          // ]
         , // this.contacts,
         , // this.lastFetchBlock,
         this.currentUserSessions
       ] = loadedUserData}
     })
+  }
+
+  public startFetchMessages = () => {
+    if (this.connectStatus !== SUCCESS) {
+      return
+    }
+    let deletedOutdatedPrekey = false
+    const fetchNewMessagesLoop = async () => {
+      if (this.connectStatus !== SUCCESS) {
+        return
+      }
+      const web3 = getWeb3()
+      const currentBlockNumber = await web3.eth.getBlockNumber().catch(() => -1)
+      if (currentBlockNumber === -1) {
+        return
+      }
+      if (currentBlockNumber === this.currentUserlastFetchBlock) {
+        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
+        return
+      }
+
+      try {
+        const {
+
+        }
+      }
+    }
+    this.fetchMessagesTimeout = window.setTimeout(fetchNewMessagesLoop, 0)
+  }
+
+  public stopFetchMessages = () => {
+    window.clearInterval(this.fetchMessagesTimeout)
   }
 
   private async createAccount(username: string, usernameHash: string, identityKeyPair: keys.IdentityKeyPair, {
@@ -762,7 +826,7 @@ export class Store {
         this.connectStatus = NO_ACCOUNT
       })
     }
-    this.accountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
+    this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
 
   private listenForNetworkChange = async () => {
@@ -770,9 +834,8 @@ export class Store {
     const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
 
     if (this.currentEthereumNetwork !== currentNetworkId) {
+      window.clearTimeout(this.detectAccountChangeTimeout)
       if (typeof currentNetworkId === 'undefined') {
-        window.clearTimeout(this.accountChangeTimeout)
-
         runInAction(() => {
           this.currentEthereumNetwork = undefined
           this.offlineSelectedEthereumNetwork = currentNetworkId
@@ -780,7 +843,6 @@ export class Store {
           this.connectStatus = OFFLINE
         })
       } else {
-        window.clearTimeout(this.accountChangeTimeout)
         return this.processAfterNetworkConnected()
       }
     }
@@ -816,7 +878,10 @@ export class Store {
         this.currentNetworkUsers,
         [
           this.currentUser,
-          this.box,
+          [
+            this.indexedDBStore,
+            this.box,
+          ],
           this.currentUserContacts,
           this.currentUserlastFetchBlock,
           this.currentUserSessions
@@ -857,7 +922,7 @@ export class Store {
         this.connectStatus = CONTRACT_ADDRESS_ERROR
         this.connectError = err
       }
-      this.accountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
+      this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
       window.setTimeout(this.listenForNetworkChange, 100)
     })
   }
@@ -870,7 +935,7 @@ export class Store {
     // box
     (async () => {
       if (!currentUser) {
-        return this.box
+        return Promise.reject(null)
       }
       const store = new IndexedDBStore(currentUser.usernameHash)
       /**
@@ -880,9 +945,9 @@ export class Store {
        */
       const box = new Cryptobox(store as any, 0)
       await box.load()
-      return box
+      return [store, box] as [IndexedDBStore, Cryptobox]
     })()
-      .catch(() => this.box),
+      .catch(() => [this.indexedDBStore, this.box] as [undefined, undefined]),
     // contacts
     Promise.resolve(currentUser ? currentUser.contacts : this.currentUserContacts),
     // lastFetchBlock
@@ -898,6 +963,100 @@ export class Store {
     )
 
     return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
+  }
+
+  private fetchNewMessages = async (
+    lastFetchBlock = this.currentUserlastFetchBlock
+  ) => {
+    const {
+      lastBlock,
+      messages
+    } = await this.messagesContract.getMessages({
+      fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0
+    })
+
+    const newMessages = (await Promise.all(messages
+      .map((message) => this.decryptMessage(message).catch(() => null))))
+      .filter((message) => message !== null)
+  }
+
+  private decryptMessage = async ({
+    message: encryptedConcatedBufferStr,
+    timestamp
+  }: ItrustbaseRawMessage) => {
+    const box = this.box as Cryptobox
+    const concatedBuf = sodium.from_hex(encryptedConcatedBufferStr.slice(2)) // Uint8Array
+    const preKeyID = new Uint16Array(concatedBuf.slice(0, PRE_KEY_ID_BYTES_LENGTH).buffer)[0]
+    const preKey = await (this.indexedDBStore as IndexedDBStore).load_prekey(preKeyID)
+
+    const keymailEnvelope = Envelope.decrypt(
+      concatedBuf.slice(PRE_KEY_ID_BYTES_LENGTH),
+      preKey
+    )
+
+    const proteusEnvelope: proteusMessage.Envelope = getEmptyEnvelope()
+    const {
+      fingerprint,
+      mac,
+      baseKey,
+      sessionTag,
+      isPreKeyMessage,
+      messageByteLength
+    } = keymailEnvelope.header
+
+    proteusEnvelope.mac = mac
+    proteusEnvelope._message_enc = (() => {
+      if (isPreKeyMessage) {
+        return new Uint8Array((proteusMessage.PreKeyMessage.new(
+          preKeyID,
+          baseKey,
+          fingerprint,
+          keymailEnvelope.cipherMessage
+        ) as any).serialise())
+      }
+      return new Uint8Array((keymailEnvelope.cipherMessage as any).serialise())
+    })()
+
+    await box.session_load(sessionTag).catch((err) => {
+      if (err.name !== 'RecordNotFoundError') {
+        // Maybe we have a corrupted session on local, delete it.
+        return Promise.all([
+          box.session_delete(sessionTag).then(noop),
+          this.db.getSession(sessionTag).then((session) => {
+            if (session) {
+              return this.db.deleteSession(this.currentUser as Iuser, session)
+            }
+            return
+          })
+        ]) as any
+      }
+      return
+    })
+
+    return box.decrypt(sessionTag, proteusEnvelope.serialise())
+      .then(decryptedPaddedMessage => this.deserializeMessage({
+        fingerprint,
+        decryptedPaddedMessage,
+        timestamp,
+        messageByteLength
+      }))
+  }
+
+  private deserializeMessage = ({
+    decryptedPaddedMessage,
+    fingerprint,
+    timestamp,
+    messageByteLength
+  }: IdecryptedTrustbaseMessage) => {
+    const unpaddedMessage = unpad512BytesMessage(decryptedPaddedMessage, messageByteLength)
+    const {
+      subject,
+      messageType,
+      fromUsername,
+      plainText
+    } = JSON.parse(unpaddedMessage)
+
+    
   }
 }
 
@@ -978,7 +1137,7 @@ function padTo512Bytes(plaintext: string) {
   if (messageByteLength >= 512) {
     throw new RangeError('Message to large')
   }
-  const result = new Uint8Array(512).fill(0xFF) // fill random number?
+  const result = new Uint8Array(512).fill(0xFF)
   result.set(typeArrayText)
   return {
     result,
@@ -986,12 +1145,12 @@ function padTo512Bytes(plaintext: string) {
   }
 }
 
-// function unpad512BytesMessage(padded512BytesMessage: Uint8Array, messageByteLength: number) {
-//   return sodium.to_string(padded512BytesMessage.subarray(
-//     0,
-//     messageByteLength
-//   ))
-// }
+function unpad512BytesMessage(padded512BytesMessage: Uint8Array, messageByteLength: number) {
+  return sodium.to_string(padded512BytesMessage.subarray(
+    0,
+    messageByteLength
+  ))
+}
 
 function makeSessionTag() {
   return `0x${sodium.to_hex(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))))}`
@@ -1049,4 +1208,17 @@ function getUsedNetworks(): NETWORKS[] {
     localStorage.setItem(LOCAL_STORAGE_KEYS.USED_NETWORKS, '[]')
     return []
   }
+}
+
+function getEmptyEnvelope() {
+  const aValidEnvelope = proteusMessage.Envelope
+    .deserialise(sodium.from_hex(
+      'a3000101a100582008071b607d3fbbe7f11d3f92312cca2f15acdef7e9895d61a364924ce59e9bc902589502a4001944'
+      + '3a01a10058206f5fcfc5e6009b64f33b2566ec56ec8ac35c115664f899322d65b5f13ad4b99c02a100a10058200652d3'
+      + '46c72a8995677347028917f55ad18b3898aed4ac8ed984e43857e35b8f03a5005054c4b855b93b737e30c9f4dd891a3b'
+      + '330111020003a1005820dc9884435f77974e03ce9a04b7158f13f2576b9f5e2decc7bf881febb90c7f7e0444279808e9'
+    ).buffer)
+  const emptyEnvelope = Object.create(Object.getPrototypeOf(aValidEnvelope))
+  emptyEnvelope.version = 1
+  return emptyEnvelope
 }
