@@ -42,7 +42,10 @@ import {
   IenvelopeHeader,
   Iuser,
   ItrustbaseRawMessage,
-  IdecryptedTrustbaseMessage
+  IdecryptedTrustbaseMessage,
+  IrawUnppaddedMessage,
+  IreceivedMessage,
+  Imessage
 } from '../typings/interface.d'
 
 import {
@@ -82,12 +85,14 @@ type IloadedUserData = [
     Cryptobox | undefined
   ],
   string[],
-  web3BlockType,
-  Isession[]
+  web3BlockType
 ]
+
+type TypeConnectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => void
 
 export class Store {
   @observable public connectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
+  @observable public lastConnectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
   @observable public connectError: Error
   @observable.ref public globalSettings: IglobalSettings = {}
   @observable public currentEthereumNetwork: NETWORKS | undefined
@@ -98,7 +103,13 @@ export class Store {
   @observable.ref public currentNetworkUsers: Iuser[] = []
   @observable.ref public currentUser: Iuser | undefined
   @observable.ref public currentUserContacts: string[] = []
-  @observable.ref private currentUserSessions: Isession[] = []
+  @observable.ref public currentUserSessions: Isession[] = []
+  @observable public newMessageCount = 0
+  @observable public currentSessionIndex = -1
+  @observable.ref public currentSession: Isession | undefined
+  @observable.ref public currentSessionMessages: Imessage[] = []
+  @observable public isFetchingMessage = false
+  private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
@@ -189,12 +200,13 @@ export class Store {
                     this.box
                   ],
                   this.currentUserContacts,
-                  this.currentUserlastFetchBlock,
-                  this.currentUserSessions
+                  this.currentUserlastFetchBlock
                 ]
               ] = loadedResult}
             }
+            const prevConnectStatus = this.connectStatus
             this.connectStatus = NO_ACCOUNT
+            this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
           })
 
           const waitForAccount = async () => {
@@ -215,14 +227,16 @@ export class Store {
             lastUsedNetworkId = usedNetworks[0]
           }
           if (typeof lastUsedNetworkId !== 'undefined') {
-            this.selectOfflineNetwork(lastUsedNetworkId, true, globalSettings, err)
+            this.selectOfflineNetwork(lastUsedNetworkId, false, true, globalSettings, err)
           } else {
             runInAction(() => {
               this.globalSettings = globalSettings
               this.offlineAvailableNetworks = usedNetworks
               this.offlineSelectedEthereumNetwork = lastUsedNetworkId
+              const prevConnectStatus = this.connectStatus
               this.connectStatus = ERROR
               this.connectError = err
+              this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
             })
           }
         }
@@ -278,21 +292,21 @@ export class Store {
       })
     }
     // check if registered, avoid unnecessary transaction
-    const { publicKey: identityKeyString } = await this.identitiesContract
+    const { publicKey: identityFingerprint } = await this.identitiesContract
       .getIdentity(username)
       .catch((err) => {
         registerDidFail(err)
         return {publicKey: undefined}
       })
-    if (!identityKeyString) {
+    if (!identityFingerprint) {
       return
     }
-    if (Number(identityKeyString) !== 0) {
+    if (Number(identityFingerprint) !== 0) {
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
 
     const identityKeyPair = IdentityKeyPair.new()
-    const newIdentityKeyString = `0x${identityKeyPair.public_key.fingerprint()}`
+    const newIdentityFingerprint = `0x${identityKeyPair.public_key.fingerprint()}`
 
     transactionWillCreate()
 
@@ -301,22 +315,24 @@ export class Store {
         this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
 
         const {
-          publicKey: registeredIdentityKeyString
+          publicKey: registeredIdentityFingerprint
         } = await this.identitiesContract.getIdentity(username)
           .catch(() => {
             return {publicKey: undefined}
           })
-        if (!registeredIdentityKeyString) {
+        if (!registeredIdentityFingerprint) {
           window.setTimeout(transactionConfirmation, 1000, 10)
           return
         }
-        if (registeredIdentityKeyString === newIdentityKeyString) {
+        if (registeredIdentityFingerprint === newIdentityFingerprint) {
           await this.createAccount(username, usernameHash, identityKeyPair, {
             accountWillCreate,
             accountDidCreate,
             accountCreationDidCatch,
             preKeysUploadDidCatch
           })
+          const user = await this.db.getUser(currentNetworkId, usernameHash) as Iuser
+          await this.useUser(user)
           registerDidComplete()
         } else {
           registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
@@ -324,7 +340,7 @@ export class Store {
       }
     }
 
-    this.identitiesContract.register(username, newIdentityKeyString)
+    this.identitiesContract.register(username, newIdentityFingerprint)
       .on('transactionHash', (transactionHash) => {
         transactionDidCreate(transactionHash)
         const newRegisterRecord: IregisterRecord = {
@@ -382,21 +398,23 @@ export class Store {
         if (counter >= 10) {
           this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
           const {
-            publicKey: registeredIdentityKeyString
+            publicKey: registeredIdentityFingerprint
           } = await this.identitiesContract.getIdentity(username)
             .catch(() => {
               return {publicKey: undefined}
             })
-          if (!registeredIdentityKeyString) {
+          if (!registeredIdentityFingerprint) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
-          if (registeredIdentityKeyString === `0x${identityKeyPair.public_key.fingerprint()}`) {
+          if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
             await this.createAccount(username, usernameHash, identityKeyPair, {
               accountWillCreate,
               accountDidCreate,
               accountCreationDidCatch,
               preKeysUploadDidCatch
             })
+            const user = await this.db.getUser(currentNetworkId, usernameHash) as Iuser
+            await this.useUser(user)
             return registerDidComplete()
           } else {
             return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
@@ -449,16 +467,16 @@ export class Store {
     const web3 = getWeb3()
     const toUsernameHash = web3.utils.sha3(toUsername)
     const {
-      publicKey: identityKeyString
+      publicKey: identityFingerprint
     } = await this.identitiesContract.getIdentity(toUsernameHash, { isHash: true })
       .catch((err) => {
         sendingDidFail(err)
         return {publicKey: undefined}
       })
-    if (!identityKeyString) {
+    if (!identityFingerprint) {
       return
     }
-    if (Number(identityKeyString) === 0) {
+    if (Number(identityFingerprint) === 0) {
       return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
     }
 
@@ -499,7 +517,7 @@ export class Store {
     })
 
     const fromUsername = currentUser.username
-    const fingerprint = (this.box as Cryptobox).identity.public_key
+    const senderIdentity = (this.box as Cryptobox).identity.public_key
     const isFromYourself = true
     const {
       messageType,
@@ -517,13 +535,14 @@ export class Store {
           messageType: _messageType,
           fromUsername,
           plainText
-        }))
+        } as IrawUnppaddedMessage))
 
-        const identityKey = identityKeyFromHexStr(identityKeyString.slice(2))
+        const identityKey = identityKeyFromHexStr(identityFingerprint.slice(2))
         const preKeyBundle = PreKeyBundle.create(identityKey, preKeyPublicKey, preKeyID)
 
+        const usingSessionTag = sessionTag === '' ? makeSessionTag() : sessionTag
         const encryptedMessage = await (this.box as Cryptobox).encrypt(
-          toUsernameHash,
+          usingSessionTag,
           paddedMessage,
           preKeyBundle.serialise()
         )
@@ -532,17 +551,17 @@ export class Store {
         const preKeyMessage: proteusMessage.PreKeyMessage = proteusEnvelope.message as any
         const cipherMessage = preKeyMessage.message
         const header = {
-          fingerprint,
+          senderIdentity,
           mac: proteusEnvelope.mac,
           baseKey: preKeyMessage.base_key,
-          sessionTag: sessionTag === '' ? makeSessionTag() : sessionTag,
+          sessionTag: usingSessionTag,
           isPreKeyMessage: true,
           messageByteLength
         }
 
         return {
           messageType: _messageType,
-          usingSessionTag: header.sessionTag,
+          usingSessionTag,
           keymailEnvelope: new Envelope(header, cipherMessage)
         }
       } else {
@@ -554,10 +573,10 @@ export class Store {
           subject,
           messageType: _messageType,
           plainText
-        }))
+        } as IrawUnppaddedMessage))
 
         const encryptedMessage = await (this.box as Cryptobox).encrypt(
-          toUsernameHash,
+          sessionTag,
           paddedMessage
         )
 
@@ -569,7 +588,7 @@ export class Store {
             const preKeyMessage = envelope.message
             cipherMessage = preKeyMessage.message
             header = {
-              fingerprint,
+              senderIdentity,
               mac: envelope.mac,
               baseKey: preKeyMessage.base_key,
               isPreKeyMessage: true,
@@ -582,7 +601,7 @@ export class Store {
 
           cipherMessage = envelope.message as any
           header = {
-            fingerprint,
+            senderIdentity,
             mac: envelope.mac,
             baseKey: keys.KeyPair.new().public_key, // generate a new one
             isPreKeyMessage: false,
@@ -622,11 +641,10 @@ export class Store {
               messageType,
               timestamp: confirmedTimestamp,
               plainText,
-              isFromYourself,
-              fromUsername
+              isFromYourself
             })
           }
-          if (sessionTag === usingSessionTag) {
+          if (sessionTag !== usingSessionTag) {
             await createNewSession()
           } else {
             // cryptobox session corrupted
@@ -646,22 +664,24 @@ export class Store {
             }
           }
 
-          const newSessions = await this.db.getSessions(currentUser)
-          runInAction(() => {
-            if (!this.currentUserContacts.includes(toUsername)) {
-              this.currentUserContacts = this.currentUserContacts.concat(toUsername)
-            }
-            this.currentUserSessions = newSessions
-          })
+          if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
+            const messages = await this.db.getMessages(sessionTag)
+            runInAction(() => {
+              this.currentSessionMessages = messages
+            })
+          } else {
+            this.loadSessions()
+          }
           return sendingDidComplete()
         }
       })
       .on('error', transactionCreationDidCatch)
   }
 
-  public useUser = async (user: Iuser) => {
+  public useUser = async (user: Iuser, shouldRefreshSessions = false) => {
     const networkId = this.currentEthereumNetwork || this.offlineSelectedEthereumNetwork as NETWORKS
     const userData = await this.loadUserData(user)
+    const sessions = shouldRefreshSessions ? await this.db.getSessions(userData[0] as Iuser) : undefined
     runInAction(() => {
       [
         this.currentUser,
@@ -670,9 +690,12 @@ export class Store {
           this.box,
         ],
         this.currentUserContacts,
-        this.currentUserlastFetchBlock,
-        this.currentUserSessions
+        this.currentUserlastFetchBlock
       ] = userData
+      if (sessions) {
+        this.currentUserSessions = sessions
+      }
+      this.newMessageCount = 0
       addUsedNetwork(networkId)
       setLastUsedUser(networkId, user.usernameHash)
     })
@@ -680,7 +703,8 @@ export class Store {
 
   public selectOfflineNetwork = async (
     networkId: NETWORKS,
-    isFirstConnect: boolean = false,
+    shouldRefreshSessions = false,
+    isFirstConnect = false,
     globalSettings?: IglobalSettings,
     err?: Error
   ) => {
@@ -706,12 +730,16 @@ export class Store {
         .then((currentUser) => this.loadUserData(currentUser))
     ])}
 
+    const currentUser = loadedUserData[0]
+    const sessions = currentUser && shouldRefreshSessions ? await this.db.getSessions(currentUser) : undefined
+
     runInAction(() => {
       if (isFirstConnect) {
         this.globalSettings = globalSettings as IglobalSettings
         this.offlineAvailableNetworks = getUsedNetworks()
         this.connectStatus = ERROR
         this.connectError = err as Error
+        this.connectStatusDidChange(this.connectStatus, ERROR)
       }
       this.currentNetworkSettings = currentNetworkSettings
       this.currentNetworkUsers = currentNetworkUsers
@@ -723,9 +751,11 @@ export class Store {
             // this.box,
           // ]
         , // this.contacts,
-        , // this.lastFetchBlock,
-        this.currentUserSessions
+        , // this.lastFetchBlock
       ] = loadedUserData}
+      if (sessions) {
+        this.currentUserSessions = sessions
+      }
     })
   }
 
@@ -739,26 +769,90 @@ export class Store {
         return
       }
       const web3 = getWeb3()
-      const currentBlockNumber = await web3.eth.getBlockNumber().catch(() => -1)
-      if (currentBlockNumber === -1) {
+      const currentBlockNumber = await web3.eth.getBlockNumber().catch(() => undefined)
+      if (typeof currentBlockNumber === 'undefined') {
+        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
         return
       }
+
       if (currentBlockNumber === this.currentUserlastFetchBlock) {
         window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
         return
       }
 
       try {
-        const {
+        await this.fetchNewMessages()
 
+        if (!deletedOutdatedPrekey) {
+          this.deleteOutdatedPrekeys()
+          deletedOutdatedPrekey = true
         }
+      } finally {
+        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
       }
     }
-    this.fetchMessagesTimeout = window.setTimeout(fetchNewMessagesLoop, 0)
+    runInAction(() => {
+      this.isFetchingMessage = true
+      this.fetchMessagesTimeout = window.setTimeout(fetchNewMessagesLoop, 0)
+    })
   }
 
   public stopFetchMessages = () => {
-    window.clearInterval(this.fetchMessagesTimeout)
+    runInAction(() => {
+      this.isFetchingMessage = false
+      window.clearInterval(this.fetchMessagesTimeout)
+    })
+  }
+
+  public loadSessions = async () => {
+    if (!this.currentUser) {
+      return
+    }
+    const {
+      networkId,
+      usernameHash
+    } = this.currentUser
+    const updatedUser = await this.db.getUser(networkId, usernameHash) as Iuser
+    const sessions = await this.db.getSessions(updatedUser)
+    runInAction(() => {
+      this.currentUserSessions = sessions
+
+      const updatedContacts = updatedUser.contacts
+      if (updatedContacts.length !== this.currentUserContacts.length) {
+        this.currentUserContacts = updatedContacts
+      }
+      this.newMessageCount = 0
+    })
+  }
+
+  public selectSession = async (index: number) => {
+    const session = this.currentUserSessions[index]
+    const messages = await this.db.getMessages(session.sessionTag)
+    await this.db.clearSessionUnread(session)
+    session.unreadCount = 0
+    runInAction(() => {
+      this.currentUserSessions = this.currentUserSessions.slice(0)
+      this.currentSessionIndex = index
+      this.currentSession = session
+      this.currentSessionMessages = messages
+    })
+  }
+
+  public listenForConnectStatusChange = (listener: TypeConnectStatusListener) => {
+    this.connectStatusListener.push(listener)
+    return () => {
+      this.removeConnectStatusListener(listener)
+    }
+  }
+
+  public removeConnectStatusListener = (listener: TypeConnectStatusListener) => {
+    this.connectStatusListener = this.connectStatusListener.filter((_listener) => _listener !== listener)
+  }
+
+  private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {
+    this.connectStatusListener.forEach((listener) => {
+      listener(prevStatus, currentStatus)
+    })
   }
 
   private async createAccount(username: string, usernameHash: string, identityKeyPair: keys.IdentityKeyPair, {
@@ -816,14 +910,18 @@ export class Store {
       if (this.currentEthereumAccount !== accounts[0]) {
         runInAction(() => {
           this.currentEthereumAccount = web3.eth.defaultAccount = accounts[0]
+          const prevConnectStatus = this.connectStatus
           this.connectStatus = this.connectError ? CONTRACT_ADDRESS_ERROR : SUCCESS
+          this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
         })
       }
     } else if (this.connectStatus !== NO_ACCOUNT) {
       runInAction(() => {
         this.currentEthereumAccount = ''
         this.offlineAvailableNetworks = getUsedNetworks()
+        const prevConnectStatus = this.connectStatus
         this.connectStatus = NO_ACCOUNT
+        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       })
     }
     this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
@@ -840,7 +938,9 @@ export class Store {
           this.currentEthereumNetwork = undefined
           this.offlineSelectedEthereumNetwork = currentNetworkId
           this.offlineAvailableNetworks = getUsedNetworks()
+          const prevConnectStatus = this.connectStatus
           this.connectStatus = OFFLINE
+          this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
         })
       } else {
         return this.processAfterNetworkConnected()
@@ -869,6 +969,7 @@ export class Store {
         .catch(() => this.currentUser)
         .then((currentUser) => this.loadUserData(currentUser))
     ])
+  
     runInAction(() => {
       if (isFirstConnect) {
         this.globalSettings = globalSettings as IglobalSettings
@@ -883,10 +984,10 @@ export class Store {
             this.box,
           ],
           this.currentUserContacts,
-          this.currentUserlastFetchBlock,
-          this.currentUserSessions
+          this.currentUserlastFetchBlock
         ]
       ] = loadedResult}
+      this.newMessageCount = 0
 
       if (this.currentUser) {
         addUsedNetwork(currentNetworkId)
@@ -916,11 +1017,15 @@ export class Store {
           address: MessagesAddress
         }))
 
+        const prevConnectStatus = this.connectStatus
         this.connectStatus = SUCCESS
+        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       } catch (err) {
         // have trouble with contract instantiation.
+        const prevConnectStatus = this.connectStatus
         this.connectStatus = CONTRACT_ADDRESS_ERROR
         this.connectError = err
+        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       }
       this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
       window.setTimeout(this.listenForNetworkChange, 100)
@@ -947,13 +1052,11 @@ export class Store {
       await box.load()
       return [store, box] as [IndexedDBStore, Cryptobox]
     })()
-      .catch(() => [this.indexedDBStore, this.box] as [undefined, undefined]),
+      .catch(() => [this.indexedDBStore, this.box] as [IndexedDBStore | undefined, Cryptobox | undefined]),
     // contacts
     Promise.resolve(currentUser ? currentUser.contacts : this.currentUserContacts),
     // lastFetchBlock
-    Promise.resolve(currentUser ? currentUser.lastFetchBlock : this.currentUserlastFetchBlock),
-    // sessions
-    currentUser ? this.db.getSessions(currentUser) : Promise.resolve(this.currentUserSessions)
+    Promise.resolve(currentUser ? currentUser.lastFetchBlock : this.currentUserlastFetchBlock)
     ])
 
   private getPreKeys = async (usernameOrUsernameHash: string, isHash: boolean = false) => {
@@ -975,9 +1078,59 @@ export class Store {
       fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0
     })
 
-    const newMessages = (await Promise.all(messages
+    if (messages.length === 0) {
+      return
+    }
+
+    const newReceivedMessages = (await Promise.all(messages
       .map((message) => this.decryptMessage(message).catch(() => null))))
-      .filter((message) => message !== null)
+      .filter((message) => message !== null) as IreceivedMessage[]
+    
+    const user = this.currentUser as Iuser
+    let unreadMessagesLength = newReceivedMessages.length 
+    await Promise.all(
+      newReceivedMessages.map((message) => {
+        switch(message.messageType) {
+          case MESSAGE_TYPE.HELLO:
+            return this.db.createSession(Object.assign({}, message, {
+              user,
+              contact: message.fromUsername as string
+            }))
+          default:
+            const sessionTag = message.sessionTag
+            if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
+              return this.db.createMessage(Object.assign({}, message, {
+                  user,
+                  plainText: message.plainText as string,
+                  shouldAddUnread: false
+                }))
+                  .then(() => this.db.getMessages(sessionTag))
+                  .then((messages) => {
+                    runInAction(() => {
+                      if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
+                        this.currentSessionMessages = messages
+                        unreadMessagesLength--
+                      }
+                    })
+              })
+            } else {
+              return this.db.createMessage(Object.assign({}, message, {
+                user,
+                plainText: message.plainText as string
+              }))
+            }
+        }
+      }).concat(
+        this.db.updateLastFetchBlock(user, lastBlock).then(() => {})
+      )
+    ).then(() => {
+      runInAction(() => {
+        this.currentUserlastFetchBlock = lastBlock
+        if (unreadMessagesLength > 0) {
+          this.newMessageCount += unreadMessagesLength
+        }
+      })
+    })
   }
 
   private decryptMessage = async ({
@@ -996,7 +1149,7 @@ export class Store {
 
     const proteusEnvelope: proteusMessage.Envelope = getEmptyEnvelope()
     const {
-      fingerprint,
+      senderIdentity,
       mac,
       baseKey,
       sessionTag,
@@ -1010,7 +1163,7 @@ export class Store {
         return new Uint8Array((proteusMessage.PreKeyMessage.new(
           preKeyID,
           baseKey,
-          fingerprint,
+          senderIdentity,
           keymailEnvelope.cipherMessage
         ) as any).serialise())
       }
@@ -1035,16 +1188,19 @@ export class Store {
 
     return box.decrypt(sessionTag, proteusEnvelope.serialise())
       .then(decryptedPaddedMessage => this.deserializeMessage({
-        fingerprint,
         decryptedPaddedMessage,
+        senderIdentity,
         timestamp,
         messageByteLength
       }))
+      .then((message) => Object.assign(message, {
+        sessionTag
+      }))
   }
 
-  private deserializeMessage = ({
+  private deserializeMessage = async ({
     decryptedPaddedMessage,
-    fingerprint,
+    senderIdentity,
     timestamp,
     messageByteLength
   }: IdecryptedTrustbaseMessage) => {
@@ -1054,9 +1210,34 @@ export class Store {
       messageType,
       fromUsername,
       plainText
-    } = JSON.parse(unpaddedMessage)
+    } = JSON.parse(unpaddedMessage) as IrawUnppaddedMessage
 
-    
+    if (fromUsername) {
+      const {
+        publicKey: expectedFingerprint
+      } = await this.identitiesContract.getIdentity(fromUsername)
+  
+      if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
+        throw new Error('Invalid message: sender identity not match')
+      }
+    }
+
+    return {
+      messageType,
+      subject,
+      timestamp: Number(timestamp),
+      fromUsername,
+      plainText
+    }
+  }
+
+  private deleteOutdatedPrekeys = async () => {
+    const store =  this.indexedDBStore as IndexedDBStore
+    const preKeysFromStorage = await store.load_prekeys()
+    const today = unixToday()
+    return Promise.all(preKeysFromStorage
+      .filter((preKey) => Number(preKey.key_id) < today)
+      .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
   }
 }
 

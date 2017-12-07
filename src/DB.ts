@@ -37,9 +37,8 @@ interface IcreateSessionArgs {
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
-  plainText: string
+  plainText?: string
   isFromYourself?: boolean
-  fromUsername?: string
 }
 
 interface IgetSessionsOptions {
@@ -60,7 +59,7 @@ interface IcreateMessageArgs {
   timestamp: number
   plainText: string
   isFromYourself?: boolean
-  fromUsername?: string
+  shouldAddUnread?: boolean
 }
 
 interface IgetMessagesOptions {
@@ -278,8 +277,7 @@ export default class DB {
     messageType,
     timestamp,
     plainText,
-    isFromYourself = false,
-    fromUsername
+    isFromYourself = false
   }: IcreateSessionArgs) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableSessions
@@ -289,7 +287,9 @@ export default class DB {
           usernameHash,
           contact,
           subject,
-          lastUpdate: Date.now()
+          lastUpdate: Date.now(),
+          unreadCount: isFromYourself ? 0 : 1,
+          isClosed: false
         })
       this.tableMessages
         .add({
@@ -299,17 +299,16 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself,
-          fromUsername
+          isFromYourself
         })
       this.addContact(user, contact)
     })
   }
 
-  public refreshSession(sessionTag: string) {
+  public clearSessionUnread(session: Isession) {
     return this.tableSessions
-      .update(sessionTag, {
-        lastUpdate: Date.now()
+      .update(session.sessionTag, {
+        unreadCount: 0
       })
   }
 
@@ -335,7 +334,7 @@ export default class DB {
           .filter((session) =>
             session.networkId === networkId
             && session.usernameHash === usernameHash
-            && contact ? session.contact === contact : true
+            && (contact ? session.contact === contact : true)
           )
         if (offset >= 0) {
           _collect = _collect.offset(offset)
@@ -346,6 +345,15 @@ export default class DB {
         return _collect
       })()
       return collect.toArray()
+  }
+
+  public closeSession({
+    sessionTag
+  }: Isession) {
+    return this.tableSessions
+      .update(sessionTag, {
+        isClosed: true
+      })
   }
 
   public deleteSession(
@@ -404,10 +412,10 @@ export default class DB {
       timestamp,
       plainText,
       isFromYourself = false,
-      fromUsername
+      shouldAddUnread = true
     }: IcreateMessageArgs,
   ) {
-    return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
+    return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
       this.tableMessages
         .add({
           networkId,
@@ -416,10 +424,19 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself,
-          fromUsername
+          isFromYourself
         })
-      this.refreshSession(sessionTag)
+      if (!isFromYourself && shouldAddUnread) {
+        const session = await this.getSession(sessionTag) as Isession
+        this.tableSessions
+          .update(sessionTag, {
+            unreadCount: session.unreadCount + 1
+          })
+      }
+      this.tableSessions
+        .update(sessionTag, {
+          lastUpdate: Date.now()
+        })
     })
   }
 
@@ -429,10 +446,7 @@ export default class DB {
   }
 
   public getMessages(
-    {
-      networkId,
-      usernameHash
-    }: Iuser,
+    sessionTag: string,
     {
       timestampAfter,
       timestampBefore,
@@ -445,10 +459,9 @@ export default class DB {
         .orderBy('timestamp')
         .reverse()
         .filter((message) =>
-          message.networkId === networkId
-          && message.usernameHash === usernameHash
-          && timestampAfter ? message.timestamp >= timestampAfter : true
-          && timestampBefore ? message.timestamp < timestampBefore : true
+          message.sessionTag === sessionTag
+          && (timestampAfter ? message.timestamp >= timestampAfter : true)
+          && (timestampBefore ? message.timestamp < timestampBefore : true)
         )
       if (offset >= 0) {
         _collect = _collect.offset(offset)
@@ -458,7 +471,7 @@ export default class DB {
       }
       return _collect
     })()
-    return collect.toArray()
+    return collect.toArray().then((arr) => arr.reverse())
   }
 
   public deleteMessage({

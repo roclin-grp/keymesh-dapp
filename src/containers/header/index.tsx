@@ -20,7 +20,8 @@ import { Iuser } from '../../../typings/interface'
 const noop = () => {/**/}
 
 interface Iprops {
-  store: Store
+  store: Store,
+  shouldRefreshSessions?: boolean
 }
 
 interface Istate {
@@ -30,6 +31,9 @@ interface Istate {
 
 @inject('store') @observer
 class Header extends React.Component<Iprops, Istate> {
+  public static defaultProps = {
+    shouldRefreshSessions: false
+  }
   public readonly state = {
     showNetworks: false,
     showUsers: false
@@ -88,11 +92,14 @@ class Header extends React.Component<Iprops, Istate> {
           </span>
           {
             connectStatus !== TRUSTBASE_CONNECT_STATUS.PENDING
-            && connectStatus !== TRUSTBASE_CONNECT_STATUS.OFFLINE
-            && connectStatus !== TRUSTBASE_CONNECT_STATUS.ERROR
               ? <span style={{cursor: 'default'}} title="Current Ethereum network">{
-                (NETWORK_NAMES as any)[currentEthereumNetwork as NETWORKS]
-                || `Custom(${currentEthereumNetwork})`
+                connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
+                || connectStatus === TRUSTBASE_CONNECT_STATUS.OFFLINE
+                  ? 'No network'
+                  : (
+                    (NETWORK_NAMES as any)[currentEthereumNetwork as NETWORKS]
+                    || `Custom(${currentEthereumNetwork})`
+                  )
               }</span>
               : offlineSelectedEthereumNetwork
                   ? <span
@@ -213,26 +220,30 @@ class Header extends React.Component<Iprops, Istate> {
                         onSelect={this.handleSelectUser}
                       />)
                   }
-                  <li
-                    style={{
-                      display: 'block',
-                      listStyle: 'none',
-                  }}>
-                    <Link
-                      to="/register"
+                  {
+                    connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+                    ? <li
                       style={{
-                        fontSize: 14,
-                        height: 25,
-                        lineHeight: '25px',
-                        padding: '10px 20px',
                         display: 'block',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        color: 'orange'
-                      }}>
-                      Register
-                    </Link>
-                  </li>
+                        listStyle: 'none',
+                    }}>
+                      <Link
+                        to="/register"
+                        style={{
+                          fontSize: 14,
+                          height: 25,
+                          lineHeight: '25px',
+                          padding: '10px 20px',
+                          display: 'block',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          color: 'orange'
+                        }}>
+                        Register
+                      </Link>
+                    </li>
+                    : null
+                  }
               </ul>
               : null
           }
@@ -264,7 +275,7 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleSelectNetwork = (networkId: NETWORKS) => {
-    this.props.store.selectOfflineNetwork(networkId).catch(() => {/**/})
+    this.props.store.selectOfflineNetwork(networkId, this.props.shouldRefreshSessions).catch(() => {/**/})
   }
 
   private handleShowUsers = (e: React.MouseEvent<HTMLSpanElement>) => {
@@ -290,7 +301,7 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleSelectUser = (user: Iuser) => {
-    this.props.store.useUser(user).catch(() => {/**/})
+    this.props.store.useUser(user, this.props.shouldRefreshSessions).catch(() => {/**/})
   }
 }
 

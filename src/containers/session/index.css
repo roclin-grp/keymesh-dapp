@@ -1,0 +1,60 @@
+.session--unexpand {
+  position: relative;
+  cursor: pointer;
+  background: white;
+  font-size: 16px;
+  list-style: none;
+  padding: 10px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+}
+
+.session-expanded {
+  position: relative;
+  background: white;
+  font-size: 16px;
+  list-style: none;
+  padding: 10px 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.subject {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 10px 0;
+  border-bottom: 1px rgb(197, 197, 197) solid;
+}
+
+.session--unexpand::before, .session-expanded::before {
+  bottom: 0;
+  box-shadow: 0 -1px 0 #e0e0e0, 0 0 2px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.14);
+  content: '';
+  display: block;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.unread-msg-count {
+  background: orangered;
+  border-radius: 4px;
+  padding: 0 10px;
+  font-size: 14px;
+  line-height: 18px;
+  color: white;
+  margin-right: 10px;
+}
+
+.contact {
+  color: blue;
+  margin-right: 40px;
+}
+
+.last-update-time {
+  font-size: 14px;
+  margin-left: auto;
+}

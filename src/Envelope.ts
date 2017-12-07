@@ -21,7 +21,7 @@ class Envelope {
     for (let i = 0; i <= nprops - 1; i += 1) {
       switch (d.u8()) {
         case 0: {
-          (header as IenvelopeHeader).fingerprint = keys.IdentityKey.decode(d)
+          (header as IenvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
           break
         }
         case 1: {
@@ -121,7 +121,7 @@ class Envelope {
 
   public encode(e: CBOR.Encoder) {
     const {
-      fingerprint,
+      senderIdentity, // sender's public key, for envelope reassemble
       mac, // Message authentication code
       baseKey,
       sessionTag,
@@ -131,7 +131,7 @@ class Envelope {
 
     e.object(7)
     e.u8(0)
-    fingerprint.encode(e)
+    senderIdentity.encode(e)
     e.u8(1)
     e.object(1)
     e.u8(0)

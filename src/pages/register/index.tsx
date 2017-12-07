@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+import { withRouter,  } from 'react-router-dom'
+
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
@@ -30,6 +32,9 @@ const {
 } = REGISTER_FAIL_CODE
 
 interface Iprops {
+  history: {
+    push: (path: string) => void
+  }
   store: Store
 }
 
@@ -137,7 +142,8 @@ class Register extends React.Component<Iprops, Istate> {
       preKeysDidUpload: this.preKeysDidUpload,
       registerDidComplete: this.registerDidComplete,
       registerDidFail: this.registerDidFail
-    }).catch(this.registerDidFail)
+    })
+      .catch(this.registerDidFail)
   }
   private transactionWillCreate = () => {
     this.setState({
@@ -178,9 +184,12 @@ Uploading pre-keys...
   }
   private registerDidComplete = () => {
     this.setState({
-      registerProgress: 'Register completed.',
+      registerProgress: 'Register completed. Redirect to homepage in 5 sec',
       isRegistering: false
     })
+    setTimeout(() => {
+      this.props.history.push('/')
+    }, 5000)
   }
   private registerDidFail = (err: Error | null, code = UNKNOWN) => {
     this.setState({
@@ -201,4 +210,4 @@ Uploading pre-keys...
   }
 }
 
-export default Register
+export default withRouter(Register as any)

@@ -57,7 +57,7 @@ export interface IsendingLifecycle extends transactionLifecycle {
 }
 
 export interface IenvelopeHeader {
-  fingerprint: keys.IdentityKey
+  senderIdentity: keys.IdentityKey
   mac: Uint8Array
   baseKey: keys.PublicKey
   sessionTag: string
@@ -98,15 +98,16 @@ export interface Isession extends IuserIdentityKeys {
   lastUpdate: number
   contact: string
   subject: string
+  isClosed: boolean
+  unreadCount: number
 }
 
 export interface Imessage extends IuserIdentityKeys {
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
-  plainText: string
   isFromYourself: boolean
-  fromUsername?: string
+  plainText?: string
 }
 
 export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>
@@ -120,12 +121,24 @@ export type web3BlockType = web3.BlockType
 
 interface ItrustbaseRawMessage {
   message: string
-  timestamp: number
+  timestamp: string
 }
 
 interface IdecryptedTrustbaseMessage {
   decryptedPaddedMessage: Uint8Array
-  fingerprint: keys.IdentityKey
-  timestamp: number
+  senderIdentity: keys.IdentityKey
+  timestamp: string
   messageByteLength: number
+}
+
+interface IrawUnppaddedMessage {
+  messageType: MESSAGE_TYPE
+  subject: string
+  fromUsername?: string
+  plainText?: string
+}
+
+interface IreceivedMessage extends IrawUnppaddedMessage {
+  sessionTag: string
+  timestamp: number
 }

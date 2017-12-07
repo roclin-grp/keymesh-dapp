@@ -1,0 +1,39 @@
+.message {
+  font-size: 14px;
+  padding: 20px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  width: 50%;
+  color: gray;
+}
+
+.message--self {
+  margin-left: auto;
+}
+
+.sender {
+  color: blue;
+  margin-right: 10px;
+}
+
+.meta-info {
+  width: 100%;
+  text-align: start;
+}
+
+.message--self > .meta-info {
+  text-align: end;
+}
+
+.content {
+  color: rgb(22, 22, 22);
+  padding: 10px 10px;
+  font-size: 16px;
+  box-shadow: rgba(0, 0, 0, 0.118) 0px 1px 6px, rgba(0, 0, 0, 0.118) 0px 1px 4px;
+  text-align: start;
+  border-radius: 8px;
+}
+
+.message--self > .content {
+  margin-left: auto;
+}

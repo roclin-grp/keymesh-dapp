@@ -9,7 +9,6 @@ import {
 import Home from './pages/home'
 import Register from './pages/register'
 import Settings from './pages/settings'
-import Send from './pages/send'
 
 const App = () => (
   <Router>
@@ -17,7 +16,6 @@ const App = () => (
       <Route exact path="/" component={Home} />
       <Route path="/register" component={Register} />
       <Route path="/settings" component={Settings} />
-      <Route path="/send" component={Send} />
     </Switch>
   </Router>
 )

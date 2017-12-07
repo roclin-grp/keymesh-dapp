@@ -27,6 +27,7 @@ class UserOption extends React.Component<Iprops, Istate> {
         listStyle: 'none',
         padding: '10px 20px'
       }}
+      title={user.usernameHash}
       onClick={this.handleClick}>
       {user.username}
     </li>
