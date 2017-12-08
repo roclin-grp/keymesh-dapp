@@ -65,6 +65,11 @@
   margin: 0;
 }
 
+.session--unexpand > .subject::after {
+  content: '\2013';
+  margin: 0 5px;
+}
+
 .unread-msg-count {
   background: orangered;
   border-radius: 4px;
@@ -87,4 +92,12 @@
 
 .options {
   margin-left: auto;
+}
+
+.summary {
+  color: #a8a8a8
+}
+
+.summary--closed {
+  color: rgb(255, 131, 131)
 }

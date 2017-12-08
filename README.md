@@ -12,7 +12,8 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Send messages.
   - [x] Receive messages.
   - [x] Multi-account.
-  - [ ] Session summary, show a slice of latest message.
+  - [x] Session summary, show a slice of latest message.
+  - [ ] Continue registration from record. (Allow user left the registration page when record saved)
   - [ ] Delete session(s).
   - [ ] Upload/replace new pre-keys
   - [ ] Send message without waiting last sending complete in same session. (Function is easy to implement, but need to save & show message sending progress.)

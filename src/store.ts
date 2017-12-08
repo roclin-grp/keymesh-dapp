@@ -7,6 +7,7 @@ import {
 
 import {
   initialize,
+  getUsernameHash,
   getWeb3,
   Identities,
   PreKeys,
@@ -45,7 +46,8 @@ import {
   IdecryptedTrustbaseMessage,
   IrawUnppaddedMessage,
   IreceivedMessage,
-  Imessage
+  Imessage,
+  Icontact
 } from '../typings/interface.d'
 
 import {
@@ -56,7 +58,8 @@ import {
   MESSAGE_TYPE,
   LOCAL_STORAGE_KEYS,
   FETCH_MESSAGES_INTERVAL,
-  PRE_KEY_ID_BYTES_LENGTH
+  PRE_KEY_ID_BYTES_LENGTH,
+  SUMMARY_LENGTH
 } from './constants'
 
 const {
@@ -84,7 +87,7 @@ type IloadedUserData = [
     IndexedDBStore | undefined,
     Cryptobox | undefined
   ],
-  string[],
+  Icontact[],
   web3BlockType
 ]
 
@@ -102,7 +105,7 @@ export class Store {
   @observable.ref public currentNetworkSettings: InetworkSettings | undefined
   @observable.ref public currentNetworkUsers: Iuser[] = []
   @observable.ref public currentUser: Iuser | undefined
-  @observable.ref public currentUserContacts: string[] = []
+  @observable.ref public currentUserContacts: Icontact[] = []
   @observable.ref public currentUserSessions: Isession[] = []
   @observable public newMessageCount = 0
   @observable.ref public currentSession: Isession | undefined
@@ -634,13 +637,17 @@ export class Store {
           const createNewSession = async () => {
             await this.db.createSession({
               user: currentUser,
-              contact: toUsername,
+              contact: {
+                username: toUsername,
+                usernameHash: toUsernameHash
+              },
               subject,
               sessionTag: usingSessionTag,
               messageType,
               timestamp: confirmedTimestamp,
               plainText,
-              isFromYourself
+              isFromYourself,
+              summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
             })
           }
           if (sessionTag !== usingSessionTag) {
@@ -659,7 +666,10 @@ export class Store {
                 plainText,
                 isFromYourself
               })
-              await this.db.addContact(currentUser, toUsername)
+              await this.db.addContact(currentUser, {
+                username: toUsername,
+                usernameHash: toUsernameHash
+              })
             }
           }
 
@@ -670,14 +680,20 @@ export class Store {
                 this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
                 const index = this.currentUserSessions
                   .findIndex((session) => session.sessionTag === sessionTag)
-                this.currentUserSessions[index] = this.currentUserSessions[0]
-                this.currentUserSessions[0] = this.currentSession
+                this.currentSession.summary = `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
                 this.currentSession.lastUpdate = confirmedTimestamp * 1000
-                this.currentUserSessions = this.currentUserSessions.slice(0)
+                this.currentUserSessions = [
+                  this.currentSession,
+                  ...this.currentUserSessions.slice(0, index),
+                  ...this.currentUserSessions.slice(index + 1)
+                ]
               }
 
-              if (!this.currentUserContacts.includes(toUsername)) {
-                this.currentUserContacts.push(toUsername)
+              if (!this.currentUserContacts.find((contact) => contact.usernameHash === toUsernameHash)) {
+                this.currentUserContacts.push({
+                  username: toUsername,
+                  usernameHash: toUsernameHash
+                })
                 this.currentUserContacts = this.currentUserContacts.slice(0)
               }
             })
@@ -847,17 +863,25 @@ export class Store {
       session.unreadCount = 0
       session.isClosed = newSession.isClosed
       session.lastUpdate = newSession.lastUpdate
+      session.summary = newSession.summary
     }
     runInAction(() => {
-      if (unreadCount > 0) {
-        const index = this.currentUserSessions.indexOf(session)
-        this.currentUserSessions[index] = this.currentUserSessions[0]
-        this.currentUserSessions[0] = session
-        this.newMessageCount -= unreadCount
+      if (this.newMessageCount > 0 && unreadCount > 0) {
+        if (unreadCount < this.newMessageCount) {
+          const index = this.currentUserSessions.findIndex((_session) => _session.sessionTag === session.sessionTag)
+          this.currentUserSessions = [
+            session,
+            ...this.currentUserSessions.slice(0, index),
+            ...this.currentUserSessions.slice(index + 1)
+          ]
+          this.newMessageCount -= unreadCount
+        } else {
+          this.loadSessions()
+        }
       }
       this.currentUserSessions = this.currentUserSessions.slice(0)
-      this.currentSession = session
       this.currentSessionMessages = messages
+      this.currentSession = session
     })
   }
 
@@ -1120,11 +1144,16 @@ export class Store {
     let unreadMessagesLength = newReceivedMessages.length 
     await Promise.all(
       newReceivedMessages.map((message) => {
+        const plainText = message.plainText as string
         switch(message.messageType) {
           case MESSAGE_TYPE.HELLO:
             return this.db.createSession(Object.assign({}, message, {
               user,
-              contact: message.fromUsername as string
+              contact: {
+                username: message.fromUsername as string,
+                usernameHash: getUsernameHash(message.fromUsername as string)
+              },
+              summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
             }))
           default:
             const sessionTag = message.sessionTag
@@ -1141,11 +1170,14 @@ export class Store {
                         this.currentSessionMessages = messages
                         const index = this.currentUserSessions
                           .findIndex((session) => session.sessionTag === sessionTag)
-                        this.currentUserSessions[index] = this.currentUserSessions[0]
-                        this.currentUserSessions[0] = this.currentSession
                         this.currentSession.lastUpdate = message.timestamp * 1000
                         this.currentSession.isClosed = message.messageType === MESSAGE_TYPE.CLOSE_SESSION
-                        this.currentUserSessions = this.currentUserSessions.slice(0)
+                        this.currentSession.summary = this.currentSession.isClosed ? 'Session closed' : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+                        this.currentUserSessions = [
+                          this.currentSession,
+                          ...this.currentUserSessions.slice(0, index),
+                          ...this.currentUserSessions.slice(index + 1)
+                        ]
                         unreadMessagesLength--
                       }
                     })

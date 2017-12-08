@@ -72,7 +72,7 @@ export const SCHEMA_V1 = Object.freeze({
   [TABLES.NETWORK_SETTINGS]: 'networkId',
   [TABLES.REGISTER_RECORDS]: '[networkId+usernameHash], networkId',
   [TABLES.USERS]: '[networkId+usernameHash], networkId',
-  [TABLES.SESSIONS]: 'sessionTag, [networkId+usernameHash], lastUpdate, contact',
+  [TABLES.SESSIONS]: 'sessionTag, [networkId+usernameHash], lastUpdate, contact.usernameHash',
   [TABLES.MESSAGES]: '[sessionTag+timestamp], sessionTag, [networkId+usernameHash], timestamp',
 })
 
@@ -94,3 +94,7 @@ export const LOCAL_STORAGE_KEYS = Object.freeze({
 export const FETCH_MESSAGES_INTERVAL = 10000
 
 export const PRE_KEY_ID_BYTES_LENGTH = 2
+
+export const SUMMARY_LENGTH = 32
+
+export const SUBJECT_LENGTH = 32

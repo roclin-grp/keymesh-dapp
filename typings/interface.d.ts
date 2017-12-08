@@ -89,18 +89,23 @@ export interface IregisterRecord extends IuserIdentityKeys {
 export interface Iuser extends IuserIdentityKeys {
   username: string
   lastFetchBlock: web3.BlockType
-  contacts: string[]
+  contacts: Icontact[]
   owner: string
+}
+
+interface Icontact {
+  username: string
+  usernameHash: string
 }
 
 export interface Isession extends IuserIdentityKeys {
   sessionTag: string
   lastUpdate: number
-  contact: string
+  contact: Icontact
   subject: string
   isClosed: boolean
   unreadCount: number
-  // summary: string
+  summary: string
 }
 
 export interface Imessage extends IuserIdentityKeys {

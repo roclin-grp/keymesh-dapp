@@ -13,6 +13,7 @@ import {
   Iuser,
   Isession,
   Imessage,
+  Icontact,
 } from '../typings/interface.d'
 
 import {
@@ -20,7 +21,8 @@ import {
   TABLES,
   SCHEMA_V1,
   GLOBAL_SETTINGS_PRIMARY_KEY,
-  MESSAGE_TYPE
+  MESSAGE_TYPE,
+  SUMMARY_LENGTH
 } from './constants'
 
 interface IcreateUserArgs {
@@ -32,17 +34,18 @@ interface IcreateUserArgs {
 
 interface IcreateSessionArgs {
   user: Iuser
-  contact: string
+  contact: Icontact
   subject: string
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
+  summary: string
   plainText?: string
   isFromYourself?: boolean
 }
 
 interface IgetSessionsOptions {
-  contact?: string
+  contact?: Icontact
   offset?: number
   limit?: number
 }
@@ -224,14 +227,14 @@ export default class DB {
       usernameHash,
       contacts
     }: Iuser,
-    contactUsername: string
+    contact: Icontact
   ) {
-    if (contacts.includes(contactUsername)) {
+    if (contacts.find((_contact) => _contact.usernameHash === contact.usernameHash)) {
       return Dexie.Promise.resolve(1)
     }
     return this.tableUsers
       .update([networkId, usernameHash], {
-        contacts: contacts.concat(contactUsername)
+        contacts: contacts.concat(contact)
       })
   }
 
@@ -241,15 +244,15 @@ export default class DB {
       usernameHash,
       contacts
     }: Iuser,
-    contactUsername: string
+    contact: Icontact
   ) {
-    if (!contacts.includes(contactUsername)) {
+    if (!contacts.find((_contact) => _contact.usernameHash === contact.usernameHash)) {
       return Dexie.Promise.resolve(1)
     }
     return this.tableUsers
       .update([networkId, usernameHash], {
         contacts: contacts.
-          filter((username) => username !== contactUsername)
+          filter((_contact) => _contact.usernameHash !== contact.usernameHash)
       })
   }
 
@@ -277,6 +280,7 @@ export default class DB {
     messageType,
     timestamp,
     plainText,
+    summary,
     isFromYourself = false
   }: IcreateSessionArgs) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
@@ -286,6 +290,7 @@ export default class DB {
           networkId,
           usernameHash,
           contact,
+          summary,
           subject,
           lastUpdate: timestamp * 1000,
           unreadCount: isFromYourself ? 0 : 1,
@@ -371,7 +376,7 @@ export default class DB {
         .delete()
 
       const remainSessions = await this.tableSessions
-        .where({contact})
+        .where({'contact.usernameHash': contact.usernameHash})
         .toArray()
       if (remainSessions.length === 0) {
         await this.deleteContact(user, contact)
@@ -435,7 +440,8 @@ export default class DB {
       }
       this.tableSessions
         .update(sessionTag, {
-          lastUpdate: timestamp * 1000
+          lastUpdate: timestamp * 1000,
+          summary: messageType === MESSAGE_TYPE.CLOSE_SESSION ? 'Session closed' : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
         })
     })
   }

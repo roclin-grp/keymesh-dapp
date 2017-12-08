@@ -8,7 +8,8 @@ import Message from '../../components/message'
 
 import {
   SENDING_FAIL_CODE,
-  TRUSTBASE_CONNECT_STATUS
+  TRUSTBASE_CONNECT_STATUS,
+  SUBJECT_LENGTH
 } from '../../constants'
 
 import {
@@ -41,10 +42,12 @@ class Session extends React.Component<Iprops, Istate> {
   public render() {
     const {
       session: {
+        isClosed,
         sessionTag,
         unreadCount,
         contact,
         subject,
+        summary,
         lastUpdate,
       },
       store: {
@@ -56,6 +59,7 @@ class Session extends React.Component<Iprops, Istate> {
     const {
       isLoading
     } = this.state
+    const showSubject = subject === '' ? '(No subject)' : `${subject.slice(0, SUBJECT_LENGTH)}${subject.length > SUBJECT_LENGTH ? '...' : ''}`
     if (currentSession && currentSession.sessionTag === sessionTag) {
       return <li className="session-expanded">
         <div className="session-header">
@@ -65,8 +69,10 @@ class Session extends React.Component<Iprops, Istate> {
             aria-hidden="true"
             onClick={this.handleHide}
           />
-          <span className={`subject${subject === '' ? ' subject--empty' : ''}`}>
-            {subject === '' ? '(No subject)' : subject}
+          <span
+            title={subject === '' ? '(No subject)' : subject}
+            className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+            {showSubject}
           </span>
           <i
             className="options fa fa-ellipsis-v"
@@ -105,17 +111,20 @@ class Session extends React.Component<Iprops, Istate> {
       className="session--unexpand"
       onClick={isLoading ? noop : this.handleSelect}>
       <span
-        title={`${contact}`}
+        title={`${contact.username}(${contact.usernameHash.slice(0, 9)}...${contact.usernameHash.slice(-4)})`}
         className="contact">
-        {`${contact.slice(0, 10)}${contact.length > 10 ? '...' : ''}`}
+        {`${contact.username.slice(0, 10)}${contact.username.length > 10 ? '...' : ''}`}
       </span>
       {unreadCount > 0
         ?<span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
         : null
       }
-      <span className={`subject${subject === '' ? ' subject--empty' : ''}`}>
-        {subject === '' ? '(No subject)' : subject}
+      <span
+        title={subject === '' ? '(No subject)' : subject}
+        className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+        {showSubject}
       </span>
+      <span className={`summary${isClosed ? ' summary--closed' : ''}`}>{summary}</span>
       <span className="last-update-time">{formatSessionTimestamp(lastUpdate)}</span>
     </li>
   }
@@ -171,7 +180,7 @@ class Session extends React.Component<Iprops, Istate> {
     } = this.props.store
 
     send(
-      currentSession.contact,
+      currentSession.contact.username,
       currentSession.subject,
       this.input.value,
       {
