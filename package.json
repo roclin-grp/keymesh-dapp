@@ -1,7 +1,7 @@
 {
-  "name": "neutrino-react-ts-boilerplate",
-  "version": "0.0.1",
-  "main": "index.js",
+  "name": "keymail-webapp",
+  "private": true,
+  "version": "0.0.0",
   "license": "MIT",
   "scripts": {
     "start": "neutrino start",
