@@ -25,6 +25,10 @@ class NetworkOption extends React.Component<Iprops, Istate> {
   private handleClick = (e: React.MouseEvent<HTMLLIElement>) => {
     e.preventDefault()
     e.stopPropagation()
+    const selection = window.getSelection()
+    if (selection.type === 'Range') {
+      return
+    }
     const {
       networkId,
       onSelect

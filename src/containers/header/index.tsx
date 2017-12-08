@@ -154,6 +154,7 @@ class Header extends React.Component<Iprops, Istate> {
           {
             currentUser
               ? <span
+                  title={`${currentUser.username}(${currentUser.usernameHash.slice(0, 9)}...${currentUser.usernameHash.slice(-4)})`}
                   style={{
                     display: 'block',
                     height: 50,
@@ -162,7 +163,7 @@ class Header extends React.Component<Iprops, Istate> {
                     cursor: 'pointer'
                   }}
                   onClick={this.handleShowUsers}>
-                {currentUser.username}
+                {`${currentUser.username.slice(0, 10)}${currentUser.username.length > 10 ? '...' : ''}`}
                 {
                   currentNetworkUsers.length > 0
                     ? <span
@@ -254,6 +255,10 @@ class Header extends React.Component<Iprops, Istate> {
 
   private handleShowNetworks = (e: React.MouseEvent<HTMLSpanElement>) => {
     e.stopPropagation()
+    const selection = window.getSelection()
+    if (selection.type === 'Range') {
+      return
+    }
     this.setState(({showNetworks}) => {
       return {
         showNetworks: !showNetworks
@@ -267,6 +272,10 @@ class Header extends React.Component<Iprops, Istate> {
 
   private handleClickOtherPlaceHideNetworks = () => {
     if (this.state.showNetworks) {
+      const selection = window.getSelection()
+      if (selection.type === 'Range') {
+        return
+      }
       document.removeEventListener('click', this.handleClickOtherPlaceHideNetworks)
       this.setState({
         showNetworks: false
@@ -280,6 +289,10 @@ class Header extends React.Component<Iprops, Istate> {
 
   private handleShowUsers = (e: React.MouseEvent<HTMLSpanElement>) => {
     e.stopPropagation()
+    const selection = window.getSelection()
+    if (selection.type === 'Range') {
+      return
+    }
     this.setState(({showUsers}) => {
       return {
         showUsers: !showUsers
@@ -293,6 +306,10 @@ class Header extends React.Component<Iprops, Istate> {
 
   private handleClickOtherPlaceHideUsers = () => {
     if (this.state.showUsers) {
+      const selection = window.getSelection()
+      if (selection.type === 'Range') {
+        return
+      }
       document.removeEventListener('click', this.handleClickOtherPlaceHideUsers)
       this.setState({
         showUsers: false

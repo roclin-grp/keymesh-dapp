@@ -168,14 +168,9 @@ class Home extends React.Component<Iprops, Istate> {
               currentUser
                 ? <ul className="session-list">{
                     currentUserSessions
-                      .map((session, index) => <SessionWithStore
+                      .map((session) => <SessionWithStore
                         key={session.sessionTag}
-                        index={index}
-                        sessionTag={session.sessionTag}
-                        subject={session.subject}
-                        contact={session.contact}
-                        unreadCount={session.unreadCount}
-                        lastUpdate={session.lastUpdate}
+                        session={session}
                       />)
                   }</ul>
                 : 'No account'
@@ -259,11 +254,13 @@ class Home extends React.Component<Iprops, Istate> {
       sendingProgress: 'Sent.',
       isSending: false
     }, () => {
-      if (!this.state.isSending) {
-        this.setState({
-          sendingProgress: ''
-        })
-      }
+      window.setTimeout(() => {
+        if (!this.state.isSending) {
+          this.setState({
+            sendingProgress: ''
+          })
+        }
+      }, 3000)
     })
   }
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {

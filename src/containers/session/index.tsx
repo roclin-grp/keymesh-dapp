@@ -20,16 +20,7 @@ import './index.css'
 const noop = () => {/**/}
 
 interface Iprops {
-  sessionTag: string
-  index: number
-  subject: string
-  contact: string
-  unreadCount: number
-  lastUpdate: number
-  // summary: string
-}
-
-interface IpropsWithStore extends Iprops {
+  session: Isession
   store: Store
 }
 
@@ -40,7 +31,7 @@ interface Istate {
 }
 
 @inject('store') @observer
-class Session extends React.Component<IpropsWithStore, Istate> {
+class Session extends React.Component<Iprops, Istate> {
   public readonly state = {
     isLoading: false,
     isSending: false,
@@ -49,14 +40,15 @@ class Session extends React.Component<IpropsWithStore, Istate> {
   private input: HTMLInputElement | null
   public render() {
     const {
-      sessionTag,
-      index,
-      unreadCount,
-      contact,
-      subject,
-      lastUpdate,
+      session: {
+        sessionTag,
+        unreadCount,
+        contact,
+        subject,
+        lastUpdate,
+      },
       store: {
-        currentSessionIndex,
+        currentSession,
         currentSessionMessages,
         connectStatus
       }
@@ -64,10 +56,22 @@ class Session extends React.Component<IpropsWithStore, Istate> {
     const {
       isLoading
     } = this.state
-    if (currentSessionIndex === index) {
+    if (currentSession && currentSession.sessionTag === sessionTag) {
       return <li className="session-expanded">
-        <div className="subject">
-          {subject}
+        <div className="session-header">
+          <i
+            title="fold"
+            className="hide-button fa fa-chevron-up"
+            aria-hidden="true"
+            onClick={this.handleHide}
+          />
+          <span className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+            {subject === '' ? '(No subject)' : subject}
+          </span>
+          <i
+            className="options fa fa-ellipsis-v"
+            aria-hidden="true">
+          </i>
         </div>
         {
           currentSessionMessages.length > 0
@@ -99,20 +103,29 @@ class Session extends React.Component<IpropsWithStore, Istate> {
     }
     return <li
       className="session--unexpand"
-      onClick={isLoading ? noop : this.handleClick}>
+      onClick={isLoading ? noop : this.handleSelect}>
+      <span
+        title={`${contact}`}
+        className="contact">
+        {`${contact.slice(0, 10)}${contact.length > 10 ? '...' : ''}`}
+      </span>
       {unreadCount > 0
         ?<span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
         : null
       }
-      <span className="contact">{contact}</span>
-      {subject}
+      <span className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+        {subject === '' ? '(No subject)' : subject}
+      </span>
       <span className="last-update-time">{formatSessionTimestamp(lastUpdate)}</span>
     </li>
   }
-  private handleClick = async (e: React.MouseEvent<HTMLLIElement>) => {
-    e.preventDefault()
+  private handleSelect = async () => {
+    const selection = window.getSelection()
+    if (selection.type === 'Range') {
+      return
+    }
     const {
-      index,
+      session,
       store: {
         selectSession
       }
@@ -120,11 +133,21 @@ class Session extends React.Component<IpropsWithStore, Istate> {
     this.setState({
       isLoading: true
     })
-    await selectSession(index)
+    await selectSession(session)
     this.setState({
       isLoading: false
     })
   }
+
+  private handleHide = (e: React.MouseEvent<HTMLBaseElement>) => {
+    e.preventDefault()
+    const selection = window.getSelection()
+    if (selection.type === 'Range') {
+      return
+    }
+    this.props.store.unselectSession()
+  }
+
   private handleSend = async () => {
     const {
       connectStatus,
@@ -173,6 +196,14 @@ class Session extends React.Component<IpropsWithStore, Istate> {
     this.setState({
       sendingProgress: 'Sent.',
       isSending: false
+    }, () => {
+      window.setTimeout(() => {
+        if (!this.state.isSending) {
+          this.setState({
+            sendingProgress: ''
+          })
+        }
+      }, 3000)
     })
   }
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {

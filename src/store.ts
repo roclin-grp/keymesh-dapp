@@ -105,7 +105,6 @@ export class Store {
   @observable.ref public currentUserContacts: string[] = []
   @observable.ref public currentUserSessions: Isession[] = []
   @observable public newMessageCount = 0
-  @observable public currentSessionIndex = -1
   @observable.ref public currentSession: Isession | undefined
   @observable.ref public currentSessionMessages: Imessage[] = []
   @observable public isFetchingMessage = false
@@ -665,9 +664,22 @@ export class Store {
           }
 
           if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
-            const messages = await this.db.getMessages(sessionTag)
+            const newMessage = await this.db.getMessage(sessionTag, confirmedTimestamp) as Imessage
             runInAction(() => {
-              this.currentSessionMessages = messages
+              if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
+                this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
+                const index = this.currentUserSessions
+                  .findIndex((session) => session.sessionTag === sessionTag)
+                this.currentUserSessions[index] = this.currentUserSessions[0]
+                this.currentUserSessions[0] = this.currentSession
+                this.currentSession.lastUpdate = confirmedTimestamp * 1000
+                this.currentUserSessions = this.currentUserSessions.slice(0)
+              }
+
+              if (!this.currentUserContacts.includes(toUsername)) {
+                this.currentUserContacts.push(toUsername)
+                this.currentUserContacts = this.currentUserContacts.slice(0)
+              }
             })
           } else {
             this.loadSessions()
@@ -741,6 +753,7 @@ export class Store {
         this.connectError = err as Error
         this.connectStatusDidChange(this.connectStatus, ERROR)
       }
+      this.newMessageCount = 0
       this.currentNetworkSettings = currentNetworkSettings
       this.currentNetworkUsers = currentNetworkUsers
       this.offlineSelectedEthereumNetwork = networkId
@@ -825,16 +838,33 @@ export class Store {
     })
   }
 
-  public selectSession = async (index: number) => {
-    const session = this.currentUserSessions[index]
+  public selectSession = async (session: Isession) => {
     const messages = await this.db.getMessages(session.sessionTag)
-    await this.db.clearSessionUnread(session)
-    session.unreadCount = 0
+    const newSession = await this.db.getSession(session.sessionTag) as Isession
+    const unreadCount = newSession.unreadCount
+    if (unreadCount > 0) {
+      await this.db.clearSessionUnread(session)
+      session.unreadCount = 0
+      session.isClosed = newSession.isClosed
+      session.lastUpdate = newSession.lastUpdate
+    }
     runInAction(() => {
+      if (unreadCount > 0) {
+        const index = this.currentUserSessions.indexOf(session)
+        this.currentUserSessions[index] = this.currentUserSessions[0]
+        this.currentUserSessions[0] = session
+        this.newMessageCount -= unreadCount
+      }
       this.currentUserSessions = this.currentUserSessions.slice(0)
-      this.currentSessionIndex = index
       this.currentSession = session
       this.currentSessionMessages = messages
+    })
+  }
+
+  public unselectSession = () => {
+    runInAction(() => {
+      this.currentSession = undefined
+      this.currentSessionMessages = []
     })
   }
 
@@ -1109,6 +1139,13 @@ export class Store {
                     runInAction(() => {
                       if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
                         this.currentSessionMessages = messages
+                        const index = this.currentUserSessions
+                          .findIndex((session) => session.sessionTag === sessionTag)
+                        this.currentUserSessions[index] = this.currentUserSessions[0]
+                        this.currentUserSessions[0] = this.currentSession
+                        this.currentSession.lastUpdate = message.timestamp * 1000
+                        this.currentSession.isClosed = message.messageType === MESSAGE_TYPE.CLOSE_SESSION
+                        this.currentUserSessions = this.currentUserSessions.slice(0)
                         unreadMessagesLength--
                       }
                     })

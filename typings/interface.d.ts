@@ -100,6 +100,7 @@ export interface Isession extends IuserIdentityKeys {
   subject: string
   isClosed: boolean
   unreadCount: number
+  // summary: string
 }
 
 export interface Imessage extends IuserIdentityKeys {

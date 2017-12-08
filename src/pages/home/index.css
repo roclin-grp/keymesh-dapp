@@ -11,6 +11,7 @@
 }
 
 .new-messages-prompt {
+  z-index: 999;
   cursor: pointer;
   position: fixed;
   top: 0px;

@@ -35,7 +35,9 @@ class Message extends React.Component<Iprops, Istate> {
     return <li className={`message${isFromYourself ? ' message--self' : ''}`}>
       <div className="meta-info">
         <span className="sender">{isFromYourself ? 'me' : contact}</span>
-        {`${time.getDate()}/${time.getMonth() + 1}/${time.getFullYear()} ${time.getHours()}:${time.getMinutes()}`}
+        <span className="time">
+          {`${time.getDate()}/${time.getMonth() + 1}/${time.getFullYear()} ${time.getHours()}:${time.getMinutes()}`}
+        </span>
       </div>
       <p className="content">{plainText}</p>
     </li>
