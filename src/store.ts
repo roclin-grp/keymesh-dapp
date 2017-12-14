@@ -48,7 +48,8 @@ import {
   IrawUnppaddedMessage,
   IreceivedMessage,
   Imessage,
-  Icontact
+  Icontact,
+  IcheckMessageStatusLifecycle
 } from '../typings/interface.d'
 
 import {
@@ -60,7 +61,8 @@ import {
   LOCAL_STORAGE_KEYS,
   FETCH_MESSAGES_INTERVAL,
   PRE_KEY_ID_BYTES_LENGTH,
-  SUMMARY_LENGTH
+  SUMMARY_LENGTH,
+  MESSAGE_STATUS
 } from './constants'
 
 const {
@@ -318,6 +320,56 @@ export class Store {
       })
   }).catch(registerDidFail)
 
+  public checkMessageStatus = async (
+    message: Imessage,
+    {
+      DeliveryFailed = noop,
+    }: IcheckMessageStatusLifecycle = {}
+  ) => {
+    if (message.transactionHash === undefined) {
+      return
+    }
+    const txHash: string = message.transactionHash
+
+    const web3 = getWeb3()
+    const waitForTransactionReceipt = async (counter = 0) => {
+      if (this.connectStatus !== SUCCESS) {
+        return
+      }
+      const receipt = await web3.eth.getTransactionReceipt(txHash)
+        .catch(() => null)
+      if (receipt !== null) {
+        if (counter >= 10) {
+          this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
+            .then(async () => {
+              if (this.currentSession !== undefined && message.sessionTag === this.currentSession.sessionTag) {
+                const _messages = await this.db.getMessages(message.sessionTag).catch(() => [])
+                if (_messages.length !== 0) {
+                  runInAction(() => {
+                    this.currentSessionMessages = _messages
+                  })
+                }
+              }
+            })
+            .catch(() => {
+              console.log("update message status to DELIVERED error")
+            })
+        } else {
+          window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
+          return
+        }
+      }
+
+      if (counter === 50) {
+        return DeliveryFailed()
+      }
+
+      window.setTimeout(waitForTransactionReceipt, 1000, counter)
+    }
+
+    return waitForTransactionReceipt()
+  }
+
   public checkRegister = async (
     networkId: NETWORKS,
     usernameHash: string,
@@ -462,9 +514,9 @@ export class Store {
           // Maybe we have a corrupted session on local, delete it.
           return Promise.all([
             (this.box as Cryptobox).session_delete(sessionTag).then(noop),
-            this.db.getSession(sessionTag).then((session) => {
-              if (session) {
-                return this.db.deleteSession(this.currentUser as Iuser, session)
+            this.db.getSession(sessionTag).then((_session) => {
+              if (_session) {
+                return this.db.deleteSession(this.currentUser as Iuser, _session)
               }
               return
             })
@@ -490,6 +542,7 @@ export class Store {
     })
 
     const fromUsername = currentUser.username
+    // bug: 第一次注册不刷新页面时 box 里面没有 identity 所以获取 public_key 就会失败
     const senderIdentity = (this.box as Cryptobox).identity.public_key
     const isFromYourself = true
     const {
@@ -594,87 +647,134 @@ export class Store {
     })()
 
     transactionWillCreate()
+    const timestamp: number = Math.round(Date.now() / 1000)
     await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
-      .on('transactionHash', transactionDidCreate)
+      .on('transactionHash', async (hash) => {
+        transactionDidCreate(hash)
+        const createNewSession = async () => {
+          await this.db.createSession({
+            user: currentUser,
+            contact: {
+              username: toUsername,
+              usernameHash: toUsernameHash
+            },
+            subject,
+            sessionTag: usingSessionTag,
+            messageType,
+            timestamp,
+            plainText,
+            isFromYourself,
+            summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`,
+            transactionHash: hash,
+            status: MESSAGE_STATUS.DELIVERING,
+          })
+        }
+        if (sessionTag !== usingSessionTag) {
+          await createNewSession()
+        } else {
+          // cryptobox session corrupted
+          const oldSession = await this.db.getSession(sessionTag)
+          if (!oldSession) {
+            await createNewSession()
+          } else {
+            await this.db.createMessage({
+              user: currentUser,
+              messageType,
+              sessionTag,
+              timestamp,
+              plainText,
+              isFromYourself,
+              transactionHash: hash,
+              status: MESSAGE_STATUS.DELIVERING,
+            })
+            await this.db.addContact(currentUser, {
+              username: toUsername,
+              usernameHash: toUsernameHash
+            })
+          }
+        }
+
+        if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
+          const newMessage = await this.db.getMessage(sessionTag, timestamp) as Imessage
+          const newSession = await this.db.getSession(sessionTag) as Isession
+          runInAction(() => {
+            if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
+              this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
+              const index = this.currentUserSessions
+                .findIndex((session1) => session1.sessionTag === sessionTag)
+              this.currentSession = newSession
+              this.currentUserSessions = [
+                this.currentSession,
+                ...this.currentUserSessions.slice(0, index),
+                ...this.currentUserSessions.slice(index + 1)
+              ]
+            }
+
+            if (!this.currentUserContacts.find((contact) => contact.usernameHash === toUsernameHash)) {
+              this.currentUserContacts.push({
+                username: toUsername,
+                usernameHash: toUsernameHash
+              })
+              this.currentUserContacts = this.currentUserContacts.slice(0)
+            }
+          })
+        } else {
+          this.loadSessions()
+        }
+      })
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === 10) {
+        if (confirmationNumber === 2) {
           if (!receipt.events) {
             sendingDidFail(new Error('Unknown error'))
             return
           }
-          const confirmedTimestamp: number = Number(
-            (((receipt.events.Publish || {}).returnValues || {}) as any).timestamp || Math.round(Date.now() / 1000))
+          sendingDidComplete()
 
-          const createNewSession = async () => {
-            await this.db.createSession({
-              user: currentUser,
-              contact: {
-                username: toUsername,
-                usernameHash: toUsernameHash
-              },
-              subject,
-              sessionTag: usingSessionTag,
-              messageType,
-              timestamp: confirmedTimestamp,
-              plainText,
-              isFromYourself,
-              summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
-            })
-          }
-          if (sessionTag !== usingSessionTag) {
-            await createNewSession()
-          } else {
-            // cryptobox session corrupted
-            const oldSession = await this.db.getSession(sessionTag)
-            if (!oldSession) {
-              await createNewSession()
-            } else {
-              await this.db.createMessage({
-                user: currentUser,
-                messageType,
-                sessionTag,
-                timestamp: confirmedTimestamp,
-                plainText,
-                isFromYourself
-              })
-              await this.db.addContact(currentUser, {
-                username: toUsername,
-                usernameHash: toUsernameHash
-              })
-            }
-          }
-
-          if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
-            const newMessage = await this.db.getMessage(sessionTag, confirmedTimestamp) as Imessage
-            runInAction(() => {
-              if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
-                this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
-                const index = this.currentUserSessions
-                  .findIndex((session) => session.sessionTag === sessionTag)
-                this.currentSession.summary = `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
-                this.currentSession.lastUpdate = confirmedTimestamp * 1000
-                this.currentUserSessions = [
-                  this.currentSession,
-                  ...this.currentUserSessions.slice(0, index),
-                  ...this.currentUserSessions.slice(index + 1)
-                ]
+          await this.db.getMessage(usingSessionTag, timestamp)
+            .then((message) => {
+              if (message === undefined) {
+                return
               }
-
-              if (!this.currentUserContacts.find((contact) => contact.usernameHash === toUsernameHash)) {
-                this.currentUserContacts.push({
-                  username: toUsername,
-                  usernameHash: toUsernameHash
-                })
-                this.currentUserContacts = this.currentUserContacts.slice(0)
-              }
+              this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             })
-          } else {
-            this.loadSessions()
+            .catch((error) => {
+              console.log("confirmation get message error", error)
+            })
+
+          if (this.currentSession === undefined || this.currentSession.sessionTag !== usingSessionTag) {
+            return
           }
-          return sendingDidComplete()
+
+          const messages = await this.db.getMessages(usingSessionTag).catch(() => undefined)
+          if (messages === undefined) {
+            return
+          }
+          runInAction(() => {
+            this.currentSessionMessages = messages
+          })
         }
       })
-      .on('error', sendingDidFail)
+      .on('error', async (error: Error) => {
+        sendingDidFail(error)
+        await this.db.getMessage(usingSessionTag, timestamp)
+          .then(async (message) => {
+            if (message === undefined) {
+              return
+            }
+            this.db.updateMessageStatus(message, MESSAGE_STATUS.FAILED)
+            if (this.currentSession === undefined || this.currentSession.sessionTag !== usingSessionTag) {
+              return
+            }
+
+            const messages = await this.db.getMessages(usingSessionTag).catch(() => undefined)
+            if (messages === undefined) {
+              return
+            }
+            runInAction(() => {
+              this.currentSessionMessages = messages
+            })
+          })
+      })
   }
 
   public useUser = async (user: Iuser, shouldRefreshSessions = false) => {
@@ -989,7 +1089,7 @@ export class Store {
         this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       })
     }
-    this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
+    this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 10000)
   }
 
   private listenForNetworkChange = async () => {
@@ -1011,7 +1111,7 @@ export class Store {
         return this.processAfterNetworkConnected()
       }
     }
-    window.setTimeout(this.listenForNetworkChange, 100)
+    window.setTimeout(this.listenForNetworkChange, 10000)
   }
 
   private processAfterNetworkConnected = async (
@@ -1165,13 +1265,13 @@ export class Store {
     const newReceivedMessages = (await Promise.all(messages
       .map((message) => this.decryptMessage(message).catch(() => null))))
       .filter((message) => message !== null) as IreceivedMessage[]
-    
+
     const user = this.currentUser as Iuser
     let unreadMessagesLength = newReceivedMessages.length 
     await Promise.all(
       newReceivedMessages.map((message) => {
         const plainText = message.plainText as string
-        switch(message.messageType) {
+        switch (message.messageType) {
           case MESSAGE_TYPE.HELLO:
             return this.db.createSession(Object.assign({}, message, {
               user,
@@ -1179,7 +1279,8 @@ export class Store {
                 username: message.fromUsername as string,
                 usernameHash: getUsernameHash(message.fromUsername as string)
               },
-              summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+              summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`,
+              status: MESSAGE_STATUS.DELIVERED,
             }))
           default:
             const sessionTag = message.sessionTag
@@ -1187,18 +1288,21 @@ export class Store {
               return this.db.createMessage(Object.assign({}, message, {
                   user,
                   plainText: message.plainText as string,
-                  shouldAddUnread: false
+                  shouldAddUnread: false,
+                  transactionHash: '',
+                  status: MESSAGE_STATUS.DELIVERED,
                 }))
                   .then(() => this.db.getMessages(sessionTag))
-                  .then((messages) => {
+                  .then(async (_messages) => {
+                    const sessionInDB = await this.db.getSession(sessionTag).catch(() => undefined)
                     runInAction(() => {
                       if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
-                        this.currentSessionMessages = messages
+                        this.currentSessionMessages = _messages
                         const index = this.currentUserSessions
                           .findIndex((session) => session.sessionTag === sessionTag)
-                        this.currentSession.lastUpdate = message.timestamp * 1000
-                        this.currentSession.isClosed = message.messageType === MESSAGE_TYPE.CLOSE_SESSION
-                        this.currentSession.summary = this.currentSession.isClosed ? 'Session closed' : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+                        if (sessionInDB !== undefined) {
+                          this.currentSession = sessionInDB
+                        }
                         this.currentUserSessions = [
                           this.currentSession,
                           ...this.currentUserSessions.slice(0, index),
@@ -1211,7 +1315,9 @@ export class Store {
             } else {
               return this.db.createMessage(Object.assign({}, message, {
                 user,
-                plainText: message.plainText as string
+                plainText: message.plainText as string,
+                transactionHash: '',
+                status: MESSAGE_STATUS.DELIVERED,
               }))
             }
         }

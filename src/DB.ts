@@ -22,8 +22,10 @@ import {
   SCHEMA_V1,
   GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
-  SUMMARY_LENGTH
+  SUMMARY_LENGTH,
+  MESSAGE_STATUS
 } from './constants'
+import { session } from 'wire-webapp-proteus';
 
 interface IcreateUserArgs {
   networkId: NETWORKS
@@ -42,6 +44,8 @@ interface IcreateSessionArgs {
   summary: string
   plainText?: string
   isFromYourself?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 interface IgetSessionsOptions {
@@ -63,6 +67,8 @@ interface IcreateMessageArgs {
   plainText: string
   isFromYourself?: boolean
   shouldAddUnread?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 interface IgetMessagesOptions {
@@ -211,6 +217,10 @@ export default class DB {
     })
   }
 
+  public updateMessageStatus({timestamp, sessionTag}: Imessage, status: MESSAGE_STATUS) {
+    return this.tableMessages.update([sessionTag, timestamp], {status})
+  }
+
   public updateLastFetchBlock(
     {
       networkId,
@@ -282,7 +292,9 @@ export default class DB {
     timestamp,
     plainText,
     summary,
-    isFromYourself = false
+    isFromYourself = false,
+    transactionHash,
+    status,
   }: IcreateSessionArgs) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableSessions
@@ -305,7 +317,9 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself
+          isFromYourself,
+          transactionHash,
+          status,
         })
       this.addContact(user, contact)
     })
@@ -418,7 +432,9 @@ export default class DB {
       timestamp,
       plainText,
       isFromYourself = false,
-      shouldAddUnread = true
+      shouldAddUnread = true,
+      transactionHash = '',
+      status,
     }: IcreateMessageArgs,
   ) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
@@ -430,7 +446,9 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself
+          isFromYourself,
+          transactionHash,
+          status,
         })
       if (!isFromYourself && shouldAddUnread) {
         const session = await this.getSession(sessionTag) as Isession

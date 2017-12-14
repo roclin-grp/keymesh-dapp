@@ -12,7 +12,8 @@ import {
   NETWORKS,
   TABLES,
   GLOBAL_SETTINGS_PRIMARY_KEY,
-  MESSAGE_TYPE
+  MESSAGE_TYPE,
+  MESSAGE_STATUS
 } from '../src/constants'
 import { intercept } from 'mobx/lib/api/intercept';
 
@@ -31,6 +32,10 @@ export interface IuploadPreKeysLifecycle extends transactionLifecycle {
 export interface IcreateAccountLifecycle {
   accountWillCreate?: () => void
   accountDidCreate?: () => void
+}
+
+export interface IcheckMessageStatusLifecycle {
+  DeliveryFailed?: () => void
 }
 
 export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle, IuploadPreKeysLifecycle {
@@ -112,6 +117,8 @@ export interface Imessage extends IuserIdentityKeys {
   timestamp: number
   isFromYourself: boolean
   plainText?: string
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>

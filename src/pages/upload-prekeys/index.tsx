@@ -4,7 +4,6 @@ import { withRouter } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
-import {Iuser} from '../../../typings/interface.d'
 
 import {
   TRUSTBASE_CONNECT_STATUS,
