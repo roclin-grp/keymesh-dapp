@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { withRouter } from 'react-router-dom'
+import { withRouter, Redirect } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
@@ -8,7 +8,7 @@ import { Store } from '../../store'
 import {
   TRUSTBASE_CONNECT_STATUS,
   REGISTER_FAIL_CODE,
-  NETWORKS
+  USER_STATUS
 } from '../../constants'
 
 import Header from '../../containers/header'
@@ -38,13 +38,11 @@ const {
 interface Iprops {
   store: Store
   history: {
-    push: (path: string) => void
     replace: (path: string) => void
   }
   match: {
     params: {
       networkId?: string
-      usernameHash?: string
     }
   }
 }
@@ -58,38 +56,38 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   public readonly state = {
     registerProgress: ''
   }
+  private unmounted = false
   public componentDidMount() {
     const {
       store: {
         connectStatus,
         checkRegister,
         listenForConnectStatusChange,
-        currentEthereumNetwork
+        currentEthereumNetwork,
+        currentUser
       },
       match: {
         params: {
-          networkId,
-          usernameHash
+          networkId
         }
       },
       history
     } = this.props
     if (
       typeof currentEthereumNetwork !== 'undefined'
+      && typeof networkId !== 'undefined'
       && Number(networkId) !== currentEthereumNetwork
     ) {
       return history.replace(`/check-register/${currentEthereumNetwork}`)
     }
     if (
       connectStatus === SUCCESS
-      && typeof networkId !== 'undefined'
-      && typeof usernameHash !== 'undefined'
+      && typeof networkId === 'undefined'
+      && currentUser
+      && currentUser.registerRecord
     ) {
-      checkRegister(Number(networkId), usernameHash, {
+      checkRegister(currentUser, {
         checkRegisterWillStart: this.checkRegisterWillStart,
-        accountWillCreate: this.accountWillCreate,
-        accountDidCreate: this.accountDidCreate,
-        preKeysDidUpload: this.preKeysDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)
     }
@@ -98,23 +96,27 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   public componentWillUnmount() {
     const {
       removeConnectStatusListener,
-      clearStoreRegisterRecords
+      clearRegisteringUser
     } = this.props.store
-    clearStoreRegisterRecords()
+    this.unmounted = true
+    clearRegisteringUser()
     removeConnectStatusListener(this.connectStatusListener)
   }
   public render() {
     const {
       store: {
+        currentUser,
+        currentEthereumNetwork,
         connectStatus,
         connectError
       },
       match: {
         params: {
-          usernameHash
+          networkId
         }
       }
     } = this.props
+
     switch (connectStatus) {
       case PENDING:
         return <div>
@@ -150,9 +152,14 @@ class CheckRegister extends React.Component<Iprops, Istate> {
           <div style={{
             textAlign: 'center'
           }}>
-            {typeof usernameHash !== 'undefined'
-              ? <pre>{this.state.registerProgress}</pre>
-              : <RegisterRecordsWithStore />
+            {
+              networkId
+              ? <RegisterRecordsWithStore />
+              : currentUser && currentUser.status === USER_STATUS.PENDING
+                ? <pre>{this.state.registerProgress}</pre>
+                : currentUser && currentUser.status === USER_STATUS.IDENTITY_UPLOADED
+                  ? <Redirect to="/upload-pre-keys" />
+                  : <Redirect to={`/check-register/${currentEthereumNetwork}`} />
             }
           </div>
         </div>
@@ -183,32 +190,18 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     }
   }
   private checkRegisterWillStart = (hash: string) => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
-      registerProgress: `Waiting for trustbase identity register... (hash: ${hash})`
+      registerProgress: `Waiting for transaction(hash: ${hash})...`
     })
   }
 
-  private accountWillCreate = () => {
-    this.setState({
-      registerProgress: `Trustbase registered.
-Creating local account...`
-    })
-  }
-  private accountDidCreate = () => {
-    this.setState({
-      registerProgress: `Local account created.`
-    })
-  }
-  private preKeysDidUpload = () => {
-    this.setState({
-      registerProgress: `Pre-keys uploaded.
-Redirect to homepage in 5 sec`
-    })
-    window.setTimeout(() => {
-      this.props.history.push('/')
-    }, 5000)
-  }
   private registerDidFail = (err: Error | null, code = UNKNOWN) => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       registerProgress: (() => {
         switch (code) {
@@ -230,32 +223,35 @@ Redirect to homepage in 5 sec`
     const {
       store: {
         checkRegister,
-        currentEthereumNetwork
+        currentEthereumNetwork,
+        currentUser
       },
       match: {
         params: {
-          networkId,
-          usernameHash
+          networkId
         }
       },
       history
     } = this.props
+    if (this.unmounted) {
+      return
+    }
     if (
       typeof currentEthereumNetwork !== 'undefined'
+      && typeof networkId !== 'undefined'
       && Number(networkId) !== currentEthereumNetwork
     ) {
       return history.replace(`/check-register/${currentEthereumNetwork}`)
     }
     if (
-      typeof usernameHash !== 'undefined'
-      && prev !== SUCCESS
+      prev !== SUCCESS
       && cur === SUCCESS
+      && typeof networkId === 'undefined'
+      && currentUser
+      && currentUser.registerRecord
     ) {
-      checkRegister(Number(networkId) as NETWORKS, usernameHash as string, {
+      checkRegister(currentUser, {
         checkRegisterWillStart: this.checkRegisterWillStart,
-        accountWillCreate: this.accountWillCreate,
-        accountDidCreate: this.accountDidCreate,
-        preKeysDidUpload: this.preKeysDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)
     }

@@ -5,30 +5,34 @@ import { Store } from '../../store'
 
 import RegisterRecord from '../../components/register-record'
 
+import { IregisterRecord } from '../../../typings/interface.d'
+
 import './index.css'
 
 interface Iprops {
   store: Store
 }
 
-interface Istate {
-}
+const RegisterRecordWithStore = RegisterRecord as any
 
 @inject('store') @observer
-class RegisterRecords extends React.Component<Iprops, Istate> {
+class RegisterRecords extends React.Component<Iprops> {
   public componentDidMount() {
-    this.props.store.loadRegisterRecords()
+    this.props.store.loadRegisteringUser()
   }
   public componentWillUnmount() {
-    this.props.store.clearStoreRegisterRecords()
+    this.props.store.clearRegisteringUser()
   }
   public render() {
     const {
-      registerRecords
+      registeringUsers
     } = this.props.store
-    return registerRecords.length > 0
+    return registeringUsers.length > 0
       ? <ul>{
-        registerRecords.map((record) => <RegisterRecord key={record.transactionHash} record={record} />)
+        registeringUsers.map((user) =>
+          <RegisterRecordWithStore
+            key={(user.registerRecord as IregisterRecord).identityTransactionHash}
+            user={user} />)
       }</ul>
       : null
   }

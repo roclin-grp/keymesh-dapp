@@ -61,7 +61,9 @@ class Session extends React.Component<Iprops, Istate> {
     const {
       isLoading
     } = this.state
-    const showSubject = subject === '' ? '(No subject)' : `${subject.slice(0, SUBJECT_LENGTH)}${subject.length > SUBJECT_LENGTH ? '...' : ''}`
+    const showSubject = subject === ''
+      ? '(No subject)'
+      : `${subject.slice(0, SUBJECT_LENGTH)}${subject.length > SUBJECT_LENGTH ? '...' : ''}`
     if (currentSession && currentSession.sessionTag === sessionTag) {
       return <li className="session-expanded">
         <div className="session-header">
@@ -110,7 +112,7 @@ class Session extends React.Component<Iprops, Istate> {
       </li>
     }
     // todo add timestamp, and block hash
-    let avatarHash = web3UtilsSha3(contact.usernameHash)
+    const avatarHash = web3UtilsSha3(`${contact.usernameHash}${contact.blockHash}`)
     return <li
       className="session--unexpand"
       onClick={isLoading ? noop : this.handleSelect}>
@@ -121,7 +123,7 @@ class Session extends React.Component<Iprops, Istate> {
         {contact.username}
       </span>
       {unreadCount > 0
-        ?<span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        ? <span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
         : null
       }
       <span

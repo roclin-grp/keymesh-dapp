@@ -1,18 +1,19 @@
 import * as React from 'react'
 
-import { Link, Redirect } from 'react-router-dom'
-import { withRouter } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { withRouter, Redirect } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
-import {getUsernameHash as web3UtilsSha3} from 'trustbase'
+import { getUsernameHash as web3UtilsSha3 } from 'trustbase'
 
 import {
   NETWORKS,
   TRUSTBASE_CONNECT_STATUS,
   NETWORK_NAMES,
   CONNECT_STATUS_INDICATOR_COLORS,
-  CONNECT_STATUS_INDICATOR_TEXTS
+  CONNECT_STATUS_INDICATOR_TEXTS,
+  USER_STATUS
 } from '../../constants'
 
 import NetworkOption from '../../components/networkOption'
@@ -58,22 +59,16 @@ class Header extends React.Component<Iprops, Istate> {
       currentUser,
       currentNetworkUsers,
       offlineAvailableNetworks,
-      offlineSelectedEthereumNetwork,
-      userHasBox,
-      checkPreKeys,
+      offlineSelectedEthereumNetwork
     } = this.props.store
-    let avatar
-    if (currentUser !== undefined) {
-      // todo add timestamp, and block hash
-      let avatarHash = web3UtilsSha3(currentUser.usernameHash)
-      avatar = <Avatar size={40} hash={avatarHash} />
-    }
-    if (currentUser && this.props.location.pathname !== "/upload-prekeys") {
-      if (userHasBox()) {
-        // check registerRecord
-         checkPreKeys(this.props.history.replace,  currentUser.usernameHash, currentUser.networkId)
-      } else {
-        return <Redirect to="/upload-prekeys" />
+
+    // FIXME: put this in abstract page component?
+    if (currentUser && this.props.location.pathname !== '/register') {
+      if (currentUser.status === USER_STATUS.PENDING && this.props.location.pathname !== '/check-register') {
+        return <Redirect to="/check-register" />
+      }
+      if (currentUser.status === USER_STATUS.IDENTITY_UPLOADED && this.props.location.pathname !== '/upload-pre-keys') {
+        return <Redirect to="/upload-pre-keys" />
       }
     }
     return <header
@@ -192,7 +187,10 @@ class Header extends React.Component<Iprops, Istate> {
                     cursor: 'pointer'
                   }}
                   onClick={this.handleShowUsers}>
-                {avatar}{currentUser.username}
+                {currentUser.status !== USER_STATUS.PENDING
+                  ? <Avatar size={40} hash={web3UtilsSha3(`${currentUser.usernameHash}${currentUser.blockHash}`)} />
+                  : null}
+                {currentUser.username}
                 {
                   currentNetworkUsers.length > 0
                     ? <span
@@ -347,7 +345,11 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleSelectUser = (user: Iuser) => {
-    this.props.store.useUser(user, this.props.shouldRefreshSessions).catch(() => {/**/})
+    const pathname = this.props.location.pathname
+    const callback = pathname === '/check-register' || pathname === '/upload-pre-keys'
+      ? () => this.props.history.replace('/')
+      : undefined
+    this.props.store.useUser(user, this.props.shouldRefreshSessions, callback).catch(() => {/**/})
   }
 }
 

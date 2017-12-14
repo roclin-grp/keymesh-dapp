@@ -12,9 +12,9 @@ import {
   NETWORKS,
   TABLES,
   GLOBAL_SETTINGS_PRIMARY_KEY,
-  MESSAGE_TYPE
+  MESSAGE_TYPE,
+  USER_STATUS
 } from '../src/constants'
-import { intercept } from 'mobx/lib/api/intercept';
 
 export interface IpreKeyPublicKeys {
   [preKeyId: string]: string
@@ -26,14 +26,10 @@ export interface IasyncProvider {
 
 export interface IuploadPreKeysLifecycle extends transactionLifecycle {
   preKeysDidUpload?: () => void
+  preKeysUploadDidFail?: (err: Error) => void
 }
 
-export interface IcreateAccountLifecycle {
-  accountWillCreate?: () => void
-  accountDidCreate?: () => void
-}
-
-export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle, IuploadPreKeysLifecycle {
+export interface IcheckRegisterLifecycle extends IuploadPreKeysLifecycle {
   checkRegisterWillStart?: (hash: string) => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
@@ -44,7 +40,7 @@ interface transactionLifecycle {
 }
 
 export interface IregisterLifecycle extends transactionLifecycle {
-  registerRecordDidSave?: (registerRecord: IregisterRecord) => void
+  userDidCreate?: () => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
@@ -78,10 +74,9 @@ interface IuserIdentityKeys {
   usernameHash: string,
 }
 
-export interface IregisterRecord extends IuserIdentityKeys {
-  username: string
-  keyPair: string
-  transactionHash: string
+export interface IregisterRecord {
+  identityTransactionHash: string
+  identity: string
 }
 
 export interface Iuser extends IuserIdentityKeys {
@@ -89,11 +84,16 @@ export interface Iuser extends IuserIdentityKeys {
   lastFetchBlock: web3.BlockType
   contacts: Icontact[]
   owner: string
+  status: USER_STATUS
+  registerRecord?: IregisterRecord
+  uploadPreKeysTransactionHash?: string
+  blockHash: string
 }
 
 interface Icontact {
   username: string
   usernameHash: string
+  blockHash: string
 }
 
 export interface Isession extends IuserIdentityKeys {
@@ -116,9 +116,8 @@ export interface Imessage extends IuserIdentityKeys {
 
 export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>
 export type TableNetworkSettings = Dexie.Table<InetworkSettings, NETWORKS>
-export type TableRegisterRecords = Dexie.Table<IregisterRecord, [NETWORKS, string]>
 export type TableUsers = Dexie.Table<Iuser, [NETWORKS, string]>
-export type TableSessions = Dexie.Table<Isession, string>
+export type TableSessions = Dexie.Table<Isession, [string, string]>
 export type TableMessages = Dexie.Table<Imessage, [string, number]>
 
 export type web3BlockType = web3.BlockType
@@ -145,4 +144,5 @@ interface IrawUnppaddedMessage {
 interface IreceivedMessage extends IrawUnppaddedMessage {
   sessionTag: string
   timestamp: number
+  blockHash?: string
 }

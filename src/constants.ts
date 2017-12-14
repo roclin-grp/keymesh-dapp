@@ -49,6 +49,12 @@ export enum NETWORKS {
   KOVAN = 42
 }
 
+export enum USER_STATUS {
+  PENDING = 0,
+  IDENTITY_UPLOADED = 1,
+  OK = 2
+}
+
 export const NETWORK_NAMES = Object.freeze({
   [NETWORKS.OLYMPIC]: 'Olympic',
   [NETWORKS.MAINNET]: 'Mainnet',
@@ -61,7 +67,6 @@ export const NETWORK_NAMES = Object.freeze({
 export enum TABLES {
   GLOBAL_SETTINGS = 'global-settings',
   NETWORK_SETTINGS = 'network-settings',
-  REGISTER_RECORDS = 'register-records',
   USERS = 'users',
   SESSIONS = 'sessions',
   MESSAGES = 'messages'
@@ -70,9 +75,8 @@ export enum TABLES {
 export const SCHEMA_V1 = Object.freeze({
   [TABLES.GLOBAL_SETTINGS]: '',
   [TABLES.NETWORK_SETTINGS]: 'networkId',
-  [TABLES.REGISTER_RECORDS]: '[networkId+usernameHash], networkId',
-  [TABLES.USERS]: '[networkId+usernameHash], networkId',
-  [TABLES.SESSIONS]: 'sessionTag, [networkId+usernameHash], lastUpdate, contact.usernameHash',
+  [TABLES.USERS]: '[networkId+usernameHash], networkId, [networkId+status]',
+  [TABLES.SESSIONS]: '[sessionTag+usernameHash], [networkId+usernameHash], lastUpdate, contact.usernameHash',
   [TABLES.MESSAGES]: '[sessionTag+timestamp], sessionTag, [networkId+usernameHash], timestamp',
 })
 

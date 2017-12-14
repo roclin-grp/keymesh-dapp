@@ -5,9 +5,6 @@ import { withRouter,  } from 'react-router-dom'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
-import './index.css'
-
-import { IregisterRecord } from '../../../typings/interface'
 import {
   TRUSTBASE_CONNECT_STATUS,
   REGISTER_FAIL_CODE
@@ -15,6 +12,8 @@ import {
 
 import Header from '../../containers/header'
 import RegisterRecords from '../../containers/register-records'
+
+import './index.css'
 
 const HeaderWithStore = Header as any
 const RegisterRecordsWithStore = RegisterRecords as any
@@ -31,17 +30,21 @@ const {
 const {
   UNKNOWN,
   FOUND_ON_LOCAL,
-  OCCUPIED
+  OCCUPIED,
+  INVALID_USERNAME
 } = REGISTER_FAIL_CODE
+
+const VALID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
 interface Iprops {
   history: {
-    push: (path: string) => void
+    replace: (path: string) => void
   }
   store: Store
 }
 
 interface Istate {
+  username: string,
   registerProgress: string,
   isRegistering: boolean
 }
@@ -49,21 +52,13 @@ interface Istate {
 @inject('store') @observer
 class Register extends React.Component<Iprops, Istate> {
   public readonly state = {
+    username: '',
     registerProgress: '',
     isRegistering: false
   }
-  private input: HTMLInputElement | null
-  public handleAccountChange = () => {
-    if (this.input !== null) {
-      let value = this.input.value
-      let reg = /[^0-9a-zA-Z]/;
-      value = value.replace(reg, "");
-      let length = value.length;
-      if (length > 11) {
-        value = value.substring(0, 11);
-      }
-      this.input.value = value
-    }
+  private unmounted = false
+  public componentWillUnmount() {
+    this.unmounted = true
   }
   public render() {
     const {
@@ -105,9 +100,8 @@ class Register extends React.Component<Iprops, Istate> {
           <div style={{
             textAlign: 'center'
           }}>
-            {/* FIXME: Dirty uncontrolled components */}
             <pre>Register new account</pre>
-            <input ref={(input) => this.input = input} onChange={this.handleAccountChange}/>
+            <input value={this.state.username} onChange={this.handleAccountChange}/>
             <button disabled={this.state.isRegistering} onClick={this.handleRegister}>Register</button>
             <pre>{this.state.registerProgress}</pre>
             <RegisterRecordsWithStore />
@@ -140,63 +134,68 @@ class Register extends React.Component<Iprops, Istate> {
     }
   }
 
-  private generateRandomStr = (length: number) => {
-    var text = "";
-    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-    for (var i = 0; i < length; i++)
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-    return text;
+  private handleAccountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({
+      username: event.target.value.replace(/[^0-9a-zA-Z]/, '').slice(0, 11)
+    })
   }
 
+  private generateRandomStr = (length: number) => Array(length)
+    .fill('')
+    .map(() => VALID_CHARS.charAt(Math.floor(Math.random() * VALID_CHARS.length)))
+    .join('')
+
   private handleRegister = () => {
-    if (!this.input || !this.input.value) {
-      return
-    }
-    this.setState({
-      isRegistering: true
-    })
     const {
       register
     } = this.props.store
+    const {username: inputUsername} = this.state
+    if (!inputUsername || inputUsername.length <= 0 || inputUsername.length > 11) {
+      return
+    }
 
-    let account = this.input.value
-    account = account + "#" + this.generateRandomStr(16 - account.length - 1)
+    this.setState({
+      isRegistering: true
+    })
 
-    register(account, {
+    const username = `${inputUsername}#${this.generateRandomStr(16 - inputUsername.length - 1)}`
+
+    register(username, {
       transactionWillCreate: this.transactionWillCreate,
       transactionDidCreate: this.transactionDidCreate,
-      registerRecordDidSave: this.registerRecordDidSave,
+      userDidCreate: this.userDidCreate,
       registerDidFail: this.registerDidFail,
     })
       .catch(this.registerDidFail)
   }
   private transactionWillCreate = () => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       registerProgress: `Creating transaction...
 (You may need to confirm the transaction.)`
     })
   }
   private transactionDidCreate = (hash: string) => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       registerProgress: `Transaction created (hash: ${hash}).
-Saving register record...`
+Creating account...`
     })
   }
-  private registerRecordDidSave = ({
-    networkId,
-    usernameHash
-  }: IregisterRecord) => {
-    this.setState({
-      registerProgress: `Record saved (and you can safely leave this page from now).`
-    })
-
-    window.setTimeout(() => {
-      this.props.history.push(`/check-register/${networkId}/${usernameHash}`)
-    }, 3000)
+  private userDidCreate = () => {
+    if (this.unmounted) {
+      return
+    }
+    this.props.history.replace('/check-register')
   }
   private registerDidFail = (err: Error | null, code = UNKNOWN) => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       registerProgress: (() => {
         switch (code) {
@@ -206,6 +205,8 @@ Saving register record...`
             return `Found identity on local`
           case OCCUPIED:
             return `Username already registered. Try another account name.`
+          case INVALID_USERNAME:
+            return `Invalid username`
           default:
             return 'other'
         }

@@ -42,6 +42,7 @@ class Home extends React.Component<Iprops, Istate> {
     sendingProgress: '',
     showCompose: false
   }
+  private unmounted = false
   private toInput: HTMLInputElement | null
   private subjectInput: HTMLInputElement | null
   private messageInput: HTMLTextAreaElement | null
@@ -69,6 +70,7 @@ class Home extends React.Component<Iprops, Istate> {
       stopFetchMessages,
       removeConnectStatusListener
     } = this.props.store
+    this.unmounted = true
     stopFetchMessages()
     removeConnectStatusListener(this.connectStatusListener)
   }
@@ -185,6 +187,9 @@ class Home extends React.Component<Iprops, Istate> {
     const {
       loadSessions
     } = this.props.store
+    if (this.unmounted) {
+      return
+    }
     loadSessions()
   }
 
@@ -192,6 +197,9 @@ class Home extends React.Component<Iprops, Istate> {
     const {
       stopFetchMessages
     } = this.props.store
+    if (this.unmounted) {
+      return
+    }
     if (prev !== SUCCESS) {
       this.componentDidMount(false)
     } else if (cur !== SUCCESS) {
@@ -235,12 +243,18 @@ class Home extends React.Component<Iprops, Istate> {
   }
 
   private transactionWillCreate = () => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       sendingProgress: `Sending...
 (You may need to confirm the transaction.)`
     })
   }
   private sendingDidComplete = () => {
+    if (this.unmounted) {
+      return
+    }
     if (this.toInput) {
       this.toInput.value = ''
     }
@@ -264,6 +278,9 @@ class Home extends React.Component<Iprops, Istate> {
     })
   }
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
+    if (this.unmounted) {
+      return
+    }
     this.setState({
       sendingProgress: (() => {
         switch (code) {

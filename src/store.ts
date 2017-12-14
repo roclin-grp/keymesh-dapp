@@ -22,7 +22,6 @@ const ed2curve = require('ed2curve')
 const sodium = require('libsodium-wrappers')
 
 import DB from './DB'
-import Dexie from 'dexie'
 import IndexedDBStore from './IndexedDBStore'
 import PreKeysPackage from './PreKeysPackage'
 import PreKeyBundle from './PreKeyBundle'
@@ -34,11 +33,9 @@ import {
   IglobalSettings,
   Isession,
   IregisterLifecycle,
-  IregisterRecord,
   IasyncProvider,
   IcheckRegisterLifecycle,
   IuploadPreKeysLifecycle,
-  IcreateAccountLifecycle,
   InetworkSettings,
   IsendingLifecycle,
   IenvelopeHeader,
@@ -60,7 +57,8 @@ import {
   LOCAL_STORAGE_KEYS,
   FETCH_MESSAGES_INTERVAL,
   PRE_KEY_ID_BYTES_LENGTH,
-  SUMMARY_LENGTH
+  SUMMARY_LENGTH,
+  USER_STATUS
 } from './constants'
 
 const {
@@ -111,8 +109,8 @@ export class Store {
   @observable public newMessageCount = 0
   @observable.ref public currentSession: Isession | undefined
   @observable.ref public currentSessionMessages: Imessage[] = []
+  @observable.ref public registeringUsers: Iuser[] = []
   @observable public isFetchingMessage = false
-  @observable.ref public registerRecords: IregisterRecord[] = []
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
@@ -123,11 +121,9 @@ export class Store {
   private detectAccountChangeTimeout: number
   private fetchMessagesTimeout: number
   private db: DB
-  public getRegisterRecord: (networkId: NETWORKS, usernameHash: string) => Dexie.Promise<IregisterRecord|undefined> 
 
   constructor() {
     this.db = new DB()
-    this.getRegisterRecord = this.db.getRegisterRecord
   }
 
   @computed
@@ -252,13 +248,14 @@ export class Store {
   public register = async (username: string, {
     transactionWillCreate = noop,
     transactionDidCreate = noop,
-    registerRecordDidSave = noop,
+    userDidCreate = noop,
     registerDidFail = noop
-  }: IregisterLifecycle = {}) => new Promise(async (resolve, reject)=> {
+  }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
     if (this.connectStatus !== SUCCESS) {
       return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
     }
-    if (username === '') {
+
+    if (username === '' || username.length < 1 || username.length > 16) {
       return registerDidFail(null, REGISTER_FAIL_CODE.INVALID_USERNAME)
     }
 
@@ -268,20 +265,8 @@ export class Store {
       return registerDidFail(null, REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
     }
 
-    // const store = new IndexedDBStore(usernameHash)
-    // if (await store.load_identity().catch(() => null)) {
-    //   // Account record corrupted, we can never recover the username again
-    //   return onRegisterFailed(REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
-    // }
-
     // connectStatus === SUCCESS means we had connected to a network
     const currentNetworkId = this.currentEthereumNetwork as NETWORKS
-
-    // In progress registration
-    const registerRecord = await this.db.getRegisterRecord(currentNetworkId, usernameHash)
-    if (registerRecord) {
-      return registerRecordDidSave(registerRecord)
-    }
 
     // check if registered, avoid unnecessary transaction
     const {
@@ -296,101 +281,110 @@ export class Store {
 
     transactionWillCreate()
     this.identitiesContract.register(username, newIdentityFingerprint)
-      .on('transactionHash', (transactionHash) => {
+      .on('transactionHash', async (transactionHash) => {
         transactionDidCreate(transactionHash)
-        const newRegisterRecord: IregisterRecord = {
-          username,
+        const store = new IndexedDBStore(usernameHash)
+        await store.save_identity(identityKeyPair).catch(reject)
+        const lastResortPrekey = PreKey.last_resort()
+        await store.save_prekeys([lastResortPrekey]).catch(reject)
+        this.db.createUser({
           networkId: currentNetworkId,
+          username,
           usernameHash,
-          keyPair: sodium.to_hex(new Uint8Array(identityKeyPair.serialise())),
-          transactionHash
-        }
-        this.db.createRegisterRecord(newRegisterRecord)
-          .then(() => {
-            registerRecordDidSave(newRegisterRecord)
-            resolve()
+          owner: this.currentEthereumAccount
+        }, {
+          identityTransactionHash: transactionHash,
+          identity: sodium.to_hex(new Uint8Array(identityKeyPair.serialise()))
+        })
+          .then(async () => {
+            const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(reject)
+            if (createdUser) {
+              this.useUser(createdUser).then(userDidCreate).catch(noop)
+              runInAction(() => {
+                this.currentNetworkUsers = this.currentNetworkUsers.concat(createdUser)
+              })
+              return resolve()
+            }
           })
           .catch(reject)
       })
-      .on('error', (err) => {
-        this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
+      .on('error', async (err) => {
+        const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(() => undefined)
+        if (createdUser) {
+          this.db.deleteUser(createdUser).catch(noop)
+        }
         reject(err)
       })
   }).catch(registerDidFail)
 
   public checkRegister = async (
-    networkId: NETWORKS,
-    usernameHash: string,
+    user: Iuser,
     {
       checkRegisterWillStart = noop,
-      accountWillCreate = noop,
-      accountDidCreate = noop,
       registerDidFail = noop
     }: IcheckRegisterLifecycle = {}
   ) => {
     if (this.connectStatus !== SUCCESS) {
       return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
     }
-    if (usernameHash === '') {
-      return registerDidFail(null, REGISTER_FAIL_CODE.INVALID_USERNAME)
-    }
 
-    const registerRecord = await this.db.getRegisterRecord(networkId, usernameHash).catch(() => undefined)
-    if (!registerRecord) {
+    if (!user.registerRecord) {
       return registerDidFail(new Error('Register record not found'))
     }
 
     const {
       username,
-      transactionHash,
-      keyPair: keyPairHexString
-    } = registerRecord
+      registerRecord: {
+        identityTransactionHash,
+        identity: keyPairHexString
+      }
+    } = user
     const identityKeyPair = IdentityKeyPair.deserialise(sodium.from_hex(keyPairHexString).buffer)
 
     const web3 = getWeb3()
-    checkRegisterWillStart(transactionHash)
+    checkRegisterWillStart(identityTransactionHash)
     const waitForTransactionReceipt = async (counter = 0) => {
       if (this.connectStatus !== SUCCESS) {
         return
       }
-      const receipt = await web3.eth.getTransactionReceipt(transactionHash)
+      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash)
         .catch(() => null)
       if (receipt !== null) {
-        if (counter >= 10) {
+        if (counter >= CONFIRMATION_NUMBER) {
           const {
+            blockNumber,
             publicKey: registeredIdentityFingerprint
           } = await this.identitiesContract.getIdentity(username)
             .catch(() => {
-              return {publicKey: ''}
+              return {publicKey: '', blockNumber: 0}
             })
           if (!registeredIdentityFingerprint) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            // save account to indexedDB, but not the cryptobox
-            const createLocalAccountErr = await this.createLocalAccount(username, {
-              accountWillCreate,
-              accountDidCreate
+            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch((err) => {
+              registerDidFail(err)
+              return '0x0'
             })
-              .catch((err: Error) => err)
-            // Create local account error, delete register record
-            if (createLocalAccountErr) {
-              this.db.deleteRegisterRecord(networkId, usernameHash).catch(noop)
-              return registerDidFail(createLocalAccountErr)
-            }
-
-            const user = await this.db.getUser(networkId, usernameHash).catch(registerDidFail)
-            if (!user) {
+            if (blockHash === '0x0') {
               return
             }
-            await this.useUser(user).catch(noop)
+            user.blockHash = blockHash
+            await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED).catch(registerDidFail)
             runInAction(() => {
-              this.currentNetworkUsers.push(user)
-              this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+              if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+                this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.IDENTITY_UPLOADED})
+                const index = this.currentNetworkUsers
+                .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
+                if (index !== -1) {
+                  this.currentNetworkUsers[index] = this.currentUser
+                  this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+                }
+              }
             })
             return
           } else {
-            this.db.deleteRegisterRecord(networkId, usernameHash).catch(noop)
+            this.db.deleteUser(user).catch(noop)
             return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
           }
         } else {
@@ -440,13 +434,15 @@ export class Store {
     const web3 = getWeb3()
     const toUsernameHash = web3.utils.sha3(toUsername)
     const {
-      publicKey: identityFingerprint
+      publicKey: identityFingerprint,
+      blockNumber
     } = await this.identitiesContract.getIdentity(toUsernameHash, { isHash: true })
       .catch((err) => {
         sendingDidFail(err)
-        return {publicKey: undefined}
+        return {publicKey: undefined, blockNumber: 0}
       })
-    if (!identityFingerprint) {
+    const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch(() => '0x0')
+    if (!identityFingerprint || blockHash === '0x0') {
       return
     }
     if (Number(identityFingerprint) === 0) {
@@ -462,9 +458,9 @@ export class Store {
           // Maybe we have a corrupted session on local, delete it.
           return Promise.all([
             (this.box as Cryptobox).session_delete(sessionTag).then(noop),
-            this.db.getSession(sessionTag).then((session) => {
-              if (session) {
-                return this.db.deleteSession(this.currentUser as Iuser, session)
+            this.db.getSession(sessionTag, currentUser.usernameHash).then((_session) => {
+              if (_session) {
+                return this.db.deleteSession(this.currentUser as Iuser, _session)
               }
               return
             })
@@ -478,7 +474,11 @@ export class Store {
       interval,
       lastPrekeyDate,
       preKeyPublicKeys
-    } = await this.getPreKeys(toUsernameHash, true)
+    } = await this.getPreKeys(toUsernameHash, true).catch(() => new PreKeysPackage({}, 0, 0))
+    if (Object.keys(preKeyPublicKeys).length === 0) {
+      sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
+      return
+    }
 
     const {
       id: preKeyID,
@@ -513,9 +513,9 @@ export class Store {
         const identityKey = identityKeyFromHexStr(identityFingerprint.slice(2))
         const preKeyBundle = PreKeyBundle.create(identityKey, preKeyPublicKey, preKeyID)
 
-        const usingSessionTag = sessionTag === '' ? makeSessionTag() : sessionTag
+        const _usingSessionTag = sessionTag === '' ? makeSessionTag() : sessionTag
         const encryptedMessage = await (this.box as Cryptobox).encrypt(
-          usingSessionTag,
+          _usingSessionTag,
           paddedMessage,
           preKeyBundle.serialise()
         )
@@ -527,14 +527,14 @@ export class Store {
           senderIdentity,
           mac: proteusEnvelope.mac,
           baseKey: preKeyMessage.base_key,
-          sessionTag: usingSessionTag,
+          sessionTag: _usingSessionTag,
           isPreKeyMessage: true,
           messageByteLength
         }
 
         return {
           messageType: _messageType,
-          usingSessionTag,
+          usingSessionTag: _usingSessionTag,
           keymailEnvelope: new Envelope(header, cipherMessage)
         }
       } else {
@@ -597,7 +597,7 @@ export class Store {
     await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
       .on('transactionHash', transactionDidCreate)
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === 10) {
+        if (confirmationNumber === CONFIRMATION_NUMBER) {
           if (!receipt.events) {
             sendingDidFail(new Error('Unknown error'))
             return
@@ -610,7 +610,8 @@ export class Store {
               user: currentUser,
               contact: {
                 username: toUsername,
-                usernameHash: toUsernameHash
+                usernameHash: toUsernameHash,
+                blockHash
               },
               subject,
               sessionTag: usingSessionTag,
@@ -625,7 +626,7 @@ export class Store {
             await createNewSession()
           } else {
             // cryptobox session corrupted
-            const oldSession = await this.db.getSession(sessionTag)
+            const oldSession = await this.db.getSession(sessionTag, currentUser.usernameHash)
             if (!oldSession) {
               await createNewSession()
             } else {
@@ -638,6 +639,7 @@ export class Store {
                 isFromYourself
               })
               await this.db.addContact(currentUser, {
+                blockHash,
                 username: toUsername,
                 usernameHash: toUsernameHash
               })
@@ -650,8 +652,9 @@ export class Store {
               if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
                 this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
                 const index = this.currentUserSessions
-                  .findIndex((session) => session.sessionTag === sessionTag)
-                this.currentSession.summary = `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+                  .findIndex((_session) => _session.sessionTag === sessionTag)
+                this.currentSession.summary =
+                  `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
                 this.currentSession.lastUpdate = confirmedTimestamp * 1000
                 this.currentUserSessions = [
                   this.currentSession,
@@ -662,6 +665,7 @@ export class Store {
 
               if (!this.currentUserContacts.find((contact) => contact.usernameHash === toUsernameHash)) {
                 this.currentUserContacts.push({
+                  blockHash,
                   username: toUsername,
                   usernameHash: toUsernameHash
                 })
@@ -677,7 +681,7 @@ export class Store {
       .on('error', sendingDidFail)
   }
 
-  public useUser = async (user: Iuser, shouldRefreshSessions = false) => {
+  public useUser = async (user: Iuser, shouldRefreshSessions = false, redirect?: () => void) => {
     const networkId = this.currentEthereumNetwork || this.offlineSelectedEthereumNetwork as NETWORKS
     const userData = await this.loadUserData(user)
     const sessions = shouldRefreshSessions ? await this.db.getSessions(userData[0] as Iuser) : undefined
@@ -697,11 +701,10 @@ export class Store {
       this.newMessageCount = 0
       addUsedNetwork(networkId)
       setLastUsedUser(networkId, user.usernameHash)
+      if (redirect) {
+        redirect()
+      }
     })
-  }
-
-  public userHasBox = () => {
-    return !!this.box
   }
 
   public selectOfflineNetwork = async (
@@ -726,11 +729,13 @@ export class Store {
     ] = await Promise.all([
       this.db.getNetworkSettings(networkId),
 
-      currentNetworkUsers.length > 0 ? Promise.resolve(currentNetworkUsers) : this.db.getUsers(networkId),
+      currentNetworkUsers.length > 0
+        ? Promise.resolve(currentNetworkUsers)
+        : this.db.getUsers(networkId),
 
       this.db.getUser(networkId, usernameHash)
         .catch(() => this.currentUser)
-        .then((currentUser) => this.loadUserData(currentUser))
+        .then((_currentUser) => this.loadUserData(_currentUser))
     ])}
 
     const currentUser = loadedUserData[0]
@@ -831,7 +836,7 @@ export class Store {
 
   public selectSession = async (session: Isession) => {
     const messages = await this.db.getMessages(session.sessionTag)
-    const newSession = await this.db.getSession(session.sessionTag) as Isession
+    const newSession = await this.db.getSession(session.sessionTag, session.usernameHash) as Isession
     const unreadCount = newSession.unreadCount
     if (unreadCount > 0) {
       await this.db.clearSessionUnread(session)
@@ -878,44 +883,16 @@ export class Store {
     this.connectStatusListener = this.connectStatusListener.filter((_listener) => _listener !== listener)
   }
 
-  private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {
-    this.connectStatusListener.forEach((listener) => {
-      listener(prevStatus, currentStatus)
-    })
-  }
-
-  public loadRegisterRecords = async () => {
-    if (typeof this.currentEthereumNetwork === 'undefined') {
-      return
-    }
-    const registerRecords = await this.db.getRegisterRecords(this.currentEthereumNetwork)
+  public loadRegisteringUser = async () => {
     runInAction(() => {
-      this.registerRecords = registerRecords
+      this.registeringUsers = this.currentNetworkUsers.filter((user) => user.status !== USER_STATUS.OK)
     })
   }
 
-  public clearStoreRegisterRecords = () => {
+  public clearRegisteringUser = () => {
     runInAction(() => {
-      this.registerRecords = []
+      this.registeringUsers = []
     })
-  }
-
-  private async createLocalAccount(username: string, {
-    accountWillCreate = noop,
-    accountDidCreate = noop
-  }: IcreateAccountLifecycle = {}) {
-    accountWillCreate()
-    const currentNetworkId = this.currentEthereumNetwork as NETWORKS
-    const usernameHash = getUsernameHash(username)
-
-    await this.db.createUser({
-      networkId: currentNetworkId,
-      username,
-      usernameHash,
-      owner: this.currentEthereumAccount
-    })
-    accountDidCreate()
-    return
   }
 
   public uploadPreKeys = async (
@@ -924,14 +901,16 @@ export class Store {
     numOfPreKeys = 100,
     {
       transactionWillCreate = noop,
-      preKeysDidUpload = noop
+      transactionDidCreate = noop,
+      preKeysDidUpload = noop,
+      preKeysUploadDidFail = noop
     }: IuploadPreKeysLifecycle = {}
   ) => {
     const preKeys = generatePrekeys(unixToday(), interval, numOfPreKeys)
     const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce((result, preKey) => Object.assign(result, {
       [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
     }), {})
-    
+
     // use lastPreKey as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
     const lastPreKey = preKeys[preKeys.length - 1]
@@ -939,33 +918,93 @@ export class Store {
 
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
 
-    transactionWillCreate()
-    this.preKeysContract.upload(
-      user.username,
-      `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    ).then(() => {
-      this.db.deleteRegisterRecord(user.networkId, user.usernameHash).catch(noop)
-      preKeysDidUpload()
-    })
-    let store: IndexedDBStore | undefined
-    if (!this.box) {
-      let record = await this.db.getRegisterRecord(user.networkId, user.usernameHash).catch(() => undefined)
-      if (record !== undefined) {
-        store = new IndexedDBStore(user.usernameHash)
-        await store.save_identity(IdentityKeyPair.deserialise(sodium.from_hex(record.keyPair).buffer))
-        const box = new Cryptobox(store as any, 0)
-        runInAction(() => {
-          this.indexedDBStore = store
-          this.box = box
-        })
+    const uploadPreKeysTransactionHash = user.uploadPreKeysTransactionHash
+    if (uploadPreKeysTransactionHash) {
+      transactionDidCreate(uploadPreKeysTransactionHash)
+      const web3 = getWeb3()
+      const waitForTransactionReceipt = async (counter = 0) => {
+        if (this.connectStatus !== SUCCESS) {
+          return
+        }
+        const receipt = await web3.eth.getTransactionReceipt(uploadPreKeysTransactionHash)
+          .catch(() => null)
+        if (receipt !== null) {
+          if (counter >= CONFIRMATION_NUMBER) {
+            this.db.updateUserStatus(user, USER_STATUS.OK).catch(noop)
+            runInAction(() => {
+              if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+                this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
+                const index = this.currentNetworkUsers
+                .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
+                if (index !== -1) {
+                  this.currentNetworkUsers[index] = this.currentUser
+                  this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+                }
+              }
+            })
+            return preKeysDidUpload()
+          } else {
+            window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
+            return
+          }
+        }
+
+        if (counter === 50) {
+          return preKeysUploadDidFail(new Error('Timeout'))
+        }
+
+        window.setTimeout(waitForTransactionReceipt, 1000, counter)
       }
+
+      return waitForTransactionReceipt()
     }
 
-    if (store === undefined) {
-      store = this.indexedDBStore as IndexedDBStore
-    }
-    // enhancement: remove all local prekeys
-    await store.save_prekeys(preKeys.concat(lastResortPrekey))
+    transactionWillCreate()
+    await this.preKeysContract.upload(
+      user.username,
+      `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
+    ).on('transactionHash', async (transactionHash) => {
+      transactionDidCreate(transactionHash)
+      if (!this.indexedDBStore || !this.box) {
+        return
+      }
+      const store = this.indexedDBStore
+      // enhancement: remove all local prekeys before save
+      await store.save_prekeys(preKeys.concat(lastResortPrekey))
+      await this.box.load()
+      await this.db.updateUserAddUploadPreKeysTxHash(user, transactionHash).catch(preKeysUploadDidFail)
+      runInAction(() => {
+        if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+          this.currentUser = Object.assign({}, this.currentUser, {uploadPreKeysTransactionHash: transactionHash})
+          const index = this.currentNetworkUsers
+            .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
+          if (index !== -1) {
+            this.currentNetworkUsers[index] = this.currentUser
+            this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+          }
+        }
+      })
+    })
+      .on('error', preKeysUploadDidFail)
+    this.db.updateUserStatus(user, USER_STATUS.OK).catch(noop)
+    runInAction(() => {
+      if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+        this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
+        const index = this.currentNetworkUsers
+          .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
+        if (index !== -1) {
+          this.currentNetworkUsers[index] = this.currentUser
+          this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+        }
+      }
+    })
+    preKeysDidUpload()
+  }
+
+  private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {
+    this.connectStatusListener.forEach((listener) => {
+      listener(prevStatus, currentStatus)
+    })
   }
 
   private listenForEthereumAccountChange = async () => {
@@ -1034,7 +1073,7 @@ export class Store {
         .catch(() => this.currentUser)
         .then((currentUser) => this.loadUserData(currentUser))
     ])
-  
+
     runInAction(() => {
       if (isFirstConnect) {
         this.globalSettings = globalSettings as IglobalSettings
@@ -1079,7 +1118,8 @@ export class Store {
         }))
 
         this.messagesContract = new Messages(Object.assign({
-          address: MessagesAddress
+          address: MessagesAddress,
+          currentNetworkId
         }))
 
         const prevConnectStatus = this.connectStatus
@@ -1101,7 +1141,9 @@ export class Store {
     currentUser: Iuser | undefined
   ) => Promise.all([
     // currentUser
-    Promise.resolve(currentUser),
+    currentUser
+      ? this.db.getUser(currentUser.networkId, currentUser.usernameHash).catch(() => currentUser)
+      : currentUser,
     // box
     (async () => {
       if (!currentUser) {
@@ -1132,20 +1174,11 @@ export class Store {
       { isHash }
     )
 
-    return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
-  }
-
-  public checkPreKeys = async (replace: (path: string) => void, usernameHash: string, networkId: NETWORKS) => {
-    let record = await this.db.getRegisterRecord(networkId, usernameHash).catch(() => undefined)
-    if (record === undefined) {
-      return
+    if (preKeysPackageSerializedStr === '') {
+      return new PreKeysPackage({}, 0, 0)
     }
 
-    this.getPreKeys(usernameHash, true)
-      .then(() => this.db.deleteRegisterRecord(networkId, usernameHash))
-      .catch(() => {
-        replace("/upload-prekeys")
-      })
+    return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
   }
 
   private fetchNewMessages = async (
@@ -1158,24 +1191,30 @@ export class Store {
       fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0
     })
 
+    const user = this.currentUser as Iuser
+
     if (messages.length === 0) {
+      await this.db.updateLastFetchBlock(user, lastBlock).then(noop)
+      runInAction(() => {
+        this.currentUserlastFetchBlock = lastBlock
+      })
       return
     }
 
     const newReceivedMessages = (await Promise.all(messages
       .map((message) => this.decryptMessage(message).catch(() => null))))
       .filter((message) => message !== null) as IreceivedMessage[]
-    
-    const user = this.currentUser as Iuser
-    let unreadMessagesLength = newReceivedMessages.length 
+
+    let unreadMessagesLength = newReceivedMessages.length
     await Promise.all(
       newReceivedMessages.map((message) => {
         const plainText = message.plainText as string
-        switch(message.messageType) {
+        switch (message.messageType) {
           case MESSAGE_TYPE.HELLO:
             return this.db.createSession(Object.assign({}, message, {
               user,
               contact: {
+                blockHash: message.blockHash as string,
                 username: message.fromUsername as string,
                 usernameHash: getUsernameHash(message.fromUsername as string)
               },
@@ -1190,15 +1229,17 @@ export class Store {
                   shouldAddUnread: false
                 }))
                   .then(() => this.db.getMessages(sessionTag))
-                  .then((messages) => {
+                  .then((_messages) => {
                     runInAction(() => {
                       if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
-                        this.currentSessionMessages = messages
+                        this.currentSessionMessages = _messages
                         const index = this.currentUserSessions
                           .findIndex((session) => session.sessionTag === sessionTag)
                         this.currentSession.lastUpdate = message.timestamp * 1000
                         this.currentSession.isClosed = message.messageType === MESSAGE_TYPE.CLOSE_SESSION
-                        this.currentSession.summary = this.currentSession.isClosed ? 'Session closed' : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+                        this.currentSession.summary = this.currentSession.isClosed
+                          ? 'Session closed'
+                          : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
                         this.currentUserSessions = [
                           this.currentSession,
                           ...this.currentUserSessions.slice(0, index),
@@ -1216,7 +1257,7 @@ export class Store {
             }
         }
       }).concat(
-        this.db.updateLastFetchBlock(user, lastBlock).then(() => {})
+        this.db.updateLastFetchBlock(user, lastBlock).then(noop)
       )
     ).then(() => {
       runInAction(() => {
@@ -1270,7 +1311,7 @@ export class Store {
         // Maybe we have a corrupted session on local, delete it.
         return Promise.all([
           box.session_delete(sessionTag).then(noop),
-          this.db.getSession(sessionTag).then((session) => {
+          this.db.getSession(sessionTag, (this.currentUser as Iuser).usernameHash).then((session) => {
             if (session) {
               return this.db.deleteSession(this.currentUser as Iuser, session)
             }
@@ -1282,7 +1323,7 @@ export class Store {
     })
 
     return box.decrypt(sessionTag, proteusEnvelope.serialise())
-      .then(decryptedPaddedMessage => this.deserializeMessage({
+      .then((decryptedPaddedMessage) => this.deserializeMessage({
         decryptedPaddedMessage,
         senderIdentity,
         timestamp,
@@ -1307,13 +1348,24 @@ export class Store {
       plainText
     } = JSON.parse(unpaddedMessage) as IrawUnppaddedMessage
 
+    let blockHash
     if (fromUsername) {
       const {
+        blockNumber,
         publicKey: expectedFingerprint
       } = await this.identitiesContract.getIdentity(fromUsername)
-  
+
+      const web3 = getWeb3()
+      blockHash = await web3.eth.getBlock(blockNumber)
+        .then((block) => block.hash).catch(() => '0x0')
+
       if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
         throw new Error('Invalid message: sender identity not match')
+      }
+
+      if (messageType === MESSAGE_TYPE.HELLO && this.box && this.indexedDBStore) {
+        this.box = new Cryptobox(this.indexedDBStore as any, 0)
+        this.box.load()
       }
     }
 
@@ -1322,6 +1374,7 @@ export class Store {
       subject,
       timestamp: Number(timestamp),
       fromUsername,
+      blockHash,
       plainText
     }
   }

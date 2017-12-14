@@ -3,17 +3,16 @@ import Dexie from 'dexie'
 import {
   TableGlobalSettings,
   TableNetworkSettings,
-  TableRegisterRecords,
   TableUsers,
   TableSessions,
   TableMessages,
   IglobalSettings,
   InetworkSettings,
-  IregisterRecord,
   Iuser,
   Isession,
   Imessage,
   Icontact,
+  IregisterRecord,
 } from '../typings/interface.d'
 
 import {
@@ -22,7 +21,8 @@ import {
   SCHEMA_V1,
   GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
-  SUMMARY_LENGTH
+  SUMMARY_LENGTH,
+  USER_STATUS
 } from './constants'
 
 interface IcreateUserArgs {
@@ -80,9 +80,6 @@ export default class DB {
   private get tableNetworkSettings(): TableNetworkSettings {
     return (this.db as any)[TABLES.NETWORK_SETTINGS]
   }
-  private get tableRegisterRecords(): TableRegisterRecords {
-    return (this.db as any)[TABLES.REGISTER_RECORDS]
-  }
   private get tableUsers(): TableUsers {
     return (this.db as any)[TABLES.USERS]
   }
@@ -125,44 +122,14 @@ export default class DB {
       .then((settings) => settings || {networkId}) as Dexie.Promise<InetworkSettings>
   }
 
-  public createRegisterRecord(record: IregisterRecord) {
-    return this.tableRegisterRecords
-      .add(record)
-  }
-
-  public getRegisterRecord(networkId: NETWORKS, usernameHash: string): Dexie.Promise<IregisterRecord|undefined> {
-    return this.tableRegisterRecords
-      .get([networkId, usernameHash])
-  }
-
-  public getRegisterRecords(networkId: NETWORKS) {
-    return this.tableRegisterRecords
-      .where({networkId})
-      .reverse()
-      .toArray()
-  }
-
-  public deleteRegisterRecord(networkId: NETWORKS, usernameHash: string) {
-    return this.tableRegisterRecords
-      .delete([networkId, usernameHash])
-  }
-
-  public deleteRegisterRecords(networkId: NETWORKS) {
-    return this.tableRegisterRecords
-      .where({networkId})
-      .delete()
-  }
-
-  public clearRegisterRecords() {
-    return this.tableRegisterRecords
-      .clear()
-  }
-
-  public createUser(user: IcreateUserArgs) {
+  public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {
     return this.tableUsers
       .add(Object.assign({}, {
         lastFetchBlock: 0,
-        contacts: []
+        contacts: [],
+        status: USER_STATUS.PENDING,
+        registerRecord,
+        blockHash: '0x0'
       }, user))
   }
 
@@ -171,9 +138,9 @@ export default class DB {
       .get([networkId, usernameHash])
   }
 
-  public getUsers(networkId: NETWORKS) {
+  public getUsers(networkId: NETWORKS, status?: USER_STATUS) {
     return this.tableUsers
-      .where({networkId})
+      .where(Object.assign({networkId}, status === undefined ? null : {status}))
       .toArray()
   }
 
@@ -209,6 +176,35 @@ export default class DB {
       this.tableSessions.clear()
       this.tableMessages.clear()
     })
+  }
+
+  public updateUserAddUploadPreKeysTxHash(
+    {
+      networkId,
+      usernameHash,
+    }: Iuser,
+    transactionHash?: string
+  ) {
+    return this.tableUsers
+      .update([networkId, usernameHash], {
+        uploadPreKeysTransactionHash: transactionHash
+      })
+  }
+
+  public updateUserStatus(
+    {
+      networkId,
+      usernameHash,
+      blockHash
+    }: Iuser,
+    status: USER_STATUS
+  ) {
+    return this.tableUsers
+      .update([networkId, usernameHash], Object.assign(
+        {status},
+        status === USER_STATUS.IDENTITY_UPLOADED ? {blockHash} : null,
+        status === USER_STATUS.OK ? {registerRecord: undefined, uploadPreKeysTransactionHash: undefined} : null,
+      ))
   }
 
   public updateLastFetchBlock(
@@ -313,14 +309,14 @@ export default class DB {
 
   public clearSessionUnread(session: Isession) {
     return this.tableSessions
-      .update(session.sessionTag, {
+      .update([session.sessionTag, session.usernameHash], {
         unreadCount: 0
       })
   }
 
-  public getSession(sessionTag: string) {
+  public getSession(sessionTag: string, usernameHash: string) {
     return this.tableSessions
-      .get(sessionTag)
+      .get([sessionTag, usernameHash])
   }
 
   public getSessions(
@@ -354,10 +350,11 @@ export default class DB {
   }
 
   public closeSession({
-    sessionTag
+    sessionTag,
+    usernameHash
   }: Isession) {
     return this.tableSessions
-      .update(sessionTag, {
+      .update([sessionTag, usernameHash], {
         isClosed: true
       })
   }
@@ -366,12 +363,13 @@ export default class DB {
     user: Iuser,
     {
       sessionTag,
+      usernameHash,
       contact
     }: Isession
   ) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
       await this.tableSessions
-        .delete(sessionTag)
+        .delete([sessionTag, usernameHash])
       await this.tableMessages
         .where({sessionTag})
         .delete()
@@ -433,9 +431,9 @@ export default class DB {
           isFromYourself
         })
       if (!isFromYourself && shouldAddUnread) {
-        const session = await this.getSession(sessionTag) as Isession
+        const session = await this.getSession(sessionTag, usernameHash) as Isession
         this.tableSessions
-          .update(sessionTag, {
+          .update([sessionTag, usernameHash], {
             unreadCount: session.unreadCount + 1
           })
       }
@@ -444,12 +442,18 @@ export default class DB {
       if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
         summary = 'Session closed'
       } else {
-        summary = (isFromYourself ? 'Me: ' : '') + plainText.slice(0, SUMMARY_LENGTH) + (plainText.length > SUMMARY_LENGTH ? '...' : '')
+        summary = `${
+          (isFromYourself ? 'Me: ' : '')
+        }${
+          plainText.slice(0, SUMMARY_LENGTH)
+        }${
+          (plainText.length > SUMMARY_LENGTH ? '...' : '')
+        }`
       }
       this.tableSessions
-        .update(sessionTag, {
+        .update([sessionTag, usernameHash], {
           lastUpdate: timestamp * 1000,
-          summary: summary,
+          summary,
         })
     })
   }
