@@ -13,13 +13,16 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Receive messages.
   - [x] Multi-account.
   - [x] Session summary, show a slice of latest message.
-  - [ ] Unify username (length) to reduce spoofing. (*Allow same username.s*)
-  - [ ] Continue registration from record. (Allow user left the registration page when record saved)
-    - [ ] Show account registration records in register page
+  - [x] Unify username (length) to reduce spoofing. (*Allow same username.s*)
+  - [x] Continue registration from record. (Allow user left the registration page when record saved)
+    - [x] Show account registration records in register page
+  - [x] Message sending
   - [ ] Delete session(s).
+  - [ ] Upload new pre-keys
+    - [x] Basic function
+    - [ ] Config interval and number
+    - [ ] Replace old pre-keys
   - [ ] Prompt for upload new pre-keys when pre-keys not enough.
-  - [ ] Upload/replace new pre-keys
-  - [ ] Send message without waiting last sending complete in same session. (Function is easy to implement, but need to save & show message sending progress.)
   - [ ] Import/export account
   - [ ] Setting pages.
 
@@ -30,9 +33,10 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
 
   ## Enhancements/features
   - [x] Ethereum network/account detect.
-  - [ ] Use [Bulma](https://github.com/jgthms/bulma) (CSS framework)
+  - [x] Identicon
+  - [ ] Message sending from same browser
+  - [ ] Use [Antd](https://ant.design) (UI framework)
   - [ ] Delete account
   - [ ] Delete (selected) message(s).
-  - [ ] Identicon
   - [ ] Cache loaded session messages. (Be careful for memory usage.) (*IndexedDB seems fast enough.*)
 </details>
