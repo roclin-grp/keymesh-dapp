@@ -22,6 +22,7 @@ const ed2curve = require('ed2curve')
 const sodium = require('libsodium-wrappers')
 
 import DB from './DB'
+import Dexie from 'dexie'
 import IndexedDBStore from './IndexedDBStore'
 import PreKeysPackage from './PreKeysPackage'
 import PreKeyBundle from './PreKeyBundle'
@@ -111,6 +112,7 @@ export class Store {
   @observable.ref public currentSession: Isession | undefined
   @observable.ref public currentSessionMessages: Imessage[] = []
   @observable public isFetchingMessage = false
+  @observable.ref public registerRecords: IregisterRecord[] = []
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
@@ -121,9 +123,11 @@ export class Store {
   private detectAccountChangeTimeout: number
   private fetchMessagesTimeout: number
   private db: DB
+  public getRegisterRecord: (networkId: NETWORKS, usernameHash: string) => Dexie.Promise<IregisterRecord|undefined> 
 
   constructor() {
     this.db = new DB()
+    this.getRegisterRecord = this.db.getRegisterRecord
   }
 
   @computed
@@ -245,33 +249,21 @@ export class Store {
       })
   }
 
-  /**
-   * TODO: handle user switch Ethereum network/account during register ?
-   */
   public register = async (username: string, {
     transactionWillCreate = noop,
     transactionDidCreate = noop,
     registerRecordDidSave = noop,
-    accountWillCreate = noop,
-    accountDidCreate = noop,
-    registerDidComplete = noop,
-    registerDidFail = noop,
-    transactionCreationDidCatch = registerDidFail,
-    registerRecordStorageDidCatch = registerDidFail,
-    accountCreationDidCatch = registerDidFail,
-    preKeysUploadDidCatch = registerDidFail
-  }: IregisterLifecycle = {}) => {
+    registerDidFail = noop
+  }: IregisterLifecycle = {}) => new Promise(async (resolve, reject)=> {
     if (this.connectStatus !== SUCCESS) {
       return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
     }
-
     if (username === '') {
       return registerDidFail(null, REGISTER_FAIL_CODE.INVALID_USERNAME)
     }
 
-    const web3 = getWeb3()
-    const usernameHash = web3.utils.sha3(username)
-
+    const usernameHash = getUsernameHash(username)
+    // Check local records first.
     if (Object.keys(this.currentNetworkUsers).includes(username)) {
       return registerDidFail(null, REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
     }
@@ -282,27 +274,19 @@ export class Store {
     //   return onRegisterFailed(REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
     // }
 
+    // connectStatus === SUCCESS means we had connected to a network
     const currentNetworkId = this.currentEthereumNetwork as NETWORKS
 
+    // In progress registration
     const registerRecord = await this.db.getRegisterRecord(currentNetworkId, usernameHash)
     if (registerRecord) {
-      return this.checkRegister(username, {
-        accountWillCreate,
-        accountDidCreate,
-        registerDidComplete,
-        registerDidFail
-      })
+      return registerRecordDidSave(registerRecord)
     }
+
     // check if registered, avoid unnecessary transaction
-    const { publicKey: identityFingerprint } = await this.identitiesContract
-      .getIdentity(username)
-      .catch((err) => {
-        registerDidFail(err)
-        return {publicKey: undefined}
-      })
-    if (!identityFingerprint) {
-      return
-    }
+    const {
+      publicKey: identityFingerprint
+    } = await this.identitiesContract.getIdentity(username)
     if (Number(identityFingerprint) !== 0) {
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
@@ -311,114 +295,102 @@ export class Store {
     const newIdentityFingerprint = `0x${identityKeyPair.public_key.fingerprint()}`
 
     transactionWillCreate()
-
-    const transactionConfirmation = async (confirmationNumber: number) => {
-      if (confirmationNumber === 10) {
-        this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
-
-        const {
-          publicKey: registeredIdentityFingerprint
-        } = await this.identitiesContract.getIdentity(username)
-          .catch(() => {
-            return {publicKey: undefined}
-          })
-        if (!registeredIdentityFingerprint) {
-          window.setTimeout(transactionConfirmation, 1000, 10)
-          return
-        }
-        if (registeredIdentityFingerprint === newIdentityFingerprint) {
-          await this.createAccount(username, usernameHash, identityKeyPair, {
-            accountWillCreate,
-            accountDidCreate,
-            accountCreationDidCatch,
-            preKeysUploadDidCatch
-          })
-          const user = await this.db.getUser(currentNetworkId, usernameHash) as Iuser
-          await this.useUser(user)
-          registerDidComplete()
-        } else {
-          registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
-        }
-      }
-    }
-
     this.identitiesContract.register(username, newIdentityFingerprint)
       .on('transactionHash', (transactionHash) => {
         transactionDidCreate(transactionHash)
         const newRegisterRecord: IregisterRecord = {
+          username,
           networkId: currentNetworkId,
           usernameHash,
           keyPair: sodium.to_hex(new Uint8Array(identityKeyPair.serialise())),
           transactionHash
         }
         this.db.createRegisterRecord(newRegisterRecord)
-          .then(() => registerRecordDidSave(transactionHash))
-          .catch(registerRecordStorageDidCatch)
+          .then(() => {
+            registerRecordDidSave(newRegisterRecord)
+            resolve()
+          })
+          .catch(reject)
       })
-      .on('confirmation', transactionConfirmation)
       .on('error', (err) => {
         this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
-        transactionCreationDidCatch(err)
+        reject(err)
       })
-  }
+  }).catch(registerDidFail)
 
-  public async checkRegister(username: string, {
-    accountWillCreate = noop,
-    accountDidCreate = noop,
-    registerDidComplete = noop,
-    registerDidFail = noop,
-    accountCreationDidCatch = registerDidFail,
-    preKeysUploadDidCatch = registerDidFail
-  }: IcheckRegisterLifecycle = {}) {
+  public checkRegister = async (
+    networkId: NETWORKS,
+    usernameHash: string,
+    {
+      checkRegisterWillStart = noop,
+      accountWillCreate = noop,
+      accountDidCreate = noop,
+      registerDidFail = noop
+    }: IcheckRegisterLifecycle = {}
+  ) => {
     if (this.connectStatus !== SUCCESS) {
       return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
     }
-
-    if (username === '') {
+    if (usernameHash === '') {
       return registerDidFail(null, REGISTER_FAIL_CODE.INVALID_USERNAME)
     }
 
-    const web3 = getWeb3()
-    const usernameHash = web3.utils.sha3(username)
-
-    const currentNetworkId = this.currentEthereumNetwork as NETWORKS
-
-    const registerRecord = await this.db.getRegisterRecord(currentNetworkId, usernameHash)
+    const registerRecord = await this.db.getRegisterRecord(networkId, usernameHash).catch(() => undefined)
     if (!registerRecord) {
       return registerDidFail(new Error('Register record not found'))
     }
+
     const {
+      username,
       transactionHash,
       keyPair: keyPairHexString
     } = registerRecord
     const identityKeyPair = IdentityKeyPair.deserialise(sodium.from_hex(keyPairHexString).buffer)
 
+    const web3 = getWeb3()
+    checkRegisterWillStart(transactionHash)
     const waitForTransactionReceipt = async (counter = 0) => {
+      if (this.connectStatus !== SUCCESS) {
+        return
+      }
       const receipt = await web3.eth.getTransactionReceipt(transactionHash)
         .catch(() => null)
       if (receipt !== null) {
         if (counter >= 10) {
-          this.db.deleteRegisterRecord(currentNetworkId, usernameHash).catch(noop)
           const {
             publicKey: registeredIdentityFingerprint
           } = await this.identitiesContract.getIdentity(username)
             .catch(() => {
-              return {publicKey: undefined}
+              return {publicKey: ''}
             })
           if (!registeredIdentityFingerprint) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            await this.createAccount(username, usernameHash, identityKeyPair, {
+            // save account to indexedDB, but not the cryptobox
+            const createLocalAccountErr = await this.createLocalAccount(username, {
               accountWillCreate,
-              accountDidCreate,
-              accountCreationDidCatch,
-              preKeysUploadDidCatch
+              accountDidCreate
             })
-            const user = await this.db.getUser(currentNetworkId, usernameHash) as Iuser
-            await this.useUser(user)
-            return registerDidComplete()
+              .catch((err: Error) => err)
+            // Create local account error, delete register record
+            if (createLocalAccountErr) {
+              this.db.deleteRegisterRecord(networkId, usernameHash).catch(noop)
+              return registerDidFail(createLocalAccountErr)
+            }
+
+            const user = await this.db.getUser(networkId, usernameHash).catch(registerDidFail)
+            if (!user) {
+              return
+            }
+            await this.useUser(user).catch(noop)
+            runInAction(() => {
+              this.currentNetworkUsers.push(user)
+              this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+            })
+            return
           } else {
+            this.db.deleteRegisterRecord(networkId, usernameHash).catch(noop)
             return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
           }
         } else {
@@ -445,8 +417,7 @@ export class Store {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
       sendingDidComplete = noop,
-      sendingDidFail = noop,
-      transactionCreationDidCatch = sendingDidFail
+      sendingDidFail = noop
     }: IsendingLifecycle = {},
     sessionTag = ''
   ) => {
@@ -703,7 +674,7 @@ export class Store {
           return sendingDidComplete()
         }
       })
-      .on('error', transactionCreationDidCatch)
+      .on('error', sendingDidFail)
   }
 
   public useUser = async (user: Iuser, shouldRefreshSessions = false) => {
@@ -727,6 +698,10 @@ export class Store {
       addUsedNetwork(networkId)
       setLastUsedUser(networkId, user.usernameHash)
     })
+  }
+
+  public userHasBox = () => {
+    return !!this.box
   }
 
   public selectOfflineNetwork = async (
@@ -909,52 +884,88 @@ export class Store {
     })
   }
 
-  private async createAccount(username: string, usernameHash: string, identityKeyPair: keys.IdentityKeyPair, {
+  public loadRegisterRecords = async () => {
+    if (typeof this.currentEthereumNetwork === 'undefined') {
+      return
+    }
+    const registerRecords = await this.db.getRegisterRecords(this.currentEthereumNetwork)
+    runInAction(() => {
+      this.registerRecords = registerRecords
+    })
+  }
+
+  public clearStoreRegisterRecords = () => {
+    runInAction(() => {
+      this.registerRecords = []
+    })
+  }
+
+  private async createLocalAccount(username: string, {
     accountWillCreate = noop,
-    accountDidCreate = noop,
-    accountCreationDidCatch = noop,
-    preKeysUploadDidCatch = noop,
-  }: IcreateAccountLifecycle) {
+    accountDidCreate = noop
+  }: IcreateAccountLifecycle = {}) {
     accountWillCreate()
     const currentNetworkId = this.currentEthereumNetwork as NETWORKS
-    const store = new IndexedDBStore(usernameHash)
-    await store.save_identity(identityKeyPair).catch(accountCreationDidCatch)
+    const usernameHash = getUsernameHash(username)
+
     await this.db.createUser({
       networkId: currentNetworkId,
       username,
       usernameHash,
       owner: this.currentEthereumAccount
-    }).catch(accountCreationDidCatch)
-    const newUser = await this.db.getUser(currentNetworkId, usernameHash) as Iuser
-    this.currentNetworkUsers.push(newUser)
-    accountDidCreate()
-    return this.uploadPreKeys(username, undefined, undefined, store, {
-      preKeysUploadDidCatch
     })
+    accountDidCreate()
+    return
   }
 
-  private async uploadPreKeys(username: string, interval = 1, numOfPreKeys = 100, store: IndexedDBStore, {
-    transactionWillCreate = noop,
-    preKeysDidUpload = noop,
-    preKeysUploadDidCatch = noop,
-    transactionCreationDidCatch = preKeysUploadDidCatch
-  }: IuploadPreKeysLifecycle) {
+  public uploadPreKeys = async (
+    user: Iuser,
+    interval = 1, // 1 day
+    numOfPreKeys = 100,
+    {
+      transactionWillCreate = noop,
+      preKeysDidUpload = noop
+    }: IuploadPreKeysLifecycle = {}
+  ) => {
     const preKeys = generatePrekeys(unixToday(), interval, numOfPreKeys)
     const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce((result, preKey) => Object.assign(result, {
       [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
     }), {})
+    
     // use lastPreKey as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
     const lastPreKey = preKeys[preKeys.length - 1]
     lastResortPrekey.key_pair = lastPreKey.key_pair
+
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
 
     transactionWillCreate()
-    await this.preKeysContract.upload(username, `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`)
-      .catch(transactionCreationDidCatch)
+    this.preKeysContract.upload(
+      user.username,
+      `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
+    ).then(() => {
+      this.db.deleteRegisterRecord(user.networkId, user.usernameHash).catch(noop)
+      preKeysDidUpload()
+    })
+    let store: IndexedDBStore | undefined
+    if (!this.box) {
+      let record = await this.db.getRegisterRecord(user.networkId, user.usernameHash).catch(() => undefined)
+      if (record !== undefined) {
+        store = new IndexedDBStore(user.usernameHash)
+        await store.save_identity(IdentityKeyPair.deserialise(sodium.from_hex(record.keyPair).buffer))
+        const box = new Cryptobox(store as any, 0)
+        runInAction(() => {
+          this.indexedDBStore = store
+          this.box = box
+        })
+      }
+    }
 
-    await store.save_prekeys(preKeys.concat(lastResortPrekey)).catch(preKeysUploadDidCatch)
-    preKeysDidUpload()
+    if (store === undefined) {
+      store = this.indexedDBStore as IndexedDBStore
+    }
+    // enhancement: remove all local prekeys
+    await store.save_prekeys(preKeys.concat(lastResortPrekey))
   }
 
   private listenForEthereumAccountChange = async () => {
@@ -1106,11 +1117,13 @@ export class Store {
       await box.load()
       return [store, box] as [IndexedDBStore, Cryptobox]
     })()
-      .catch(() => [this.indexedDBStore, this.box] as [IndexedDBStore | undefined, Cryptobox | undefined]),
+      .catch(() => {
+        return [undefined, undefined] as [IndexedDBStore | undefined, Cryptobox | undefined]
+      }),
     // contacts
-    Promise.resolve(currentUser ? currentUser.contacts : this.currentUserContacts),
+    Promise.resolve(currentUser ? currentUser.contacts : []),
     // lastFetchBlock
-    Promise.resolve(currentUser ? currentUser.lastFetchBlock : this.currentUserlastFetchBlock)
+    Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0)
     ])
 
   private getPreKeys = async (usernameOrUsernameHash: string, isHash: boolean = false) => {
@@ -1120,6 +1133,19 @@ export class Store {
     )
 
     return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
+  }
+
+  public checkPreKeys = async (replace: (path: string) => void, usernameHash: string, networkId: NETWORKS) => {
+    let record = await this.db.getRegisterRecord(networkId, usernameHash).catch(() => undefined)
+    if (record === undefined) {
+      return
+    }
+
+    this.getPreKeys(usernameHash, true)
+      .then(() => this.db.deleteRegisterRecord(networkId, usernameHash))
+      .catch(() => {
+        replace("/upload-prekeys")
+      })
   }
 
   private fetchNewMessages = async (
@@ -1301,7 +1327,7 @@ export class Store {
   }
 
   private deleteOutdatedPrekeys = async () => {
-    const store =  this.indexedDBStore as IndexedDBStore
+    const store = this.indexedDBStore as IndexedDBStore
     const preKeysFromStorage = await store.load_prekeys()
     const today = unixToday()
     return Promise.all(preKeysFromStorage

@@ -5,16 +5,19 @@ import { withRouter,  } from 'react-router-dom'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
-import './register.css'
+import './index.css'
 
+import { IregisterRecord } from '../../../typings/interface'
 import {
   TRUSTBASE_CONNECT_STATUS,
   REGISTER_FAIL_CODE
 } from '../../constants'
 
 import Header from '../../containers/header'
+import RegisterRecords from '../../containers/register-records'
 
 const HeaderWithStore = Header as any
+const RegisterRecordsWithStore = RegisterRecords as any
 
 const {
   PENDING,
@@ -50,6 +53,18 @@ class Register extends React.Component<Iprops, Istate> {
     isRegistering: false
   }
   private input: HTMLInputElement | null
+  public handleAccountChange = () => {
+    if (this.input !== null) {
+      let value = this.input.value
+      let reg = /[^0-9a-zA-Z]/;
+      value = value.replace(reg, "");
+      let length = value.length;
+      if (length > 11) {
+        value = value.substring(0, 11);
+      }
+      this.input.value = value
+    }
+  }
   public render() {
     const {
       connectStatus,
@@ -92,9 +107,10 @@ class Register extends React.Component<Iprops, Istate> {
           }}>
             {/* FIXME: Dirty uncontrolled components */}
             <pre>Register new account</pre>
-            <input ref={(input) => this.input = input}/>
+            <input ref={(input) => this.input = input} onChange={this.handleAccountChange}/>
             <button disabled={this.state.isRegistering} onClick={this.handleRegister}>Register</button>
             <pre>{this.state.registerProgress}</pre>
+            <RegisterRecordsWithStore />
           </div>
         </div>
       }
@@ -123,6 +139,17 @@ class Register extends React.Component<Iprops, Istate> {
         return null
     }
   }
+
+  private generateRandomStr = (length: number) => {
+    var text = "";
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    for (var i = 0; i < length; i++)
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+    return text;
+  }
+
   private handleRegister = () => {
     if (!this.input || !this.input.value) {
       return
@@ -133,15 +160,15 @@ class Register extends React.Component<Iprops, Istate> {
     const {
       register
     } = this.props.store
-    register(this.input.value, {
+
+    let account = this.input.value
+    account = account + "#" + this.generateRandomStr(16 - account.length - 1)
+
+    register(account, {
       transactionWillCreate: this.transactionWillCreate,
       transactionDidCreate: this.transactionDidCreate,
       registerRecordDidSave: this.registerRecordDidSave,
-      accountWillCreate: this.accountWillCreate,
-      accountDidCreate: this.accountDidCreate,
-      preKeysDidUpload: this.preKeysDidUpload,
-      registerDidComplete: this.registerDidComplete,
-      registerDidFail: this.registerDidFail
+      registerDidFail: this.registerDidFail,
     })
       .catch(this.registerDidFail)
   }
@@ -157,39 +184,17 @@ class Register extends React.Component<Iprops, Istate> {
 Saving register record...`
     })
   }
-  private registerRecordDidSave = (hash: string) => {
+  private registerRecordDidSave = ({
+    networkId,
+    usernameHash
+  }: IregisterRecord) => {
     this.setState({
-      registerProgress: `Record saved (and you can safely leave this page from now).
-Waiting for transaction (hash: ${hash})...`
+      registerProgress: `Record saved (and you can safely leave this page from now).`
     })
-  }
-  private accountWillCreate = () => {
-    this.setState({
-      registerProgress: `Trustbase registered.
-Creating local account...`
-    })
-  }
-  private accountDidCreate = () => {
-    this.setState({
-      registerProgress: `Account created.
-Uploading pre-keys...
-(You may need to confirm the transaction.)`
-    })
-  }
-  private preKeysDidUpload = () => {
-    this.setState({
-      registerProgress: 'Pre-keys uploaded.',
-      isRegistering: false
-    })
-  }
-  private registerDidComplete = () => {
-    this.setState({
-      registerProgress: 'Register completed. Redirect to homepage in 5 sec',
-      isRegistering: false
-    })
-    setTimeout(() => {
-      this.props.history.push('/')
-    }, 5000)
+
+    window.setTimeout(() => {
+      this.props.history.push(`/check-register/${networkId}/${usernameHash}`)
+    }, 3000)
   }
   private registerDidFail = (err: Error | null, code = UNKNOWN) => {
     this.setState({

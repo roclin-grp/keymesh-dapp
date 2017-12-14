@@ -5,6 +5,8 @@ import { Store } from '../../store'
 
 import formatSessionTimestamp from '../../formatSessionTimestamp'
 import Message from '../../components/message'
+import Avatar from '../../components/avatar'
+import {getUsernameHash as web3UtilsSha3} from 'trustbase'
 
 import {
   SENDING_FAIL_CODE,
@@ -107,13 +109,16 @@ class Session extends React.Component<Iprops, Istate> {
         }
       </li>
     }
+    // todo add timestamp, and block hash
+    let avatarHash = web3UtilsSha3(contact.usernameHash)
     return <li
       className="session--unexpand"
       onClick={isLoading ? noop : this.handleSelect}>
+      <Avatar hash={avatarHash} size={35}/>
       <span
-        title={`${contact.username}(${contact.usernameHash.slice(0, 9)}...${contact.usernameHash.slice(-4)})`}
+        title={contact.username}
         className="contact">
-        {`${contact.username.slice(0, 10)}${contact.username.length > 10 ? '...' : ''}`}
+        {contact.username}
       </span>
       {unreadCount > 0
         ?<span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>

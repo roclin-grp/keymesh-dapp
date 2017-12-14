@@ -48,5 +48,6 @@ module.exports = (neutrino, opts = {}) => {
 
   neutrino.use(defineGlobals)
 
+  neutrino.config.output.publicPath('/')
   // neutrino.use(workerLoader)
 }

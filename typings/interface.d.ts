@@ -26,29 +26,26 @@ export interface IasyncProvider {
 
 export interface IuploadPreKeysLifecycle extends transactionLifecycle {
   preKeysDidUpload?: () => void
-  preKeysUploadDidCatch?: (err: Error) => void
 }
 
-export interface IcreateAccountLifecycle extends IuploadPreKeysLifecycle {
+export interface IcreateAccountLifecycle {
   accountWillCreate?: () => void
   accountDidCreate?: () => void
-  accountCreationDidCatch?: (err: Error) => void
 }
 
-export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle {
-  registerDidComplete?: () => void
+export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle, IuploadPreKeysLifecycle {
+  checkRegisterWillStart?: (hash: string) => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
 interface transactionLifecycle {
   transactionWillCreate?: () => void
   transactionDidCreate?: (transactionHash: string) => void
-  transactionCreationDidCatch?: (err: Error) => void
 }
 
-export interface IregisterLifecycle extends IcheckRegisterLifecycle {
-  registerRecordDidSave?: (transactionHash: string) => void
-  registerRecordStorageDidCatch?: (err: Error) => void
+export interface IregisterLifecycle extends transactionLifecycle {
+  registerRecordDidSave?: (registerRecord: IregisterRecord) => void
+  registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
 export interface IsendingLifecycle extends transactionLifecycle {
@@ -82,6 +79,7 @@ interface IuserIdentityKeys {
 }
 
 export interface IregisterRecord extends IuserIdentityKeys {
+  username: string
   keyPair: string
   transactionHash: string
 }

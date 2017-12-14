@@ -1,9 +1,11 @@
 import * as React from 'react'
 
-import { Link } from 'react-router-dom'
+import { Link, Redirect } from 'react-router-dom'
+import { withRouter } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
+import {getUsernameHash as web3UtilsSha3} from 'trustbase'
 
 import {
   NETWORKS,
@@ -15,6 +17,7 @@ import {
 
 import NetworkOption from '../../components/networkOption'
 import UserOption from '../../components/userOption'
+import Avatar from '../../components/avatar'
 import { Iuser } from '../../../typings/interface'
 
 const noop = () => {/**/}
@@ -22,6 +25,12 @@ const noop = () => {/**/}
 interface Iprops {
   store: Store,
   shouldRefreshSessions?: boolean
+  history: {
+    replace: (path: string) => void
+  }
+  location: {
+    pathname: string
+  }
 }
 
 interface Istate {
@@ -38,6 +47,10 @@ class Header extends React.Component<Iprops, Istate> {
     showNetworks: false,
     showUsers: false
   }
+  public componentWillUnmount() {
+    document.removeEventListener('click', this.handleClickOtherPlaceHideNetworks)
+    document.removeEventListener('click', this.handleClickOtherPlaceHideUsers)
+  }
   public render() {
     const {
       connectStatus,
@@ -45,8 +58,24 @@ class Header extends React.Component<Iprops, Istate> {
       currentUser,
       currentNetworkUsers,
       offlineAvailableNetworks,
-      offlineSelectedEthereumNetwork
+      offlineSelectedEthereumNetwork,
+      userHasBox,
+      checkPreKeys,
     } = this.props.store
+    let avatar
+    if (currentUser !== undefined) {
+      // todo add timestamp, and block hash
+      let avatarHash = web3UtilsSha3(currentUser.usernameHash)
+      avatar = <Avatar size={40} hash={avatarHash} />
+    }
+    if (currentUser && this.props.location.pathname !== "/upload-prekeys") {
+      if (userHasBox()) {
+        // check registerRecord
+         checkPreKeys(this.props.history.replace,  currentUser.usernameHash, currentUser.networkId)
+      } else {
+        return <Redirect to="/upload-prekeys" />
+      }
+    }
     return <header
       style={{
         display: 'flex',
@@ -154,7 +183,7 @@ class Header extends React.Component<Iprops, Istate> {
           {
             currentUser
               ? <span
-                  title={`${currentUser.username}(${currentUser.usernameHash.slice(0, 9)}...${currentUser.usernameHash.slice(-4)})`}
+                  title={currentUser.username}
                   style={{
                     display: 'block',
                     height: 50,
@@ -163,7 +192,7 @@ class Header extends React.Component<Iprops, Istate> {
                     cursor: 'pointer'
                   }}
                   onClick={this.handleShowUsers}>
-                {`${currentUser.username.slice(0, 10)}${currentUser.username.length > 10 ? '...' : ''}`}
+                {avatar}{currentUser.username}
                 {
                   currentNetworkUsers.length > 0
                     ? <span
@@ -322,4 +351,4 @@ class Header extends React.Component<Iprops, Istate> {
   }
 }
 
-export default Header
+export default withRouter(Header as any)

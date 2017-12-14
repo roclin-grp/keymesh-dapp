@@ -130,7 +130,7 @@ export default class DB {
       .add(record)
   }
 
-  public getRegisterRecord(networkId: NETWORKS, usernameHash: string) {
+  public getRegisterRecord(networkId: NETWORKS, usernameHash: string): Dexie.Promise<IregisterRecord|undefined> {
     return this.tableRegisterRecords
       .get([networkId, usernameHash])
   }
@@ -138,6 +138,7 @@ export default class DB {
   public getRegisterRecords(networkId: NETWORKS) {
     return this.tableRegisterRecords
       .where({networkId})
+      .reverse()
       .toArray()
   }
 
@@ -438,10 +439,17 @@ export default class DB {
             unreadCount: session.unreadCount + 1
           })
       }
+
+      let summary: string = ''
+      if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
+        summary = 'Session closed'
+      } else {
+        summary = (isFromYourself ? 'Me: ' : '') + plainText.slice(0, SUMMARY_LENGTH) + (plainText.length > SUMMARY_LENGTH ? '...' : '')
+      }
       this.tableSessions
         .update(sessionTag, {
           lastUpdate: timestamp * 1000,
-          summary: messageType === MESSAGE_TYPE.CLOSE_SESSION ? 'Session closed' : `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`
+          summary: summary,
         })
     })
   }

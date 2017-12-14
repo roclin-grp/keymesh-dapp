@@ -9,13 +9,19 @@ import {
 import Home from './pages/home'
 import Register from './pages/register'
 import Settings from './pages/settings'
+import CheckRegister from './pages/check-register'
+import NetworkSettings from './pages/network-settings'
+import UploadPreKeys from './pages/upload-prekeys'
 
 const App = () => (
   <Router>
     <Switch>
       <Route exact path="/" component={Home} />
       <Route path="/register" component={Register} />
-      <Route path="/settings" component={Settings} />
+      <Route exact path="/settings" component={Settings} />
+      <Route exact path="/settings/:networkId" component={NetworkSettings} />
+      <Route path="/check-register/:networkId?/:usernameHash?" component={CheckRegister} />
+      <Route path="/upload-prekeys" component={UploadPreKeys} />
     </Switch>
   </Router>
 )

@@ -10,10 +10,10 @@ interface Istate {
   foo: 'bar'
 }
 
-class Settings extends React.PureComponent<Iprops, Istate> {
+class NetworkSettings extends React.PureComponent<Iprops, Istate> {
   public render() {
     return <pre>Hello Settings</pre>
   }
 }
 
-export default Settings
+export default NetworkSettings

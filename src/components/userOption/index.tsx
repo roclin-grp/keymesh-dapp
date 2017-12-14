@@ -27,9 +27,9 @@ class UserOption extends React.Component<Iprops, Istate> {
         listStyle: 'none',
         padding: '10px 20px'
       }}
-      title={`${user.username}(${user.usernameHash.slice(0, 9)}...${user.usernameHash.slice(-4)})`}
+      title={user.username}
       onClick={this.handleClick}>
-      {`${user.username.slice(0, 10)}${user.username.length > 10 ? '...' : ''}`}
+      {user.username}
     </li>
   }
   private handleClick = (e: React.MouseEvent<HTMLLIElement>) => {

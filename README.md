@@ -13,10 +13,14 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Receive messages.
   - [x] Multi-account.
   - [x] Session summary, show a slice of latest message.
+  - [ ] Unify username (length) to reduce spoofing. (*Allow same username.s*)
   - [ ] Continue registration from record. (Allow user left the registration page when record saved)
+    - [ ] Show account registration records in register page
   - [ ] Delete session(s).
+  - [ ] Prompt for upload new pre-keys when pre-keys not enough.
   - [ ] Upload/replace new pre-keys
   - [ ] Send message without waiting last sending complete in same session. (Function is easy to implement, but need to save & show message sending progress.)
+  - [ ] Import/export account
   - [ ] Setting pages.
 
   ## Edge case handling
@@ -29,6 +33,6 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [ ] Use [Bulma](https://github.com/jgthms/bulma) (CSS framework)
   - [ ] Delete account
   - [ ] Delete (selected) message(s).
-  - [ ] Import/export account
+  - [ ] Identicon
   - [ ] Cache loaded session messages. (Be careful for memory usage.) (*IndexedDB seems fast enough.*)
 </details>
