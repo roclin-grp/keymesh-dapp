@@ -11,7 +11,8 @@ import {getUsernameHash as web3UtilsSha3} from 'trustbase'
 import {
   SENDING_FAIL_CODE,
   TRUSTBASE_CONNECT_STATUS,
-  SUBJECT_LENGTH
+  SUBJECT_LENGTH,
+  MESSAGE_STATUS
 } from '../../constants'
 
 import {
@@ -55,15 +56,26 @@ class Session extends React.Component<Iprops, Istate> {
       store: {
         currentSession,
         currentSessionMessages,
-        connectStatus
+        connectStatus,
+        checkMessageStatus,
       }
     } = this.props
+
     const {
       isLoading
     } = this.state
     const showSubject = subject === ''
       ? '(No subject)'
       : `${subject.slice(0, SUBJECT_LENGTH)}${subject.length > SUBJECT_LENGTH ? '...' : ''}`
+
+    if (currentSession && currentSessionMessages.length > 0) {
+      currentSessionMessages.map((message) => {
+        if (message.status === MESSAGE_STATUS.DELIVERING) {
+          checkMessageStatus(message)
+        }
+      })
+    }
+
     if (currentSession && currentSession.sessionTag === sessionTag) {
       return <li className="session-expanded">
         <div className="session-header">
@@ -111,7 +123,6 @@ class Session extends React.Component<Iprops, Istate> {
         }
       </li>
     }
-    // todo add timestamp, and block hash
     const avatarHash = web3UtilsSha3(`${contact.usernameHash}${contact.blockHash}`)
     return <li
       className="session--unexpand"
@@ -192,8 +203,8 @@ class Session extends React.Component<Iprops, Istate> {
       this.input.value,
       {
         transactionWillCreate: this.transactionWillCreate,
-        sendingDidComplete: this.sendingDidComplete,
-        sendingDidFail: this.sendingDidFail
+        transactionDidCreate: this.transactionCreated,
+        sendingDidFail: this.sendingDidFail,
       },
       currentSession.sessionTag
     ).catch(this.sendingDidFail)
@@ -205,21 +216,13 @@ class Session extends React.Component<Iprops, Istate> {
 (You may need to confirm the transaction.)`
     })
   }
-  private sendingDidComplete = () => {
+  private transactionCreated = () => {
     if (this.input) {
       this.input.value = ''
     }
     this.setState({
-      sendingProgress: 'Sent.',
+      sendingProgress: '',
       isSending: false
-    }, () => {
-      window.setTimeout(() => {
-        if (!this.state.isSending) {
-          this.setState({
-            sendingProgress: ''
-          })
-        }
-      }, 3000)
     })
   }
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {

@@ -236,7 +236,7 @@ class Home extends React.Component<Iprops, Istate> {
       this.messageInput.value,
       {
         transactionWillCreate: this.transactionWillCreate,
-        sendingDidComplete: this.sendingDidComplete,
+        transactionDidCreate: this.txCreated,
         sendingDidFail: this.sendingDidFail
       }
     ).catch(this.sendingDidFail)
@@ -251,10 +251,7 @@ class Home extends React.Component<Iprops, Istate> {
 (You may need to confirm the transaction.)`
     })
   }
-  private sendingDidComplete = () => {
-    if (this.unmounted) {
-      return
-    }
+  private emptyForm = () => {
     if (this.toInput) {
       this.toInput.value = ''
     }
@@ -264,6 +261,10 @@ class Home extends React.Component<Iprops, Istate> {
     if (this.messageInput) {
       this.messageInput.value = ''
     }
+  }
+
+  private txCreated = () => {
+    this.emptyForm()
     this.setState({
       sendingProgress: 'Sent.',
       isSending: false
@@ -277,6 +278,7 @@ class Home extends React.Component<Iprops, Istate> {
       }, 3000)
     })
   }
+
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return

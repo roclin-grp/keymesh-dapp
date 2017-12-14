@@ -55,6 +55,18 @@ export enum USER_STATUS {
   OK = 2
 }
 
+export enum MESSAGE_STATUS {
+  DELIVERING = 0,
+  DELIVERED = 1,
+  FAILED = 2
+}
+
+export const MESSAGE_STATUS_STR = Object.freeze({
+  [MESSAGE_STATUS.DELIVERING]: 'Delivering',
+  [MESSAGE_STATUS.FAILED]: 'Failed',
+  [MESSAGE_STATUS.DELIVERED]: 'Delivered',
+})
+
 export const NETWORK_NAMES = Object.freeze({
   [NETWORKS.OLYMPIC]: 'Olympic',
   [NETWORKS.MAINNET]: 'Mainnet',

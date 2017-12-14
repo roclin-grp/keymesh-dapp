@@ -13,7 +13,8 @@ import {
   TABLES,
   GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
-  USER_STATUS
+  USER_STATUS,
+  MESSAGE_STATUS
 } from '../src/constants'
 
 export interface IpreKeyPublicKeys {
@@ -29,7 +30,16 @@ export interface IuploadPreKeysLifecycle extends transactionLifecycle {
   preKeysUploadDidFail?: (err: Error) => void
 }
 
-export interface IcheckRegisterLifecycle extends IuploadPreKeysLifecycle {
+export interface IcreateAccountLifecycle {
+  accountWillCreate?: () => void
+  accountDidCreate?: () => void
+}
+
+export interface IcheckMessageStatusLifecycle {
+  deliveryFailed?: () => void
+}
+
+export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle, IuploadPreKeysLifecycle {
   checkRegisterWillStart?: (hash: string) => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
@@ -112,6 +122,8 @@ export interface Imessage extends IuserIdentityKeys {
   timestamp: number
   isFromYourself: boolean
   plainText?: string
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>

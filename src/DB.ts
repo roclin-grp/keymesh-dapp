@@ -22,7 +22,8 @@ import {
   GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
   SUMMARY_LENGTH,
-  USER_STATUS
+  USER_STATUS,
+  MESSAGE_STATUS
 } from './constants'
 
 interface IcreateUserArgs {
@@ -42,6 +43,8 @@ interface IcreateSessionArgs {
   summary: string
   plainText?: string
   isFromYourself?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 interface IgetSessionsOptions {
@@ -63,6 +66,8 @@ interface IcreateMessageArgs {
   plainText: string
   isFromYourself?: boolean
   shouldAddUnread?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
 }
 
 interface IgetMessagesOptions {
@@ -278,7 +283,9 @@ export default class DB {
     timestamp,
     plainText,
     summary,
-    isFromYourself = false
+    isFromYourself = false,
+    transactionHash,
+    status,
   }: IcreateSessionArgs) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableSessions
@@ -301,7 +308,9 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself
+          isFromYourself,
+          transactionHash,
+          status,
         })
       this.addContact(user, contact)
     })
@@ -416,7 +425,9 @@ export default class DB {
       timestamp,
       plainText,
       isFromYourself = false,
-      shouldAddUnread = true
+      shouldAddUnread = true,
+      transactionHash = '',
+      status,
     }: IcreateMessageArgs,
   ) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
@@ -428,7 +439,9 @@ export default class DB {
           messageType,
           timestamp,
           plainText,
-          isFromYourself
+          isFromYourself,
+          transactionHash,
+          status,
         })
       if (!isFromYourself && shouldAddUnread) {
         const session = await this.getSession(sessionTag, usernameHash) as Isession
@@ -490,6 +503,10 @@ export default class DB {
       return _collect
     })()
     return collect.toArray().then((arr) => arr.reverse())
+  }
+
+  public updateMessageStatus({timestamp, sessionTag}: Imessage, status: MESSAGE_STATUS) {
+    return this.tableMessages.update([sessionTag, timestamp], {status})
   }
 
   public deleteMessage({
