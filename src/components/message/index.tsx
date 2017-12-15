@@ -18,10 +18,7 @@ interface Iprops {
   status: MESSAGE_STATUS
 }
 
-interface Istate {
-}
-
-class Message extends React.Component<Iprops, Istate> {
+class Message extends React.Component<Iprops> {
   public render() {
     const {
       isFromYourself,
