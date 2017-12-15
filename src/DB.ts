@@ -299,7 +299,7 @@ export default class DB {
           contact,
           summary,
           subject,
-          lastUpdate: timestamp * 1000,
+          lastUpdate: timestamp,
           unreadCount: isFromYourself ? 0 : 1,
           isClosed: false
         })
@@ -471,7 +471,7 @@ export default class DB {
       }
       this.tableSessions
         .update([sessionTag, usernameHash], {
-          lastUpdate: timestamp * 1000,
+          lastUpdate: timestamp,
           summary,
         })
     })

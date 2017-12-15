@@ -6,7 +6,7 @@ import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
+  TRUSTBASE_CONNECT_STATUS, USER_STATUS,
 } from '../../constants'
 
 import Header from '../../containers/header'
@@ -47,7 +47,11 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       currentUser,
       listenForConnectStatusChange
     } = this.props.store
-    if (connectStatus === SUCCESS && currentUser && currentUser.uploadPreKeysTransactionHash) {
+    if (
+      connectStatus === SUCCESS
+      && currentUser
+      && (currentUser.uploadPreKeysTransactionHash || currentUser.status === USER_STATUS.IDENTITY_UPLOADED)
+    ) {
       this.handleUploadPrekeys()
     }
     listenForConnectStatusChange(this.connectStatusListener)
@@ -206,7 +210,7 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       prev !== SUCCESS
       && next === SUCCESS
       && currentUser
-      && currentUser.uploadPreKeysTransactionHash
+      && (currentUser.uploadPreKeysTransactionHash || currentUser.status === USER_STATUS.IDENTITY_UPLOADED)
       && !this.state.isUploading
     ) {
       this.handleUploadPrekeys()

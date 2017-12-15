@@ -29,9 +29,21 @@ class Message extends React.Component<Iprops> {
       status,
     } = this.props
 
-    const time = new Date(timestamp * 1000)
+    const time = new Date(timestamp)
     const timeStr =
-      `${time.getDate()}/${time.getMonth() + 1}/${time.getFullYear()} ${time.getHours()}:${time.getMinutes()}`
+      `${Date.now() - time.getTime() > 86400 * 1000 ? `${
+        time.getDate()
+      }/${
+        time.getMonth() + 1
+      }/${
+        time.getFullYear()
+      } ` : ''}${
+        time.getHours().toString().padStart(2, '0')
+      }:${
+        time.getMinutes().toString().padStart(2, '0')
+      }:${
+        time.getSeconds().toString().padStart(2, '0')
+      }`
 
     if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
       return <li className="close-session-msg">

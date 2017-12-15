@@ -148,14 +148,15 @@ interface IdecryptedTrustbaseMessage {
 }
 
 interface IrawUnppaddedMessage {
-  mac: Uint8Array
   messageType: MESSAGE_TYPE
+  timestamp: number
   subject: string
   fromUsername?: string
   plainText?: string
 }
 
 interface IreceivedMessage extends IrawUnppaddedMessage {
+  mac: Uint8Array
   sessionTag: string
   timestamp: number
   blockHash?: string

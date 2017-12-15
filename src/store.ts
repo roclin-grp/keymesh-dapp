@@ -520,6 +520,8 @@ export class Store {
       })
     }
 
+    const nowTimestamp = Date.now()
+
     const {
       interval,
       lastPrekeyDate,
@@ -555,6 +557,7 @@ export class Store {
           result: paddedMessage,
           messageByteLength
         } = padTo512Bytes(JSON.stringify({
+          timestamp: nowTimestamp,
           subject,
           messageType: _messageType,
           fromUsername,
@@ -595,6 +598,7 @@ export class Store {
           result: paddedMessage,
           messageByteLength
         } = padTo512Bytes(JSON.stringify({
+          timestamp: nowTimestamp,
           subject,
           messageType: _messageType,
           plainText
@@ -647,7 +651,6 @@ export class Store {
     })()
 
     transactionWillCreate()
-    const timestamp = Math.round(Date.now() / 1000)
     const messageId: string = `0x${sodium.to_hex(mac)}`
     await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
       .on('transactionHash', async (hash) => {
@@ -665,7 +668,7 @@ export class Store {
             subject,
             sessionTag: usingSessionTag,
             messageType,
-            timestamp,
+            timestamp: nowTimestamp,
             plainText,
             isFromYourself,
             summary: `${
@@ -688,7 +691,7 @@ export class Store {
               user: currentUser,
               messageType,
               sessionTag,
-              timestamp,
+              timestamp: nowTimestamp,
               plainText,
               isFromYourself,
               transactionHash: hash,
@@ -1298,9 +1301,10 @@ export class Store {
     const user = this.currentUser as Iuser
 
     if (messages.length === 0) {
-      await this.db.updateLastFetchBlock(user, lastBlock).then(noop)
+      const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
+      await this.db.updateLastFetchBlock(user, _newLastBlock).then(noop)
       runInAction(() => {
-        this.currentUserlastFetchBlock = lastBlock
+        this.currentUserlastFetchBlock = _newLastBlock
       })
       return
     }
@@ -1369,9 +1373,10 @@ export class Store {
         }
       })
     )
-    await this.db.updateLastFetchBlock(user, lastBlock)
+    const newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
+    await this.db.updateLastFetchBlock(user, newLastBlock)
     runInAction(() => {
-      this.currentUserlastFetchBlock = lastBlock
+      this.currentUserlastFetchBlock = newLastBlock
       if (unreadMessagesLength > 0) {
         this.newMessageCount += unreadMessagesLength
       }
@@ -1447,7 +1452,7 @@ export class Store {
   private deserializeMessage = async ({
     decryptedPaddedMessage,
     senderIdentity,
-    timestamp,
+    timestamp: blockTimestampSecStr,
     messageByteLength
   }: IdecryptedTrustbaseMessage) => {
     const unpaddedMessage = unpad512BytesMessage(decryptedPaddedMessage, messageByteLength)
@@ -1455,7 +1460,8 @@ export class Store {
       subject,
       messageType,
       fromUsername,
-      plainText
+      plainText,
+      timestamp
     } = JSON.parse(unpaddedMessage) as IrawUnppaddedMessage
 
     let blockHash
@@ -1476,7 +1482,9 @@ export class Store {
         })
 
       if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
-        throw new Error('Invalid message: sender identity not match')
+        const err = new Error('Invalid message: sender identity not match')
+        console.log(err)
+        throw err
       }
 
       if (messageType === MESSAGE_TYPE.HELLO && this.box && this.indexedDBStore) {
@@ -1485,10 +1493,17 @@ export class Store {
       }
     }
 
+    const blockTimestamp = Number(blockTimestampSecStr) * 1000
+    if (blockTimestamp > timestamp + 3600 * 1000 || blockTimestamp < timestamp - 3600 * 1000) {
+      const err = new Error('Invalid message: timstamp is not trusted')
+      console.log(err)
+      throw err
+    }
+
     return {
       messageType,
       subject,
-      timestamp: Number(timestamp),
+      timestamp,
       fromUsername,
       blockHash,
       plainText
