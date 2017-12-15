@@ -46,7 +46,8 @@ import {
   IreceivedMessage,
   Imessage,
   Icontact,
-  IcheckMessageStatusLifecycle
+  IcheckMessageStatusLifecycle,
+  IDumpedDatabases,
 } from '../typings/interface.d'
 
 import {
@@ -62,6 +63,7 @@ import {
   USER_STATUS,
   MESSAGE_STATUS
 } from './constants'
+import { dumpCryptobox } from './utils';
 
 const {
   IdentityKeyPair,
@@ -806,6 +808,32 @@ export class Store {
         redirect()
       }
     })
+  }
+
+  public dumpCurrentUser = async () => {
+    const dbs: IDumpedDatabases = {}
+    const user = this.currentUser
+    if (user === undefined) {
+      return
+    }
+    const sessions = this.currentUserSessions
+    const messages = await this.db.getUserMessages(user)
+    dbs.keymail = [
+        { table: 'users', rows: [user], },
+        { table: 'sessions', rows: sessions},
+        { table: 'messages', rows: messages}
+    ]
+    const cryptobox = await dumpCryptobox(user.usernameHash)
+    dbs[cryptobox.dbname] = cryptobox.tables
+    return dbs
+  }
+
+  public dumpDB = () => {
+    return this.db.dumpDB()
+  }
+
+  public restoreDumpedUser = (data: string) => {
+    return this.db.restoreDumpedUser(data)
   }
 
   public selectOfflineNetwork = async (
