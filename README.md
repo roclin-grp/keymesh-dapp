@@ -13,7 +13,7 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Receive messages.
   - [x] Multi-account.
   - [x] Session summary, show a slice of latest message.
-  - [x] Unify username (length) to reduce spoofing. (*Allow same username.s*)
+  - [x] Unify username (length) to reduce spoofing. (*Allow same username*)
   - [x] Continue registration from record. (Allow user left the registration page when record saved)
     - [x] Show account registration records in register page
   - [x] Message sending
@@ -34,7 +34,7 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   ## Enhancements/features
   - [x] Ethereum network/account detect.
   - [x] Identicon
-  - [ ] Message sending from same browser
+  - [x] Message sending from same browser
   - [ ] Use [Antd](https://ant.design) (UI framework)
   - [ ] Delete account
   - [ ] Delete (selected) message(s).
