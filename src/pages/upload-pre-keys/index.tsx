@@ -107,6 +107,11 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
             ? <div style={{
               textAlign: 'center'
             }}>
+              {
+                currentUser.status === USER_STATUS.IDENTITY_UPLOADED
+                ? <pre>You need to upload pre keys before continue using this account</pre>
+                : null
+              }
               <button disabled={this.state.isUploading} onClick={this.handleUploadPrekeys}>Upload Prekeys</button>
               <pre>{this.state.progress}</pre>
             </div>

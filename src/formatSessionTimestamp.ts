@@ -19,7 +19,7 @@ export default function formatSessionTimestamp(timestamp: number) {
       prev
     } = UNITS[i]
     if (diff < max) {
-      const val = Math.floor(diff / value);
+      const val = Math.floor(diff / value)
       if (i < 2) {
         return val <= 1 ? prev : `${val} ${name}s ago`
       }

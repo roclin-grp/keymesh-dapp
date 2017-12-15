@@ -411,7 +411,7 @@ export class Store {
             .catch(() => {
               return {publicKey: '', blockNumber: 0}
             })
-          if (!registeredIdentityFingerprint) {
+          if (!registeredIdentityFingerprint || Number(registeredIdentityFingerprint) === 0) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
@@ -463,7 +463,8 @@ export class Store {
       sendingDidComplete = noop,
       sendingDidFail = noop
     }: IsendingLifecycle = {},
-    sessionTag = ''
+    sessionTag = '',
+    closeSession = false
   ) => {
     switch (true) {
       case this.connectStatus !== SUCCESS:
@@ -593,7 +594,7 @@ export class Store {
           mac: proteusEnvelope.mac
         }
       } else {
-        const _messageType = MESSAGE_TYPE.NORMAL
+        const _messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.NORMAL
         const {
           result: paddedMessage,
           messageByteLength
@@ -652,8 +653,11 @@ export class Store {
 
     transactionWillCreate()
     const messageId: string = `0x${sodium.to_hex(mac)}`
-    await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
+    this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
       .on('transactionHash', async (hash) => {
+        if (closeSession) {
+          return
+        }
         transactionDidCreate(hash)
         const createNewSession = async () => {
 
@@ -1106,6 +1110,23 @@ export class Store {
       }
     })
     preKeysDidUpload()
+  }
+
+  public deleteSession = async (session: Isession, user: Iuser) => {
+    await this.db.deleteSession(user, session)
+    runInAction(() => {
+      if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+        if (
+          this.currentSession
+          && this.currentSession.usernameHash === user.usernameHash
+          && this.currentSession.sessionTag === session.sessionTag
+        ) {
+          this.currentSession = undefined
+        }
+        this.currentUserSessions = this.currentUserSessions
+          .filter((_session) => _session.sessionTag !== session.sessionTag)
+      }
+    })
   }
 
   private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {

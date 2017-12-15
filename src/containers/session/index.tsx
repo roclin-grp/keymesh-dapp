@@ -95,6 +95,11 @@ class Session extends React.Component<Iprops, Istate> {
             {showSubject}
           </span>
           <i
+            onClick={this.handleDeleteSession}
+            className="trash fa fa-trash"
+            aria-hidden="true">
+          </i>
+          <i
             className="options fa fa-ellipsis-v"
             aria-hidden="true">
           </i>
@@ -113,6 +118,7 @@ class Session extends React.Component<Iprops, Istate> {
         }
         {
           connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+          && !isClosed
             ? <div className="send-new-msg">
                 <input className="new-msg-input" ref={(input) => this.input = input}/>
                 <button
@@ -181,14 +187,15 @@ class Session extends React.Component<Iprops, Istate> {
 
   private handleSend = async () => {
     const {
-      connectStatus,
-      currentSession,
-      currentUser
-    } = this.props.store
+      session,
+      store: {
+        connectStatus,
+        currentUser
+      }
+    } = this.props
     if (
       (!this.input || !this.input.value)
-      || !currentSession
-      || (currentSession as Isession).isClosed
+      || session.isClosed
       || !currentUser
       || connectStatus !== TRUSTBASE_CONNECT_STATUS.SUCCESS
     ) {
@@ -202,16 +209,49 @@ class Session extends React.Component<Iprops, Istate> {
     } = this.props.store
 
     send(
-      currentSession.contact.username,
-      currentSession.subject,
+      session.contact.username,
+      session.subject,
       this.input.value,
       {
         transactionWillCreate: this.transactionWillCreate,
         transactionDidCreate: this.transactionCreated,
         sendingDidFail: this.sendingDidFail,
       },
-      currentSession.sessionTag
+      session.sessionTag
     ).catch(this.sendingDidFail)
+  }
+
+  private handleDeleteSession = () => {
+    const {
+      session,
+      store: {
+        send,
+        connectStatus,
+        deleteSession,
+        currentUser
+      }
+    } = this.props
+
+    if (!currentUser) {
+      return
+    }
+
+    const isOnline = connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+    if (window.confirm(`You will not receive any message from this session after delete, are you sure to delete?`)) {
+      if (isOnline && !session.isClosed) {
+        if (window.confirm('Send notification to him/her? (You may need to confirm transaction)')) {
+          send(
+            session.contact.username,
+            session.subject,
+            'close session',
+            {},
+            session.sessionTag,
+            true
+          ).catch(this.sendingDidFail)
+        }
+      }
+      deleteSession(session, currentUser)
+    }
   }
 
   private transactionWillCreate = () => {

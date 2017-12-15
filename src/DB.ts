@@ -384,7 +384,7 @@ export default class DB {
       await this.tableSessions
         .delete([sessionTag, usernameHash])
       await this.tableMessages
-        .where({sessionTag})
+        .where({sessionTag, usernameHash})
         .delete()
 
       const remainSessions = await this.tableSessions
@@ -470,10 +470,10 @@ export default class DB {
         }`
       }
       this.tableSessions
-        .update([sessionTag, usernameHash], {
+        .update([sessionTag, usernameHash], Object.assign({
           lastUpdate: timestamp,
           summary,
-        })
+        }, messageType === MESSAGE_TYPE.CLOSE_SESSION ? { isClosed: true } : null))
     })
   }
 
