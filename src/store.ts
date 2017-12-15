@@ -301,7 +301,7 @@ export class Store {
           .then(async () => {
             const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(reject)
             if (createdUser) {
-              this.useUser(createdUser).then(userDidCreate).catch(noop)
+              this.useUser(createdUser).then(userDidCreate)
               runInAction(() => {
                 this.currentNetworkUsers = this.currentNetworkUsers.concat(createdUser)
               })
@@ -313,7 +313,7 @@ export class Store {
       .on('error', async (err) => {
         const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(() => undefined)
         if (createdUser) {
-          this.db.deleteUser(createdUser).catch(noop)
+          this.db.deleteUser(createdUser)
         }
         reject(err)
       })
@@ -342,7 +342,7 @@ export class Store {
           this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             .then(async () => {
               if (this.currentSession !== undefined && message.sessionTag === this.currentSession.sessionTag) {
-                const _messages = await this.db.getMessages(message.sessionTag).catch(() => [])
+                const _messages = await this.db.getMessages(message.sessionTag, message.usernameHash).catch(() => [])
                 if (_messages.length !== 0) {
                   runInAction(() => {
                     this.currentSessionMessages = _messages
@@ -415,12 +415,9 @@ export class Store {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch((err) => {
-              registerDidFail(err)
-              return '0x0'
-            })
+            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch(() => '0x0')
             if (blockHash === '0x0') {
-              return
+              return window.setTimeout(waitForTransactionReceipt, 1000, counter)
             }
             user.blockHash = blockHash
             await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED).catch(registerDidFail)
@@ -437,7 +434,7 @@ export class Store {
             })
             return
           } else {
-            this.db.deleteUser(user).catch(noop)
+            this.db.deleteUser(user)
             return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
           }
         } else {
@@ -548,7 +545,8 @@ export class Store {
     const {
       messageType,
       usingSessionTag,
-      keymailEnvelope
+      keymailEnvelope,
+      mac
     } = await (async () => {
       // New conversation
       if (session === null) {
@@ -588,7 +586,8 @@ export class Store {
         return {
           messageType: _messageType,
           usingSessionTag: _usingSessionTag,
-          keymailEnvelope: new Envelope(header, cipherMessage)
+          keymailEnvelope: new Envelope(header, cipherMessage),
+          mac: proteusEnvelope.mac
         }
       } else {
         const _messageType = MESSAGE_TYPE.NORMAL
@@ -641,17 +640,20 @@ export class Store {
         return {
           messageType: _messageType,
           usingSessionTag: _keymailEnvelope.header.sessionTag,
-          keymailEnvelope: _keymailEnvelope
+          keymailEnvelope: _keymailEnvelope,
+          mac: envelope.mac
         }
       }
     })()
 
     transactionWillCreate()
-    const timestamp: number = Math.round(Date.now() / 1000)
+    const timestamp = Math.round(Date.now() / 1000)
+    const messageId: string = `0x${sodium.to_hex(mac)}`
     await this.messagesContract.publish(`0x${keymailEnvelope.encrypt(preKeyID, preKeyPublicKey)}`)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
         const createNewSession = async () => {
+
           await this.db.createSession({
             user: currentUser,
             contact: {
@@ -659,6 +661,7 @@ export class Store {
               usernameHash: toUsernameHash,
               blockHash
             },
+            messageId,
             subject,
             sessionTag: usingSessionTag,
             messageType,
@@ -666,7 +669,7 @@ export class Store {
             plainText,
             isFromYourself,
             summary: `${
-              isFromYourself ? 'Me:' : ''
+              isFromYourself ? 'Me: ' : ''
             }${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`,
             transactionHash: hash,
             status: MESSAGE_STATUS.DELIVERING,
@@ -681,6 +684,7 @@ export class Store {
             await createNewSession()
           } else {
             await this.db.createMessage({
+              messageId,
               user: currentUser,
               messageType,
               sessionTag,
@@ -699,7 +703,7 @@ export class Store {
         }
 
         if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
-          const newMessage = await this.db.getMessage(sessionTag, timestamp) as Imessage
+          const newMessage = await this.db.getMessage(messageId, currentUser.usernameHash) as Imessage
           const newSession = await this.db.getSession(sessionTag, currentUser.usernameHash) as Isession
           runInAction(() => {
             if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
@@ -735,22 +739,19 @@ export class Store {
           }
           sendingDidComplete()
 
-          await this.db.getMessage(usingSessionTag, timestamp)
+          await this.db.getMessage(messageId, currentUser.usernameHash)
             .then((message) => {
               if (message === undefined) {
                 return
               }
               this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             })
-            .catch(() => {
-              // console.log("confirmation get message error", error)
-            })
 
           if (this.currentSession === undefined || this.currentSession.sessionTag !== usingSessionTag) {
             return
           }
 
-          const messages = await this.db.getMessages(usingSessionTag).catch(() => undefined)
+          const messages = await this.db.getMessages(usingSessionTag, currentUser.usernameHash).catch(() => undefined)
           if (messages === undefined) {
             return
           }
@@ -761,7 +762,7 @@ export class Store {
       })
       .on('error', async (error: Error) => {
         sendingDidFail(error)
-        await this.db.getMessage(usingSessionTag, timestamp)
+        await this.db.getMessage(messageId, currentUser.usernameHash)
           .then(async (message) => {
             if (message === undefined) {
               return
@@ -771,7 +772,7 @@ export class Store {
               return
             }
 
-            const messages = await this.db.getMessages(usingSessionTag).catch(() => undefined)
+            const messages = await this.db.getMessages(usingSessionTag, currentUser.usernameHash).catch(() => undefined)
             if (messages === undefined) {
               return
             }
@@ -797,6 +798,7 @@ export class Store {
         this.currentUserlastFetchBlock
       ] = userData
       if (sessions) {
+        this.currentSession = undefined
         this.currentUserSessions = sessions
       }
       this.newMessageCount = 0
@@ -864,6 +866,7 @@ export class Store {
         , // this.lastFetchBlock
       ] = loadedUserData}
       if (sessions) {
+        this.currentSession = undefined
         this.currentUserSessions = sessions
       }
     })
@@ -936,7 +939,7 @@ export class Store {
   }
 
   public selectSession = async (session: Isession) => {
-    const messages = await this.db.getMessages(session.sessionTag)
+    const messages = await this.db.getMessages(session.sessionTag, session.usernameHash)
     const newSession = await this.db.getSession(session.sessionTag, session.usernameHash) as Isession
     const unreadCount = newSession.unreadCount
     if (unreadCount > 0) {
@@ -1031,7 +1034,7 @@ export class Store {
           .catch(() => null)
         if (receipt !== null) {
           if (counter >= CONFIRMATION_NUMBER) {
-            this.db.updateUserStatus(user, USER_STATUS.OK).catch(noop)
+            this.db.updateUserStatus(user, USER_STATUS.OK)
             runInAction(() => {
               if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
                 this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
@@ -1087,7 +1090,7 @@ export class Store {
       })
     })
       .on('error', preKeysUploadDidFail)
-    this.db.updateUserStatus(user, USER_STATUS.OK).catch(noop)
+    this.db.updateUserStatus(user, USER_STATUS.OK)
     runInAction(() => {
       if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
         this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
@@ -1313,6 +1316,7 @@ export class Store {
         switch (message.messageType) {
           case MESSAGE_TYPE.HELLO:
             return this.db.createSession(Object.assign({}, message, {
+              messageId: `0x${sodium.to_hex(message.mac)}`,
               user,
               contact: {
                 blockHash: message.blockHash as string,
@@ -1326,13 +1330,14 @@ export class Store {
             const sessionTag = message.sessionTag
             if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
               return this.db.createMessage(Object.assign({}, message, {
+                  messageId: `0x${sodium.to_hex(message.mac)}`,
                   user,
                   plainText: message.plainText as string,
                   shouldAddUnread: false,
                   transactionHash: '',
                   status: MESSAGE_STATUS.DELIVERED,
                 }))
-                  .then(() => this.db.getMessages(sessionTag))
+                  .then(() => this.db.getMessages(sessionTag, user.usernameHash))
                   .then(async (_messages) => {
                     const sessionInDB = await this.db.getSession(sessionTag, user.usernameHash).catch(() => undefined)
                     runInAction(() => {
@@ -1354,6 +1359,7 @@ export class Store {
               })
             } else {
               return this.db.createMessage(Object.assign({}, message, {
+                messageId: `0x${sodium.to_hex(message.mac)}`,
                 user,
                 plainText: message.plainText as string,
                 transactionHash: '',
@@ -1361,16 +1367,14 @@ export class Store {
               }))
             }
         }
-      }).concat(
-        this.db.updateLastFetchBlock(user, lastBlock).then(noop)
-      )
-    ).then(() => {
-      runInAction(() => {
-        this.currentUserlastFetchBlock = lastBlock
-        if (unreadMessagesLength > 0) {
-          this.newMessageCount += unreadMessagesLength
-        }
       })
+    )
+    await this.db.updateLastFetchBlock(user, lastBlock)
+    runInAction(() => {
+      this.currentUserlastFetchBlock = lastBlock
+      if (unreadMessagesLength > 0) {
+        this.newMessageCount += unreadMessagesLength
+      }
     })
   }
 
@@ -1435,6 +1439,7 @@ export class Store {
         messageByteLength
       }))
       .then((message) => Object.assign(message, {
+        mac,
         sessionTag
       }))
   }
@@ -1458,11 +1463,17 @@ export class Store {
       const {
         blockNumber,
         publicKey: expectedFingerprint
-      } = await this.identitiesContract.getIdentity(fromUsername)
+      } = await this.identitiesContract.getIdentity(fromUsername).catch((err) => {
+        console.log(err)
+        return {blockNumber: 0, publicKey: ''}
+      })
 
       const web3 = getWeb3()
       blockHash = await web3.eth.getBlock(blockNumber)
-        .then((block) => block.hash).catch(() => '0x0')
+        .then((block) => block.hash).catch((err) => {
+          console.log(err)
+          return '0x0'
+        })
 
       if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
         throw new Error('Invalid message: sender identity not match')

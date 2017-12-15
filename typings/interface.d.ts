@@ -117,6 +117,7 @@ export interface Isession extends IuserIdentityKeys {
 }
 
 export interface Imessage extends IuserIdentityKeys {
+  messageId: string
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
@@ -130,7 +131,7 @@ export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>
 export type TableNetworkSettings = Dexie.Table<InetworkSettings, NETWORKS>
 export type TableUsers = Dexie.Table<Iuser, [NETWORKS, string]>
 export type TableSessions = Dexie.Table<Isession, [string, string]>
-export type TableMessages = Dexie.Table<Imessage, [string, number]>
+export type TableMessages = Dexie.Table<Imessage, [string, string]>
 
 export type web3BlockType = web3.BlockType
 
@@ -147,6 +148,7 @@ interface IdecryptedTrustbaseMessage {
 }
 
 interface IrawUnppaddedMessage {
+  mac: Uint8Array
   messageType: MESSAGE_TYPE
   subject: string
   fromUsername?: string

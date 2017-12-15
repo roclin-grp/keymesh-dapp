@@ -35,6 +35,7 @@ interface IcreateUserArgs {
 
 interface IcreateSessionArgs {
   user: Iuser
+  messageId: string
   contact: Icontact
   subject: string
   sessionTag: string
@@ -60,6 +61,7 @@ interface IdeleteSessionsOptions {
 
 interface IcreateMessageArgs {
   user: Iuser
+  messageId: string
   messageType: MESSAGE_TYPE
   sessionTag: string
   timestamp: number
@@ -276,6 +278,7 @@ export default class DB {
       usernameHash
     },
     user,
+    messageId,
     contact,
     subject,
     sessionTag,
@@ -302,6 +305,7 @@ export default class DB {
         })
       this.tableMessages
         .add({
+          messageId,
           sessionTag,
           networkId,
           usernameHash,
@@ -420,6 +424,7 @@ export default class DB {
         networkId,
         usernameHash
       },
+      messageId,
       messageType,
       sessionTag,
       timestamp,
@@ -433,6 +438,7 @@ export default class DB {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
       this.tableMessages
         .add({
+          messageId,
           networkId,
           usernameHash,
           sessionTag,
@@ -471,13 +477,14 @@ export default class DB {
     })
   }
 
-  public getMessage(sessionTag: string, timestamp: number) {
+  public getMessage(messageId: string, usernameHash: string) {
     return this.tableMessages
-      .get([sessionTag, timestamp])
+      .get([messageId, usernameHash])
   }
 
   public getMessages(
     sessionTag: string,
+    usernameHash: string,
     {
       timestampAfter,
       timestampBefore,
@@ -491,6 +498,7 @@ export default class DB {
         .reverse()
         .filter((message) =>
           message.sessionTag === sessionTag
+          && message.usernameHash === usernameHash
           && (timestampAfter ? message.timestamp >= timestampAfter : true)
           && (timestampBefore ? message.timestamp < timestampBefore : true)
         )
@@ -505,16 +513,16 @@ export default class DB {
     return collect.toArray().then((arr) => arr.reverse())
   }
 
-  public updateMessageStatus({timestamp, sessionTag}: Imessage, status: MESSAGE_STATUS) {
-    return this.tableMessages.update([sessionTag, timestamp], {status})
+  public updateMessageStatus({ messageId, usernameHash }: Imessage, status: MESSAGE_STATUS) {
+    return this.tableMessages.update([messageId, usernameHash], {status})
   }
 
   public deleteMessage({
-    sessionTag,
-    timestamp
+    messageId,
+    usernameHash
   }: Imessage) {
     return this.tableMessages
-      .delete([sessionTag, timestamp])
+      .delete([messageId, usernameHash])
   }
 
   public deleteMessages(

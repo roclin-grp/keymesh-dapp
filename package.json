@@ -8,9 +8,11 @@
     "build": "neutrino build"
   },
   "devDependencies": {
+    "@types/bignumber.js": "^4.0.3",
     "@types/react": "^16.0.9",
     "@types/react-dom": "^16.0.0",
     "@types/react-router-dom": "^4.2.3",
+    "@types/underscore": "^1.8.5",
     "config": "^1.28.1",
     "neutrino": "^7.0.2",
     "neutrino-preset-react": "^7.0.2",

@@ -52,6 +52,7 @@ class Session extends React.Component<Iprops, Istate> {
         subject,
         summary,
         lastUpdate,
+        usernameHash
       },
       store: {
         currentSession,
@@ -76,7 +77,10 @@ class Session extends React.Component<Iprops, Istate> {
       })
     }
 
-    if (currentSession && currentSession.sessionTag === sessionTag) {
+    if (currentSession
+      && currentSession.sessionTag === sessionTag
+      && currentSession.usernameHash === usernameHash
+    ) {
       return <li className="session-expanded">
         <div className="session-header">
           <i
@@ -100,7 +104,7 @@ class Session extends React.Component<Iprops, Istate> {
           ? <ul style={{padding: 0}}>{
             currentSessionMessages
               .map((message) => <Message
-                key={`${sessionTag}${message.timestamp}`}
+                key={message.messageId}
                 contact={contact}
                 {...message}
               />)

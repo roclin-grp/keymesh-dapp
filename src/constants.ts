@@ -89,7 +89,8 @@ export const SCHEMA_V1 = Object.freeze({
   [TABLES.NETWORK_SETTINGS]: 'networkId',
   [TABLES.USERS]: '[networkId+usernameHash], networkId, [networkId+status]',
   [TABLES.SESSIONS]: '[sessionTag+usernameHash], [networkId+usernameHash], lastUpdate, contact.usernameHash',
-  [TABLES.MESSAGES]: '[sessionTag+timestamp], sessionTag, [networkId+usernameHash], timestamp',
+  [TABLES.MESSAGES]:
+    '[messageId+usernameHash], [sessionTag+timestamp+usernameHash], sessionTag, [networkId+usernameHash], timestamp',
 })
 
 export enum MESSAGE_TYPE {
