@@ -1129,7 +1129,7 @@ export class Store {
         this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       })
     }
-    this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 10000)
+    this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
 
   private listenForNetworkChange = async () => {
@@ -1151,7 +1151,7 @@ export class Store {
         return this.processAfterNetworkConnected()
       }
     }
-    window.setTimeout(this.listenForNetworkChange, 10000)
+    window.setTimeout(this.listenForNetworkChange, 100)
   }
 
   private processAfterNetworkConnected = async (
