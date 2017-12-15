@@ -17,9 +17,9 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Continue registration from record. (Allow user left the registration page when record saved)
     - [x] Show account registration records in register page
   - [x] Message sending
-  - [ ] Delete session(s).
-  - [ ] Upload new pre-keys
-    - [x] Basic function
+  - [x] Delete session(s).
+  - [ ] Upload pre-keys
+    - [x] Upload new pre-keys
     - [ ] Config interval and number
     - [ ] Replace old pre-keys
   - [ ] Prompt for upload new pre-keys when pre-keys not enough.
