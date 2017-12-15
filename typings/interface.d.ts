@@ -161,3 +161,12 @@ interface IreceivedMessage extends IrawUnppaddedMessage {
   timestamp: number
   blockHash?: string
 }
+
+interface IDumpedTable {
+  table: string
+  rows: any[]
+}
+
+interface IDumpedDatabases {
+  [dbname: string]: IDumpedTable[]
+}

@@ -6,6 +6,7 @@ import { withRouter, Redirect } from 'react-router-dom'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 import { getUsernameHash as web3UtilsSha3 } from 'trustbase'
+import {downloadObjectAsJson} from '../../utils'
 
 import {
   NETWORKS,
@@ -52,6 +53,24 @@ class Header extends React.Component<Iprops, Istate> {
     document.removeEventListener('click', this.handleClickOtherPlaceHideNetworks)
     document.removeEventListener('click', this.handleClickOtherPlaceHideUsers)
   }
+
+  public handleExport = async () => {
+    if (this.props.store.currentUser) {
+      const dumped = await this.props.store.dumpCurrentUser()
+      downloadObjectAsJson(dumped, this.props.store.currentUser.username)
+    }
+  }
+
+  public handleImport = async (e: any) => {
+    const file = e.target.files[0]
+    const reader = new FileReader()
+    reader.onload = async (oFREvent) => {
+        await this.props.store.restoreDumpedUser((oFREvent.target as any).result)
+        window.location.reload(true)
+    }
+    reader.readAsText(file)
+  }
+
   public render() {
     const {
       connectStatus,
@@ -59,10 +78,16 @@ class Header extends React.Component<Iprops, Istate> {
       currentUser,
       currentNetworkUsers,
       offlineAvailableNetworks,
-      offlineSelectedEthereumNetwork
+      offlineSelectedEthereumNetwork,
+      useUser,
+      startFetchMessages,
     } = this.props.store
 
     // FIXME: put this in abstract page component?
+    if (!currentUser && currentNetworkUsers.length > 0) {
+      useUser(currentNetworkUsers[0], true)
+      startFetchMessages()
+    }
     if (currentUser && this.props.location.pathname !== '/register') {
       if (currentUser.status === USER_STATUS.PENDING && this.props.location.pathname !== '/check-register') {
         return <Redirect to="/check-register" />
@@ -276,6 +301,10 @@ class Header extends React.Component<Iprops, Istate> {
               : null
           }
         </div>
+        <button style={{
+          display: currentUser ? 'block' : 'none',
+        }} onClick={this.handleExport}>Export</button>
+        <label> Import <input type="file" onChange={this.handleImport}/> </label>
       </div>
     </header>
   }

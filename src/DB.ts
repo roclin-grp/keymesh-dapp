@@ -13,6 +13,7 @@ import {
   Imessage,
   Icontact,
   IregisterRecord,
+  IDumpedDatabases,
 } from '../typings/interface.d'
 
 import {
@@ -25,6 +26,7 @@ import {
   USER_STATUS,
   MESSAGE_STATUS
 } from './constants'
+import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
 
 interface IcreateUserArgs {
   networkId: NETWORKS
@@ -482,6 +484,10 @@ export default class DB {
       .get([messageId, usernameHash])
   }
 
+  public getUserMessages({usernameHash, networkId}: Iuser) {
+    return this.tableMessages.where({usernameHash, networkId}).toArray()
+  }
+
   public getMessages(
     sessionTag: string,
     usernameHash: string,
@@ -535,5 +541,56 @@ export default class DB {
       .where({sessionTag})
       .filter((message) => timestampBefore ? message.timestamp < timestampBefore : true)
       .delete()
+  }
+
+  public async dumpDB() {
+    const dbs: IDumpedDatabases = {}
+
+    const keymailDB = await dumpDB(this.db)
+
+    const users = keymailDB.find((table) => table.table === TABLES.USERS)
+    if (users === undefined) {
+      return
+    }
+
+    dbs.keymail = keymailDB
+
+    await Promise.all(users.rows
+      .map(async (row) => {
+        const db = await dumpCryptobox(row.usernameHash)
+        dbs[db.dbname] = db.tables
+      })
+    )
+
+    return dbs
+  }
+
+  public async restoreDumpedUser(_data: string) {
+    const data: IDumpedDatabases = JSON.parse(_data)
+    await restoreDB(this.db, data.keymail, (): string[]|undefined => {
+      return undefined
+    })
+
+    return Promise.all(
+      Object.keys(data)
+        .filter((dbname) => dbname !== 'keymail')
+        .map((dbname) => restoreCryptobox(dbname, data[dbname]))
+    )
+  }
+
+  public async restoreDB(_data: string) {
+    const data: IDumpedDatabases = JSON.parse(_data)
+    await restoreDB(this.db, data.keymail, (tablename: string): string[]|undefined => {
+      if (tablename === 'global-settings') {
+        return []
+      }
+      return undefined
+    })
+
+    return Promise.all(
+      Object.keys(data)
+        .filter((dbname) => dbname !== 'keymail')
+        .map((dbname) => restoreCryptobox(dbname, data[dbname]))
+    )
   }
 }
