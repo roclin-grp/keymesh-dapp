@@ -63,7 +63,7 @@ import {
   USER_STATUS,
   MESSAGE_STATUS
 } from './constants'
-import { dumpCryptobox } from './utils';
+import { dumpCryptobox } from './utils'
 
 const {
   IdentityKeyPair,
@@ -425,7 +425,10 @@ export class Store {
             await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED).catch(registerDidFail)
             runInAction(() => {
               if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
-                this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.IDENTITY_UPLOADED})
+                this.currentUser = Object.assign({}, this.currentUser, {
+                  status: USER_STATUS.IDENTITY_UPLOADED,
+                  blockHash
+                })
                 const index = this.currentNetworkUsers
                 .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
                 if (index !== -1) {
@@ -976,8 +979,10 @@ export class Store {
   public selectSession = async (session: Isession) => {
     const messages = await this.db.getMessages(session.sessionTag, session.usernameHash)
     const newSession = await this.db.getSession(session.sessionTag, session.usernameHash) as Isession
-    const unreadCount = newSession.unreadCount
-    if (unreadCount > 0) {
+    const oldUnreadCount = session.unreadCount
+    const newUnreadCount = newSession.unreadCount
+    const unreadCount = newUnreadCount - oldUnreadCount
+    if (newUnreadCount > 0) {
       await this.db.clearSessionUnread(session)
       session.unreadCount = 0
       session.isClosed = newSession.isClosed

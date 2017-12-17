@@ -3,7 +3,7 @@ import * as React from 'react'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
-import formatSessionTimestamp from '../../formatSessionTimestamp'
+import { formatSessionTimestamp } from '../../utils'
 import Message from '../../components/message'
 import Avatar from '../../components/avatar'
 import {getUsernameHash as web3UtilsSha3} from 'trustbase'

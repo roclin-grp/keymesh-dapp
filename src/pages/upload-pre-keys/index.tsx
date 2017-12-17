@@ -50,7 +50,7 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
     if (
       connectStatus === SUCCESS
       && currentUser
-      && (currentUser.uploadPreKeysTransactionHash || currentUser.status === USER_STATUS.IDENTITY_UPLOADED)
+      && currentUser.uploadPreKeysTransactionHash
     ) {
       this.handleUploadPrekeys()
     }
@@ -215,7 +215,7 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       prev !== SUCCESS
       && next === SUCCESS
       && currentUser
-      && (currentUser.uploadPreKeysTransactionHash || currentUser.status === USER_STATUS.IDENTITY_UPLOADED)
+      && currentUser.uploadPreKeysTransactionHash
       && !this.state.isUploading
     ) {
       this.handleUploadPrekeys()
