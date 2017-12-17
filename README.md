@@ -18,12 +18,12 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
     - [x] Show account registration records in register page
   - [x] Message sending
   - [x] Delete session(s).
+  - [x] Import/export account
   - [ ] Upload pre-keys
     - [x] Upload new pre-keys
     - [ ] Config interval and number
     - [ ] Replace old pre-keys
   - [ ] Prompt for upload new pre-keys when pre-keys not enough.
-  - [ ] Import/export account
   - [ ] Setting pages.
 
   ## Edge case handling

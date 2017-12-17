@@ -38,6 +38,7 @@ interface Iprops {
 interface Istate {
   showNetworks: boolean
   showUsers: boolean
+  importKey: number
 }
 
 @inject('store') @observer
@@ -47,28 +48,12 @@ class Header extends React.Component<Iprops, Istate> {
   }
   public readonly state = {
     showNetworks: false,
-    showUsers: false
+    showUsers: false,
+    importKey: 1
   }
   public componentWillUnmount() {
     document.removeEventListener('click', this.handleClickOtherPlaceHideNetworks)
     document.removeEventListener('click', this.handleClickOtherPlaceHideUsers)
-  }
-
-  public handleExport = async () => {
-    if (this.props.store.currentUser) {
-      const dumped = await this.props.store.dumpCurrentUser()
-      downloadObjectAsJson(dumped, this.props.store.currentUser.username)
-    }
-  }
-
-  public handleImport = async (e: any) => {
-    const file = e.target.files[0]
-    const reader = new FileReader()
-    reader.onload = async (oFREvent) => {
-        await this.props.store.restoreDumpedUser((oFREvent.target as any).result)
-        window.location.reload(true)
-    }
-    reader.readAsText(file)
   }
 
   public render() {
@@ -79,15 +64,9 @@ class Header extends React.Component<Iprops, Istate> {
       currentNetworkUsers,
       offlineAvailableNetworks,
       offlineSelectedEthereumNetwork,
-      useUser,
-      startFetchMessages,
     } = this.props.store
 
     // FIXME: put this in abstract page component?
-    if (!currentUser && currentNetworkUsers.length > 0) {
-      useUser(currentNetworkUsers[0], true)
-      startFetchMessages()
-    }
     if (currentUser && this.props.location.pathname !== '/register') {
       if (currentUser.status === USER_STATUS.PENDING && this.props.location.pathname !== '/check-register') {
         return <Redirect to="/check-register" />
@@ -304,7 +283,7 @@ class Header extends React.Component<Iprops, Istate> {
         <button style={{
           display: currentUser ? 'block' : 'none',
         }} onClick={this.handleExport}>Export</button>
-        <label> Import <input type="file" onChange={this.handleImport}/> </label>
+        <label> Import <input key={this.state.importKey} type="file" onChange={this.handleImport}/> </label>
       </div>
     </header>
   }
@@ -379,6 +358,29 @@ class Header extends React.Component<Iprops, Istate> {
       ? () => this.props.history.replace('/')
       : undefined
     this.props.store.useUser(user, this.props.shouldRefreshSessions, callback).catch(() => {/**/})
+  }
+
+  private handleExport = async () => {
+    if (this.props.store.currentUser) {
+      const dumped = await this.props.store.dumpCurrentUser()
+      downloadObjectAsJson(dumped, this.props.store.currentUser.username)
+    }
+  }
+
+  private handleImport = async (e: React.FormEvent<HTMLInputElement>) => {
+    const fileList = e.currentTarget.files
+    if (!fileList) {
+      return
+    }
+    const file = fileList[0]
+    const reader = new FileReader()
+    reader.onload = async (oFREvent) => {
+      await this.props.store.restoreDumpedUser((oFREvent.target as any).result, !!this.props.shouldRefreshSessions)
+      this.setState({
+        importKey: Date.now()
+      })
+    }
+    reader.readAsText(file)
   }
 }
 

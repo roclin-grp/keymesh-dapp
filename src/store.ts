@@ -844,8 +844,39 @@ export class Store {
     return this.db.dumpDB()
   }
 
-  public restoreDumpedUser = (data: string) => {
-    return this.db.restoreDumpedUser(data)
+  public restoreDumpedUser = async (data: string, shouldRefreshSessions: boolean) => {
+    await this.db.restoreDumpedUser(data)
+    const currentNetworkId = this.currentEthereumNetwork
+    if (currentNetworkId) {
+      const oldUsers = this.currentNetworkUsers
+      const users = await this.db.getUsers(currentNetworkId)
+      if (users.length > 0) {
+        runInAction(() => {
+          this.currentNetworkUsers = users
+        })
+        if (oldUsers.length > 0) {
+          const usernameHashs = oldUsers.reduce((result, user) => {
+            result[user.usernameHash] = true
+            return result
+          }, {} as {[usernameHash: string]: boolean})
+          const newUser = users.find((user) => !usernameHashs[user.usernameHash])
+          if (newUser && newUser.networkId === currentNetworkId) {
+            await this.useUser(newUser, shouldRefreshSessions)
+            if (shouldRefreshSessions) {
+              return this.startFetchMessages()
+            }
+          }
+        } else {
+          const newUser = users[0]
+          if (newUser.networkId === currentNetworkId) {
+            await this.useUser(newUser, shouldRefreshSessions)
+            if (shouldRefreshSessions) {
+              return this.startFetchMessages()
+            }
+          }
+        }
+      }
+    }
   }
 
   public selectOfflineNetwork = async (
@@ -903,6 +934,10 @@ export class Store {
         , // this.contacts,
         , // this.lastFetchBlock
       ] = loadedUserData}
+      if (this.currentUser) {
+        addUsedNetwork(networkId)
+        setLastUsedUser(networkId, this.currentUser.usernameHash)
+      }
       if (sessions) {
         this.currentSession = undefined
         this.currentUserSessions = sessions
@@ -1223,12 +1258,19 @@ export class Store {
     if (typeof currentNetworkId === 'undefined') {
       return
     }
-    const usernameHash: string = getNetworkLastUsedUsernameHash(currentNetworkId)
+    let usernameHash: string = getNetworkLastUsedUsernameHash(currentNetworkId)
+    let currentNetworkUsers: Iuser[] = []
+    if (!usernameHash) {
+      currentNetworkUsers = await this.db.getUsers(currentNetworkId)
+      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].usernameHash : ''
+    }
     const loadedResult = await Promise.all([
       // currentNetworkSettings
       this.db.getNetworkSettings(currentNetworkId),
       // currentNetworkUsers
-      this.db.getUsers(currentNetworkId),
+      currentNetworkUsers.length > 0
+        ? Promise.resolve(currentNetworkUsers)
+        : this.db.getUsers(currentNetworkId),
       // *userData
       this.db.getUser(currentNetworkId, usernameHash)
         .catch(() => this.currentUser)
