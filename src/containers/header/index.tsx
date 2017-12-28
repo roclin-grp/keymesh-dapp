@@ -182,7 +182,7 @@ class Header extends React.Component<Iprops, Istate> {
           {
             currentUser
               ? <span
-                  title={currentUser.username}
+                  title={currentUser.userAddress}
                   style={{
                     display: 'block',
                     height: 50,
@@ -192,9 +192,9 @@ class Header extends React.Component<Iprops, Istate> {
                   }}
                   onClick={this.handleShowUsers}>
                 {currentUser.status !== USER_STATUS.PENDING
-                  ? <Avatar size={40} hash={web3UtilsSha3(`${currentUser.usernameHash}${currentUser.blockHash}`)} />
+                  ? <Avatar size={40} hash={web3UtilsSha3(`${currentUser.userAddress}${currentUser.blockHash}`)} />
                   : null}
-                {currentUser.username}
+                {currentUser.userAddress}
                 {
                   currentNetworkUsers.length > 0
                     ? <span
@@ -245,9 +245,9 @@ class Header extends React.Component<Iprops, Istate> {
                 }}>
                   {
                     currentNetworkUsers
-                      .filter((user) => user.usernameHash !== currentUser.usernameHash)
+                      .filter((user) => user.userAddress !== currentUser.userAddress)
                       .map((user) => <UserOption
-                        key={`${user.usernameHash}@${user.networkId}`}
+                        key={`${user.userAddress}@${user.networkId}`}
                         user={user}
                         onSelect={this.handleSelectUser}
                       />)
@@ -363,7 +363,7 @@ class Header extends React.Component<Iprops, Istate> {
   private handleExport = async () => {
     if (this.props.store.currentUser) {
       const dumped = await this.props.store.dumpCurrentUser()
-      downloadObjectAsJson(dumped, this.props.store.currentUser.username)
+      downloadObjectAsJson(dumped, this.props.store.currentUser.userAddress)
     }
   }
 

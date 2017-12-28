@@ -87,10 +87,10 @@ export enum TABLES {
 export const SCHEMA_V1 = Object.freeze({
   [TABLES.GLOBAL_SETTINGS]: '',
   [TABLES.NETWORK_SETTINGS]: 'networkId',
-  [TABLES.USERS]: '[networkId+usernameHash], networkId, [networkId+status]',
-  [TABLES.SESSIONS]: '[sessionTag+usernameHash], [networkId+usernameHash], lastUpdate, contact.usernameHash',
+  [TABLES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
+  [TABLES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
   [TABLES.MESSAGES]:
-    '[messageId+usernameHash], [sessionTag+usernameHash], sessionTag, [networkId+usernameHash], timestamp',
+    '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
 })
 
 export enum MESSAGE_TYPE {

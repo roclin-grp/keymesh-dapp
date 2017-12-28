@@ -30,9 +30,7 @@ import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
 
 interface IcreateUserArgs {
   networkId: NETWORKS
-  usernameHash: string
-  username: string
-  owner: string
+  userAddress: string
 }
 
 interface IcreateSessionArgs {
@@ -142,9 +140,9 @@ export default class DB {
       }, user))
   }
 
-  public getUser(networkId: NETWORKS, usernameHash: string) {
+  public getUser(networkId: NETWORKS, userAddress: string) {
     return this.tableUsers
-      .get([networkId, usernameHash])
+      .get([networkId, userAddress])
   }
 
   public getUsers(networkId: NETWORKS, status?: USER_STATUS) {
@@ -155,18 +153,18 @@ export default class DB {
 
   public deleteUser({
     networkId,
-    usernameHash
+    userAddress
   }: Iuser) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableUsers
-        .delete([networkId, usernameHash])
+        .delete([networkId, userAddress])
 
       this.tableSessions
-        .where({networkId, usernameHash})
+        .where({networkId, userAddress})
         .delete()
 
       this.tableMessages
-        .where({networkId, usernameHash})
+        .where({networkId, userAddress})
         .delete()
     })
   }
@@ -187,59 +185,46 @@ export default class DB {
     })
   }
 
-  public updateUserAddUploadPreKeysTxHash(
-    {
-      networkId,
-      usernameHash,
-    }: Iuser,
-    transactionHash?: string
-  ) {
-    return this.tableUsers
-      .update([networkId, usernameHash], {
-        uploadPreKeysTransactionHash: transactionHash
-      })
-  }
-
   public updateUserStatus(
     {
       networkId,
-      usernameHash,
+      userAddress,
       blockHash
     }: Iuser,
     status: USER_STATUS
   ) {
     return this.tableUsers
-      .update([networkId, usernameHash], Object.assign(
+      .update([networkId, userAddress], Object.assign(
         {status},
         status === USER_STATUS.IDENTITY_UPLOADED ? {blockHash} : null,
-        status === USER_STATUS.OK ? {registerRecord: undefined, uploadPreKeysTransactionHash: undefined} : null,
+        status === USER_STATUS.OK ? {registerRecord: undefined} : null,
       ))
   }
 
   public updateLastFetchBlock(
     {
       networkId,
-      usernameHash,
+      userAddress,
     }: Iuser,
     lastFetchBlock: number
   ) {
     return this.tableUsers
-      .update([networkId, usernameHash], {lastFetchBlock})
+      .update([networkId, userAddress], {lastFetchBlock})
   }
 
   public addContact(
     {
       networkId,
-      usernameHash,
+      userAddress,
       contacts
     }: Iuser,
     contact: Icontact
   ) {
-    if (contacts.find((_contact) => _contact.usernameHash === contact.usernameHash)) {
+    if (contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
       return Dexie.Promise.resolve(1)
     }
     return this.tableUsers
-      .update([networkId, usernameHash], {
+      .update([networkId, userAddress], {
         contacts: contacts.concat(contact)
       })
   }
@@ -247,29 +232,29 @@ export default class DB {
   public deleteContact(
     {
       networkId,
-      usernameHash,
+      userAddress,
       contacts
     }: Iuser,
     contact: Icontact
   ) {
-    if (!contacts.find((_contact) => _contact.usernameHash === contact.usernameHash)) {
+    if (!contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
       return Dexie.Promise.resolve(1)
     }
     return this.tableUsers
-      .update([networkId, usernameHash], {
+      .update([networkId, userAddress], {
         contacts: contacts.
-          filter((_contact) => _contact.usernameHash !== contact.usernameHash)
+          filter((_contact) => _contact.userAddress !== contact.userAddress)
       })
   }
 
   public deleteContacts(
     {
       networkId,
-      usernameHash
+      userAddress
     }: Iuser,
   ) {
     return this.tableUsers
-      .update([networkId, usernameHash], {
+      .update([networkId, userAddress], {
         contacts: []
       })
   }
@@ -277,7 +262,7 @@ export default class DB {
   public createSession({
     user: {
       networkId,
-      usernameHash
+      userAddress
     },
     user,
     messageId,
@@ -297,7 +282,7 @@ export default class DB {
         .add({
           sessionTag,
           networkId,
-          usernameHash,
+          userAddress,
           contact,
           summary,
           subject,
@@ -310,7 +295,7 @@ export default class DB {
           messageId,
           sessionTag,
           networkId,
-          usernameHash,
+          userAddress,
           messageType,
           timestamp,
           plainText,
@@ -324,20 +309,20 @@ export default class DB {
 
   public clearSessionUnread(session: Isession) {
     return this.tableSessions
-      .update([session.sessionTag, session.usernameHash], {
+      .update([session.sessionTag, session.userAddress], {
         unreadCount: 0
       })
   }
 
-  public getSession(sessionTag: string, usernameHash: string) {
+  public getSession(sessionTag: string, userAddress: string) {
     return this.tableSessions
-      .get([sessionTag, usernameHash])
+      .get([sessionTag, userAddress])
   }
 
   public getSessions(
     {
       networkId,
-      usernameHash
+      userAddress
     }: Iuser,
     {
       contact,
@@ -350,7 +335,7 @@ export default class DB {
           .reverse()
           .filter((session) =>
             session.networkId === networkId
-            && session.usernameHash === usernameHash
+            && session.userAddress === userAddress
             && (contact ? session.contact === contact : true)
           )
         if (offset >= 0) {
@@ -366,10 +351,10 @@ export default class DB {
 
   public closeSession({
     sessionTag,
-    usernameHash
+    userAddress
   }: Isession) {
     return this.tableSessions
-      .update([sessionTag, usernameHash], {
+      .update([sessionTag, userAddress], {
         isClosed: true
       })
   }
@@ -378,19 +363,19 @@ export default class DB {
     user: Iuser,
     {
       sessionTag,
-      usernameHash,
+      userAddress,
       contact
     }: Isession
   ) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, async () => {
       await this.tableSessions
-        .delete([sessionTag, usernameHash])
+        .delete([sessionTag, userAddress])
       await this.tableMessages
-        .where({sessionTag, usernameHash})
+        .where({sessionTag, userAddress})
         .delete()
 
       const remainSessions = await this.tableSessions
-        .where({'contact.usernameHash': contact.usernameHash})
+        .where({'contact.userAddress': contact.userAddress})
         .toArray()
       if (remainSessions.length === 0) {
         await this.deleteContact(user, contact)
@@ -407,13 +392,13 @@ export default class DB {
   ) {
     const {
       networkId,
-      usernameHash
+      userAddress
     } = user
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableSessions
         .where(Object.assign({
           networkId,
-          usernameHash
+          userAddress
         }, contact ? {contact} : null))
         .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
         .each((session) => this.deleteSession(user, session))
@@ -424,7 +409,7 @@ export default class DB {
     {
       user: {
         networkId,
-        usernameHash
+        userAddress
       },
       messageId,
       messageType,
@@ -442,7 +427,7 @@ export default class DB {
         .add({
           messageId,
           networkId,
-          usernameHash,
+          userAddress,
           sessionTag,
           messageType,
           timestamp,
@@ -452,9 +437,9 @@ export default class DB {
           status,
         })
       if (!isFromYourself && shouldAddUnread) {
-        const session = await this.getSession(sessionTag, usernameHash) as Isession
+        const session = await this.getSession(sessionTag, userAddress) as Isession
         this.tableSessions
-          .update([sessionTag, usernameHash], {
+          .update([sessionTag, userAddress], {
             unreadCount: session.unreadCount + 1
           })
       }
@@ -472,25 +457,25 @@ export default class DB {
         }`
       }
       this.tableSessions
-        .update([sessionTag, usernameHash], Object.assign({
+        .update([sessionTag, userAddress], Object.assign({
           lastUpdate: timestamp,
           summary,
         }, messageType === MESSAGE_TYPE.CLOSE_SESSION ? { isClosed: true } : null))
     })
   }
 
-  public getMessage(messageId: string, usernameHash: string) {
+  public getMessage(messageId: string, userAddress: string) {
     return this.tableMessages
-      .get([messageId, usernameHash])
+      .get([messageId, userAddress])
   }
 
-  public getUserMessages({usernameHash, networkId}: Iuser) {
-    return this.tableMessages.where({usernameHash, networkId}).toArray()
+  public getUserMessages({userAddress, networkId}: Iuser) {
+    return this.tableMessages.where({userAddress, networkId}).toArray()
   }
 
   public getMessages(
     sessionTag: string,
-    usernameHash: string,
+    userAddress: string,
     {
       timestampAfter,
       timestampBefore,
@@ -504,7 +489,7 @@ export default class DB {
         .reverse()
         .filter((message) =>
           message.sessionTag === sessionTag
-          && message.usernameHash === usernameHash
+          && message.userAddress === userAddress
           && (timestampAfter ? message.timestamp >= timestampAfter : true)
           && (timestampBefore ? message.timestamp < timestampBefore : true)
         )
@@ -519,16 +504,16 @@ export default class DB {
     return collect.toArray().then((arr) => arr.reverse())
   }
 
-  public updateMessageStatus({ messageId, usernameHash }: Imessage, status: MESSAGE_STATUS) {
-    return this.tableMessages.update([messageId, usernameHash], {status})
+  public updateMessageStatus({ messageId, userAddress }: Imessage, status: MESSAGE_STATUS) {
+    return this.tableMessages.update([messageId, userAddress], {status})
   }
 
   public deleteMessage({
     messageId,
-    usernameHash
+    userAddress
   }: Imessage) {
     return this.tableMessages
-      .delete([messageId, usernameHash])
+      .delete([messageId, userAddress])
   }
 
   public deleteMessages(

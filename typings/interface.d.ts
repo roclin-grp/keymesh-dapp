@@ -25,7 +25,7 @@ export interface IasyncProvider {
   sendAsync(payload: web3.JsonRPCRequest, callback: (e: Error, val: web3.JsonRPCResponse) => void): void
 }
 
-export interface IuploadPreKeysLifecycle extends transactionLifecycle {
+export interface IuploadPreKeysLifecycle {
   preKeysDidUpload?: () => void
   preKeysUploadDidFail?: (err: Error) => void
 }
@@ -75,13 +75,12 @@ export interface IglobalSettings {
 export interface InetworkSettings {
   networkId: NETWORKS
   IdentitiesAddress?: string
-  PreKeysAddress?: string
   MessagesAddress?: string
 }
 
 interface IuserIdentityKeys {
   networkId: NETWORKS,
-  usernameHash: string,
+  userAddress: string,
 }
 
 export interface IregisterRecord {
@@ -90,19 +89,15 @@ export interface IregisterRecord {
 }
 
 export interface Iuser extends IuserIdentityKeys {
-  username: string
   lastFetchBlock: web3.BlockType
   contacts: Icontact[]
-  owner: string
   status: USER_STATUS
   registerRecord?: IregisterRecord
-  uploadPreKeysTransactionHash?: string
   blockHash: string
 }
 
 interface Icontact {
-  username: string
-  usernameHash: string
+  userAddress: string
   blockHash: string
 }
 
@@ -151,7 +146,7 @@ interface IrawUnppaddedMessage {
   messageType: MESSAGE_TYPE
   timestamp: number
   subject: string
-  fromUsername?: string
+  fromUserAddress?: string
   plainText?: string
 }
 

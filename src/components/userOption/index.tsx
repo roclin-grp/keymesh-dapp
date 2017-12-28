@@ -27,9 +27,9 @@ class UserOption extends React.Component<Iprops, Istate> {
         listStyle: 'none',
         padding: '10px 20px'
       }}
-      title={user.username}
+      title={user.userAddress}
       onClick={this.handleClick}>
-      {user.username}
+      {user.userAddress}
     </li>
   }
   private handleClick = (e: React.MouseEvent<HTMLLIElement>) => {

@@ -50,7 +50,6 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
     if (
       connectStatus === SUCCESS
       && currentUser
-      && currentUser.uploadPreKeysTransactionHash
     ) {
       this.handleUploadPrekeys()
     }
@@ -155,36 +154,14 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
     }
 
     this.setState({
-      isUploading: true
+      isUploading: true,
+      progress: `Uploading pre-keys...`
     })
 
     uploadPreKeys(currentUser, 1, 200, {
-      transactionWillCreate: this.transactionWillCreate,
-      transactionDidCreate: this.transactionDidCreate,
       preKeysDidUpload: this.preKeysDidUpload,
       preKeysUploadDidFail: this.preKeysUploadDidFail
     }).catch(this.preKeysUploadDidFail)
-  }
-
-  private transactionWillCreate = () => {
-    if (this.unmounted) {
-      return
-    }
-    this.setState({
-      progress: `Uploading pre-keys...
-(You may need to confirm the transaction.)`
-    })
-  }
-
-  private transactionDidCreate = (hash: string) => {
-    if (this.unmounted) {
-      return
-    }
-    this.setState({
-      progress: `Uploading pre-keys...
-(Transaction hash: ${hash})
-`
-    })
   }
 
   private preKeysDidUpload = () => {
@@ -215,7 +192,6 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       prev !== SUCCESS
       && next === SUCCESS
       && currentUser
-      && currentUser.uploadPreKeysTransactionHash
       && !this.state.isUploading
     ) {
       this.handleUploadPrekeys()

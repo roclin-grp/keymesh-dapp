@@ -34,8 +34,6 @@ const {
   INVALID_USERNAME
 } = REGISTER_FAIL_CODE
 
-const VALID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-
 interface Iprops {
   history: {
     replace: (path: string) => void
@@ -63,8 +61,10 @@ class Register extends React.Component<Iprops, Istate> {
   public render() {
     const {
       connectStatus,
-      connectError
+      connectError,
+      currentEthereumAccount,
     } = this.props.store
+
     switch (connectStatus) {
       case PENDING:
         return <div>
@@ -101,7 +101,7 @@ class Register extends React.Component<Iprops, Istate> {
             textAlign: 'center'
           }}>
             <pre>Register new account</pre>
-            <input value={this.state.username} onChange={this.handleAccountChange}/>
+            <p>Wallet Address: {currentEthereumAccount}</p>
             <button disabled={this.state.isRegistering} onClick={this.handleRegister}>Register</button>
             <pre>{this.state.registerProgress}</pre>
             <RegisterRecordsWithStore />
@@ -134,33 +134,16 @@ class Register extends React.Component<Iprops, Istate> {
     }
   }
 
-  private handleAccountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({
-      username: event.target.value.replace(/[^0-9a-zA-Z]/, '').slice(0, 11)
-    })
-  }
-
-  private generateRandomStr = (length: number) => Array(length)
-    .fill('')
-    .map(() => VALID_CHARS.charAt(Math.floor(Math.random() * VALID_CHARS.length)))
-    .join('')
-
   private handleRegister = () => {
     const {
       register
     } = this.props.store
-    const {username: inputUsername} = this.state
-    if (!inputUsername || inputUsername.length <= 0 || inputUsername.length > 11) {
-      return
-    }
 
     this.setState({
       isRegistering: true
     })
 
-    const username = `${inputUsername}#${this.generateRandomStr(16 - inputUsername.length - 1)}`
-
-    register(username, {
+    register({
       transactionWillCreate: this.transactionWillCreate,
       transactionDidCreate: this.transactionDidCreate,
       userDidCreate: this.userDidCreate,

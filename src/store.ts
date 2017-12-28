@@ -7,10 +7,8 @@ import {
 
 import {
   initialize,
-  getUsernameHash,
   getWeb3,
   Identities,
-  PreKeys,
   Messages,
   TrustbaseError
 } from 'trustbase'
@@ -120,7 +118,6 @@ export class Store {
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
-  private preKeysContract: PreKeys
   private messagesContract: Messages
   private detectAccountChangeTimeout: number
   private fetchMessagesTimeout: number
@@ -249,7 +246,7 @@ export class Store {
       })
   }
 
-  public register = async (username: string, {
+  public register = async ({
     transactionWillCreate = noop,
     transactionDidCreate = noop,
     userDidCreate = noop,
@@ -259,13 +256,9 @@ export class Store {
       return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
     }
 
-    if (username === '' || username.length < 1 || username.length > 16) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.INVALID_USERNAME)
-    }
-
-    const usernameHash = getUsernameHash(username)
+    const userAddress = this.currentEthereumAccount
     // Check local records first.
-    if (Object.keys(this.currentNetworkUsers).includes(username)) {
+    if (Object.keys(this.currentNetworkUsers).includes(userAddress)) {
       return registerDidFail(null, REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
     }
 
@@ -275,7 +268,7 @@ export class Store {
     // check if registered, avoid unnecessary transaction
     const {
       publicKey: identityFingerprint
-    } = await this.identitiesContract.getIdentity(username)
+    } = await this.identitiesContract.getIdentity(userAddress)
     if (Number(identityFingerprint) !== 0) {
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
@@ -284,24 +277,22 @@ export class Store {
     const newIdentityFingerprint = `0x${identityKeyPair.public_key.fingerprint()}`
 
     transactionWillCreate()
-    this.identitiesContract.register(username, newIdentityFingerprint)
+    this.identitiesContract.register(newIdentityFingerprint)
       .on('transactionHash', async (transactionHash) => {
         transactionDidCreate(transactionHash)
-        const store = new IndexedDBStore(usernameHash)
+        const store = new IndexedDBStore(userAddress)
         await store.save_identity(identityKeyPair).catch(reject)
         const lastResortPrekey = PreKey.last_resort()
         await store.save_prekeys([lastResortPrekey]).catch(reject)
         this.db.createUser({
           networkId: currentNetworkId,
-          username,
-          usernameHash,
-          owner: this.currentEthereumAccount
+          userAddress,
         }, {
           identityTransactionHash: transactionHash,
           identity: sodium.to_hex(new Uint8Array(identityKeyPair.serialise()))
         })
           .then(async () => {
-            const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(reject)
+            const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(reject)
             if (createdUser) {
               this.useUser(createdUser).then(userDidCreate)
               runInAction(() => {
@@ -313,7 +304,7 @@ export class Store {
           .catch(reject)
       })
       .on('error', async (err) => {
-        const createdUser = await this.db.getUser(currentNetworkId, usernameHash).catch(() => undefined)
+        const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(() => undefined)
         if (createdUser) {
           this.db.deleteUser(createdUser)
         }
@@ -344,7 +335,7 @@ export class Store {
           this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             .then(async () => {
               if (this.currentSession !== undefined && message.sessionTag === this.currentSession.sessionTag) {
-                const _messages = await this.db.getMessages(message.sessionTag, message.usernameHash).catch(() => [])
+                const _messages = await this.db.getMessages(message.sessionTag, message.userAddress).catch(() => [])
                 if (_messages.length !== 0) {
                   runInAction(() => {
                     this.currentSessionMessages = _messages
@@ -388,7 +379,7 @@ export class Store {
     }
 
     const {
-      username,
+      userAddress,
       registerRecord: {
         identityTransactionHash,
         identity: keyPairHexString
@@ -409,7 +400,7 @@ export class Store {
           const {
             blockNumber,
             publicKey: registeredIdentityFingerprint
-          } = await this.identitiesContract.getIdentity(username)
+          } = await this.identitiesContract.getIdentity(userAddress)
             .catch(() => {
               return {publicKey: '', blockNumber: 0}
             })
@@ -424,13 +415,13 @@ export class Store {
             user.blockHash = blockHash
             await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED).catch(registerDidFail)
             runInAction(() => {
-              if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+              if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
                 this.currentUser = Object.assign({}, this.currentUser, {
                   status: USER_STATUS.IDENTITY_UPLOADED,
                   blockHash
                 })
                 const index = this.currentNetworkUsers
-                .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
+                .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
                 if (index !== -1) {
                   this.currentNetworkUsers[index] = this.currentUser
                   this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
@@ -459,7 +450,7 @@ export class Store {
   }
 
   public send = async (
-    toUsername: string,
+    toUserAddress: string,
     subject: string,
     plainText: string,
     {
@@ -474,7 +465,7 @@ export class Store {
     switch (true) {
       case this.connectStatus !== SUCCESS:
         return sendingDidFail(null, SENDING_FAIL_CODE.NOT_CONNECTED)
-      case toUsername === '':
+      case toUserAddress === '':
         return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
       case plainText === '':
         return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE)
@@ -488,15 +479,16 @@ export class Store {
     const currentUser = this.currentUser as Iuser
 
     const web3 = getWeb3()
-    const toUsernameHash = web3.utils.sha3(toUsername)
+
     const {
       publicKey: identityFingerprint,
       blockNumber
-    } = await this.identitiesContract.getIdentity(toUsernameHash, { isHash: true })
+    } = await this.identitiesContract.getIdentity(toUserAddress)
       .catch((err) => {
         sendingDidFail(err)
         return {publicKey: undefined, blockNumber: 0}
       })
+
     const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch(() => '0x0')
     if (!identityFingerprint || blockHash === '0x0') {
       return
@@ -514,7 +506,7 @@ export class Store {
           // Maybe we have a corrupted session on local, delete it.
           return Promise.all([
             (this.box as Cryptobox).session_delete(sessionTag).then(noop),
-            this.db.getSession(sessionTag, currentUser.usernameHash).then((_session) => {
+            this.db.getSession(sessionTag, currentUser.userAddress).then((_session) => {
               if (_session) {
                 return this.db.deleteSession(this.currentUser as Iuser, _session)
               }
@@ -532,7 +524,10 @@ export class Store {
       interval,
       lastPrekeyDate,
       preKeyPublicKeys
-    } = await this.getPreKeys(toUsernameHash, true).catch(() => new PreKeysPackage({}, 0, 0))
+    } = await this.getPreKeys(toUserAddress).catch((err) => {
+      console.error(err)
+      return new PreKeysPackage({}, 0, 0)
+    })
     if (Object.keys(preKeyPublicKeys).length === 0) {
       sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
       return
@@ -547,7 +542,7 @@ export class Store {
       preKeyPublicKeys
     })
 
-    const fromUsername = currentUser.username
+    const fromUserAddress = currentUser.userAddress
     const senderIdentity = (this.box as Cryptobox).identity.public_key
     const isFromYourself = true
     const {
@@ -566,7 +561,7 @@ export class Store {
           timestamp: nowTimestamp,
           subject,
           messageType: _messageType,
-          fromUsername,
+          fromUserAddress,
           plainText
         } as IrawUnppaddedMessage))
 
@@ -669,8 +664,7 @@ export class Store {
           await this.db.createSession({
             user: currentUser,
             contact: {
-              username: toUsername,
-              usernameHash: toUsernameHash,
+              userAddress: toUserAddress,
               blockHash
             },
             messageId,
@@ -691,7 +685,7 @@ export class Store {
           await createNewSession()
         } else {
           // cryptobox session corrupted
-          const oldSession = await this.db.getSession(sessionTag, currentUser.usernameHash)
+          const oldSession = await this.db.getSession(sessionTag, currentUser.userAddress)
           if (!oldSession) {
             await createNewSession()
           } else {
@@ -707,16 +701,15 @@ export class Store {
               status: MESSAGE_STATUS.DELIVERING,
             })
             await this.db.addContact(currentUser, {
-              username: toUsername,
-              usernameHash: toUsernameHash,
+              userAddress: toUserAddress,
               blockHash
             })
           }
         }
 
         if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
-          const newMessage = await this.db.getMessage(messageId, currentUser.usernameHash) as Imessage
-          const newSession = await this.db.getSession(sessionTag, currentUser.usernameHash) as Isession
+          const newMessage = await this.db.getMessage(messageId, currentUser.userAddress) as Imessage
+          const newSession = await this.db.getSession(sessionTag, currentUser.userAddress) as Isession
           runInAction(() => {
             if (sessionTag && this.currentSession && this.currentSession.sessionTag === sessionTag) {
               this.currentSessionMessages = this.currentSessionMessages.concat(newMessage)
@@ -730,10 +723,9 @@ export class Store {
               ]
             }
 
-            if (!this.currentUserContacts.find((contact) => contact.usernameHash === toUsernameHash)) {
+            if (!this.currentUserContacts.find((contact) => contact.userAddress === toUserAddress)) {
               this.currentUserContacts.push({
-                username: toUsername,
-                usernameHash: toUsernameHash,
+                userAddress: toUserAddress,
                 blockHash
               })
               this.currentUserContacts = this.currentUserContacts.slice(0)
@@ -751,7 +743,7 @@ export class Store {
           }
           sendingDidComplete()
 
-          await this.db.getMessage(messageId, currentUser.usernameHash)
+          await this.db.getMessage(messageId, currentUser.userAddress)
             .then((message) => {
               if (message === undefined) {
                 return
@@ -763,7 +755,7 @@ export class Store {
             return
           }
 
-          const messages = await this.db.getMessages(usingSessionTag, currentUser.usernameHash).catch(() => undefined)
+          const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress).catch(() => undefined)
           if (messages === undefined) {
             return
           }
@@ -774,7 +766,7 @@ export class Store {
       })
       .on('error', async (error: Error) => {
         sendingDidFail(error)
-        await this.db.getMessage(messageId, currentUser.usernameHash)
+        await this.db.getMessage(messageId, currentUser.userAddress)
           .then(async (message) => {
             if (message === undefined) {
               return
@@ -784,7 +776,7 @@ export class Store {
               return
             }
 
-            const messages = await this.db.getMessages(usingSessionTag, currentUser.usernameHash).catch(() => undefined)
+            const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress).catch(() => undefined)
             if (messages === undefined) {
               return
             }
@@ -815,7 +807,7 @@ export class Store {
       }
       this.newMessageCount = 0
       addUsedNetwork(networkId)
-      setLastUsedUser(networkId, user.usernameHash)
+      setLastUsedUser(networkId, user.userAddress)
       if (redirect) {
         redirect()
       }
@@ -835,7 +827,7 @@ export class Store {
         { table: 'sessions', rows: sessions},
         { table: 'messages', rows: messages}
     ]
-    const cryptobox = await dumpCryptobox(user.usernameHash)
+    const cryptobox = await dumpCryptobox(user.userAddress)
     dbs[cryptobox.dbname] = cryptobox.tables
     return dbs
   }
@@ -856,10 +848,10 @@ export class Store {
         })
         if (oldUsers.length > 0) {
           const usernameHashs = oldUsers.reduce((result, user) => {
-            result[user.usernameHash] = true
+            result[user.userAddress] = true
             return result
-          }, {} as {[usernameHash: string]: boolean})
-          const newUser = users.find((user) => !usernameHashs[user.usernameHash])
+          }, {} as {[userAddress: string]: boolean})
+          const newUser = users.find((user) => !usernameHashs[user.userAddress])
           if (newUser && newUser.networkId === currentNetworkId) {
             await this.useUser(newUser, shouldRefreshSessions)
             if (shouldRefreshSessions) {
@@ -892,7 +884,7 @@ export class Store {
     let loadedUserData: IloadedUserData
     if (!usernameHash) {
       currentNetworkUsers = await this.db.getUsers(networkId)
-      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].usernameHash : ''
+      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
     }
     {[
       currentNetworkSettings,
@@ -936,7 +928,7 @@ export class Store {
       ] = loadedUserData}
       if (this.currentUser) {
         addUsedNetwork(networkId)
-        setLastUsedUser(networkId, this.currentUser.usernameHash)
+        setLastUsedUser(networkId, this.currentUser.userAddress)
       }
       if (sessions) {
         this.currentSession = undefined
@@ -996,9 +988,9 @@ export class Store {
     }
     const {
       networkId,
-      usernameHash
+      userAddress,
     } = this.currentUser
-    const updatedUser = await this.db.getUser(networkId, usernameHash) as Iuser
+    const updatedUser = await this.db.getUser(networkId, userAddress) as Iuser
     const sessions = await this.db.getSessions(updatedUser)
     runInAction(() => {
       this.currentUserSessions = sessions
@@ -1012,8 +1004,8 @@ export class Store {
   }
 
   public selectSession = async (session: Isession) => {
-    const messages = await this.db.getMessages(session.sessionTag, session.usernameHash)
-    const newSession = await this.db.getSession(session.sessionTag, session.usernameHash) as Isession
+    const messages = await this.db.getMessages(session.sessionTag, session.userAddress)
+    const newSession = await this.db.getSession(session.sessionTag, session.userAddress) as Isession
     const oldUnreadCount = session.unreadCount
     const newUnreadCount = newSession.unreadCount
     const unreadCount = newUnreadCount - oldUnreadCount
@@ -1079,13 +1071,16 @@ export class Store {
     interval = 1, // 1 day
     numOfPreKeys = 100,
     {
-      transactionWillCreate = noop,
-      transactionDidCreate = noop,
       preKeysDidUpload = noop,
       preKeysUploadDidFail = noop
     }: IuploadPreKeysLifecycle = {}
   ) => {
+    if (typeof this.box === 'undefined') {
+      preKeysUploadDidFail(new Error('this.box is undefined'))
+      return
+    }
     const preKeys = generatePrekeys(unixToday(), interval, numOfPreKeys)
+
     const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce((result, preKey) => Object.assign(result, {
       [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
     }), {})
@@ -1097,96 +1092,57 @@ export class Store {
 
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
 
-    const uploadPreKeysTransactionHash = user.uploadPreKeysTransactionHash
-    if (uploadPreKeysTransactionHash) {
-      transactionDidCreate(uploadPreKeysTransactionHash)
-      const web3 = getWeb3()
-      const waitForTransactionReceipt = async (counter = 0) => {
-        if (this.connectStatus !== SUCCESS) {
-          return
-        }
-        const receipt = await web3.eth.getTransactionReceipt(uploadPreKeysTransactionHash)
-          .catch(() => null)
-        if (receipt !== null) {
-          if (counter >= CONFIRMATION_NUMBER) {
-            this.db.updateUserStatus(user, USER_STATUS.OK)
-            runInAction(() => {
-              if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
-                this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
-                const index = this.currentNetworkUsers
-                .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
-                if (index !== -1) {
-                  this.currentNetworkUsers[index] = this.currentUser
-                  this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
-                }
-              }
-            })
-            return preKeysDidUpload()
-          } else {
-            window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
+    const uploadPreKeysUrl = KVASS_ENDPOINT + user.userAddress
+    const hexedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
+    const prekeysSignature = sodium.to_hex(this.box.identity.secret_key.sign(hexedPrekeys))
+    const init = {
+      method: 'PUT',
+      mode: 'cors',
+      body: hexedPrekeys + ' ' + prekeysSignature,
+    } as RequestInit
+
+    await fetch(uploadPreKeysUrl, init)
+      .then(async (resp) => {
+        if (resp.status === 201) {
+          if (!this.indexedDBStore || !this.box) {
             return
           }
-        }
 
-        if (counter === 50) {
-          return preKeysUploadDidFail(new Error('Timeout'))
-        }
+          const store = this.indexedDBStore
+          // enhancement: remove all local prekeys before save
+          await store.save_prekeys(preKeys.concat(lastResortPrekey))
+          await this.box.load()
+          this.db.updateUserStatus(user, USER_STATUS.OK)
+          runInAction(() => {
+            if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
+              if (typeof this.currentEthereumNetwork === 'undefined') {
+                return
+              }
+              this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
 
-        window.setTimeout(waitForTransactionReceipt, 1000, counter)
-      }
-
-      return waitForTransactionReceipt()
-    }
-
-    transactionWillCreate()
-    await this.preKeysContract.upload(
-      user.username,
-      `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    ).on('transactionHash', async (transactionHash) => {
-      transactionDidCreate(transactionHash)
-      if (!this.indexedDBStore || !this.box) {
-        return
-      }
-      const store = this.indexedDBStore
-      // enhancement: remove all local prekeys before save
-      await store.save_prekeys(preKeys.concat(lastResortPrekey))
-      await this.box.load()
-      await this.db.updateUserAddUploadPreKeysTxHash(user, transactionHash).catch(preKeysUploadDidFail)
-      runInAction(() => {
-        if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
-          this.currentUser = Object.assign({}, this.currentUser, {uploadPreKeysTransactionHash: transactionHash})
-          const index = this.currentNetworkUsers
-            .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
-          if (index !== -1) {
-            this.currentNetworkUsers[index] = this.currentUser
-            this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
-          }
+              const index = this.currentNetworkUsers
+                .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
+              if (index !== -1) {
+                this.currentNetworkUsers[index] = this.currentUser
+                this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+              }
+            }
+          })
+          preKeysDidUpload()
+        } else {
+          console.log(resp)
         }
       })
-    })
-      .on('error', preKeysUploadDidFail)
-    this.db.updateUserStatus(user, USER_STATUS.OK)
-    runInAction(() => {
-      if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
-        this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
-        const index = this.currentNetworkUsers
-          .findIndex((_user) => _user.usernameHash === (this.currentUser as Iuser).usernameHash)
-        if (index !== -1) {
-          this.currentNetworkUsers[index] = this.currentUser
-          this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
-        }
-      }
-    })
-    preKeysDidUpload()
+      .catch(preKeysUploadDidFail)
   }
 
   public deleteSession = async (session: Isession, user: Iuser) => {
     await this.db.deleteSession(user, session)
     runInAction(() => {
-      if (this.currentUser && this.currentUser.usernameHash === user.usernameHash) {
+      if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
         if (
           this.currentSession
-          && this.currentSession.usernameHash === user.usernameHash
+          && this.currentSession.userAddress === user.userAddress
           && this.currentSession.sessionTag === session.sessionTag
         ) {
           this.currentSession = undefined
@@ -1262,7 +1218,7 @@ export class Store {
     let currentNetworkUsers: Iuser[] = []
     if (!usernameHash) {
       currentNetworkUsers = await this.db.getUsers(currentNetworkId)
-      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].usernameHash : ''
+      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
     }
     const loadedResult = await Promise.all([
       // currentNetworkSettings
@@ -1298,7 +1254,7 @@ export class Store {
 
       if (this.currentUser) {
         addUsedNetwork(currentNetworkId)
-        setLastUsedUser(currentNetworkId, this.currentUser.usernameHash)
+        setLastUsedUser(currentNetworkId, this.currentUser.userAddress)
       }
 
       this.currentEthereumAccount = web3.eth.defaultAccount
@@ -1306,17 +1262,11 @@ export class Store {
       try {
         const {
           IdentitiesAddress,
-          PreKeysAddress,
           MessagesAddress
         } = this.currentNetworkSettings
 
         this.identitiesContract = new Identities(Object.assign({
           address: IdentitiesAddress,
-          currentNetworkId
-        }))
-
-        this.preKeysContract = new PreKeys(Object.assign({
-          address: PreKeysAddress,
           currentNetworkId
         }))
 
@@ -1345,14 +1295,14 @@ export class Store {
   ) => Promise.all([
     // currentUser
     currentUser
-      ? this.db.getUser(currentUser.networkId, currentUser.usernameHash).catch(() => currentUser)
+      ? this.db.getUser(currentUser.networkId, currentUser.userAddress).catch(() => currentUser)
       : currentUser,
     // box
     (async () => {
       if (!currentUser) {
         return Promise.reject(null)
       }
-      const store = new IndexedDBStore(currentUser.usernameHash)
+      const store = new IndexedDBStore(currentUser.userAddress)
       /**
        * Looks like cryptobox constructure function has a wrong signature...
        * Dont forget to set the second argument to 0 to disable cryptobox's
@@ -1371,17 +1321,29 @@ export class Store {
     Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0)
     ])
 
-  private getPreKeys = async (usernameOrUsernameHash: string, isHash: boolean = false) => {
-    const preKeysPackageSerializedStr = await this.preKeysContract.getPreKeys(
-      usernameOrUsernameHash,
-      { isHash }
-    )
+  private getPreKeys = async (userAddress: string) => {
+    const uploadPreKeysUrl = KVASS_ENDPOINT + userAddress
+    const init = { method: 'GET', mode: 'cors' } as RequestInit
+    const userIdentity = await this.identitiesContract.getIdentity(userAddress)
+    const userPublicKey = publicKeyFromHexStr(userIdentity.publicKey.slice(2))
 
-    if (preKeysPackageSerializedStr === '') {
-      return new PreKeysPackage({}, 0, 0)
+    const resp = await fetch(uploadPreKeysUrl, init)
+    if (resp.status === 200) {
+      const downloadedPreKeys = await resp.text()
+      const [preKeysPackageSerializedStr, signature] = downloadedPreKeys.split(' ')
+      if (preKeysPackageSerializedStr === '' || signature === '') {
+        throw (new Error('the data is broken'))
+      }
+
+      if (!userPublicKey.verify(sodium.from_hex(signature), preKeysPackageSerializedStr)) {
+        throw (new Error('the prekeys\'s signature is invalid.'))
+      }
+
+      if (preKeysPackageSerializedStr !== '') {
+        return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
+      }
     }
-
-    return PreKeysPackage.deserialize(sodium.from_hex(preKeysPackageSerializedStr.slice(2)).buffer)
+    throw (new Error('status is not 200'))
   }
 
   private fetchNewMessages = async (
@@ -1420,8 +1382,7 @@ export class Store {
               user,
               contact: {
                 blockHash: message.blockHash as string,
-                username: message.fromUsername as string,
-                usernameHash: getUsernameHash(message.fromUsername as string)
+                userAddress: message.fromUserAddress as string,
               },
               summary: `${plainText.slice(0, SUMMARY_LENGTH)}${plainText.length > SUMMARY_LENGTH ? '...' : ''}`,
               status: MESSAGE_STATUS.DELIVERED,
@@ -1437,9 +1398,9 @@ export class Store {
                   transactionHash: '',
                   status: MESSAGE_STATUS.DELIVERED,
                 }))
-                  .then(() => this.db.getMessages(sessionTag, user.usernameHash))
+                  .then(() => this.db.getMessages(sessionTag, user.userAddress))
                   .then(async (_messages) => {
-                    const sessionInDB = await this.db.getSession(sessionTag, user.usernameHash).catch(() => undefined)
+                    const sessionInDB = await this.db.getSession(sessionTag, user.userAddress).catch(() => undefined)
                     runInAction(() => {
                       if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
                         this.currentSessionMessages = _messages
@@ -1521,7 +1482,7 @@ export class Store {
         // Maybe we have a corrupted session on local, delete it.
         return Promise.all([
           box.session_delete(sessionTag).then(noop),
-          this.db.getSession(sessionTag, (this.currentUser as Iuser).usernameHash).then((session) => {
+          this.db.getSession(sessionTag, (this.currentUser as Iuser).userAddress).then((session) => {
             if (session) {
               return this.db.deleteSession(this.currentUser as Iuser, session)
             }
@@ -1555,17 +1516,17 @@ export class Store {
     const {
       subject,
       messageType,
-      fromUsername,
+      fromUserAddress,
       plainText,
       timestamp
     } = JSON.parse(unpaddedMessage) as IrawUnppaddedMessage
 
     let blockHash
-    if (fromUsername) {
+    if (fromUserAddress) {
       const {
         blockNumber,
         publicKey: expectedFingerprint
-      } = await this.identitiesContract.getIdentity(fromUsername).catch((err) => {
+      } = await this.identitiesContract.getIdentity(fromUserAddress).catch((err) => {
         console.log(err)
         return {blockNumber: 0, publicKey: ''}
       })
@@ -1600,7 +1561,7 @@ export class Store {
       messageType,
       subject,
       timestamp,
-      fromUsername,
+      fromUserAddress,
       blockHash,
       plainText
     }
@@ -1712,12 +1673,12 @@ function makeSessionTag() {
   return `0x${sodium.to_hex(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))))}`
 }
 
-function setLastUsedUser(networkId: NETWORKS, usernameHash: string) {
+function setLastUsedUser(networkId: NETWORKS, userAddress: string) {
   localStorage.setItem(
     LOCAL_STORAGE_KEYS.LAST_USED_USER,
-    JSON.stringify({networkId, usernameHash})
+    JSON.stringify({networkId, userAddress})
   )
-  setNetworkLastUsedUsernameHash(networkId, usernameHash)
+  setNetworkLastUsedUsernameHash(networkId, userAddress)
 }
 
 function getLastUsedUser(): {

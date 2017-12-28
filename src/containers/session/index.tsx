@@ -52,7 +52,7 @@ class Session extends React.Component<Iprops, Istate> {
         subject,
         summary,
         lastUpdate,
-        usernameHash
+        userAddress
       },
       store: {
         currentSession,
@@ -79,7 +79,7 @@ class Session extends React.Component<Iprops, Istate> {
 
     if (currentSession
       && currentSession.sessionTag === sessionTag
-      && currentSession.usernameHash === usernameHash
+      && currentSession.userAddress === userAddress
     ) {
       return <li className="session-expanded">
         <div className="session-header">
@@ -133,15 +133,15 @@ class Session extends React.Component<Iprops, Istate> {
         }
       </li>
     }
-    const avatarHash = web3UtilsSha3(`${contact.usernameHash}${contact.blockHash}`)
+    const avatarHash = web3UtilsSha3(`${contact.userAddress}${contact.blockHash}`)
     return <li
       className="session--unexpand"
       onClick={isLoading ? noop : this.handleSelect}>
       <Avatar hash={avatarHash} size={35}/>
       <span
-        title={contact.username}
+        title={contact.userAddress}
         className="contact">
-        {contact.username}
+        {contact.userAddress}
       </span>
       {unreadCount > 0
         ? <span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
@@ -209,7 +209,7 @@ class Session extends React.Component<Iprops, Istate> {
     } = this.props.store
 
     send(
-      session.contact.username,
+      session.contact.userAddress,
       session.subject,
       this.input.value,
       {
@@ -241,7 +241,7 @@ class Session extends React.Component<Iprops, Istate> {
       if (isOnline && !session.isClosed) {
         if (window.confirm('Send notification to him/her? (You may need to confirm transaction)')) {
           send(
-            session.contact.username,
+            session.contact.userAddress,
             session.subject,
             'close session',
             {},

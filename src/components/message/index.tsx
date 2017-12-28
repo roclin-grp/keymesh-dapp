@@ -47,7 +47,7 @@ class Message extends React.Component<Iprops> {
 
     if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
       return <li className="close-session-msg">
-        Session had been closed by {contact.username}({contact.usernameHash}) at {timeStr}</li>
+        Session had been closed by {contact.userAddress} at {timeStr}</li>
     }
 
     let statusStr: string | undefined
@@ -58,9 +58,9 @@ class Message extends React.Component<Iprops> {
     return <li className={`message${isFromYourself ? ' message--self' : ''}`}>
       <div className="meta-info">
         <span
-          title={`${contact.username}(${contact.usernameHash.slice(0, 9)}...${contact.usernameHash.slice(-4)})`}
+          title={`${contact.userAddress}`}
           className="sender">
-          {isFromYourself ? 'me' : contact.username}
+          {isFromYourself ? 'me' : contact.userAddress}
         </span>
         <span className="time">{timeStr}</span>
       </div>

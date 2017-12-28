@@ -29,20 +29,14 @@ class RegisterRecord extends React.Component<Iprops, Istate> {
   public render() {
     const {
       user: {
-        username,
-        usernameHash
+        userAddress
       }
     } = this.props
     return <li className="record">
       <span
         className="username"
       >
-        {username}
-      </span>
-      <span
-        className="username-hash"
-      >
-        ({usernameHash.slice(0, 9)}...{usernameHash.slice(-4)})
+        {userAddress}
       </span>
       <button disabled={this.state.isClicked} onClick={this.handleCheckRegister}>Continue</button>
     </li>
