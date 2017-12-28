@@ -6,7 +6,7 @@ import { Store } from '../../store'
 import { formatSessionTimestamp } from '../../utils'
 import Message from '../../components/message'
 import Avatar from '../../components/avatar'
-import {getUsernameHash as web3UtilsSha3} from 'trustbase'
+import { sha3 } from 'trustbase'
 
 import {
   SENDING_FAIL_CODE,
@@ -91,18 +91,19 @@ class Session extends React.Component<Iprops, Istate> {
           />
           <span
             title={subject === '' ? '(No subject)' : subject}
-            className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+            className={`subject${subject === '' ? ' subject--empty' : ''}`}
+          >
             {showSubject}
           </span>
           <i
             onClick={this.handleDeleteSession}
             className="trash fa fa-trash"
-            aria-hidden="true">
-          </i>
+            aria-hidden="true"
+          />
           <i
             className="options fa fa-ellipsis-v"
-            aria-hidden="true">
-          </i>
+            aria-hidden="true"
+          />
         </div>
         {
           currentSessionMessages.length > 0
@@ -133,14 +134,16 @@ class Session extends React.Component<Iprops, Istate> {
         }
       </li>
     }
-    const avatarHash = web3UtilsSha3(`${contact.userAddress}${contact.blockHash}`)
+    const avatarHash = sha3(`${contact.userAddress}${contact.blockHash}`)
     return <li
       className="session--unexpand"
-      onClick={isLoading ? noop : this.handleSelect}>
+      onClick={isLoading ? noop : this.handleSelect}
+    >
       <Avatar hash={avatarHash} size={35}/>
       <span
         title={contact.userAddress}
-        className="contact">
+        className="contact"
+      >
         {contact.userAddress}
       </span>
       {unreadCount > 0
@@ -149,7 +152,8 @@ class Session extends React.Component<Iprops, Istate> {
       }
       <span
         title={subject === '' ? '(No subject)' : subject}
-        className={`subject${subject === '' ? ' subject--empty' : ''}`}>
+        className={`subject${subject === '' ? ' subject--empty' : ''}`}
+      >
         {showSubject}
       </span>
       <span className={`summary${isClosed ? ' summary--closed' : ''}`}>{summary}</span>
@@ -275,8 +279,6 @@ class Session extends React.Component<Iprops, Istate> {
         switch (code) {
           case SENDING_FAIL_CODE.UNKNOWN:
             return `${(err as Error).message} \n ${(err as Error).stack}`
-          case SENDING_FAIL_CODE.INVALID_USERNAME:
-            return `Invalid username.`
           case SENDING_FAIL_CODE.INVALID_MESSAGE:
             return `Invalid message.`
           default:

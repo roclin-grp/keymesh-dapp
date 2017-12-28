@@ -30,8 +30,7 @@ const {
 const {
   UNKNOWN,
   FOUND_ON_LOCAL,
-  OCCUPIED,
-  INVALID_USERNAME
+  REGISTERED
 } = REGISTER_FAIL_CODE
 
 interface Iprops {
@@ -42,7 +41,6 @@ interface Iprops {
 }
 
 interface Istate {
-  username: string,
   registerProgress: string,
   isRegistering: boolean
 }
@@ -50,7 +48,6 @@ interface Istate {
 @inject('store') @observer
 class Register extends React.Component<Iprops, Istate> {
   public readonly state = {
-    username: '',
     registerProgress: '',
     isRegistering: false
   }
@@ -69,27 +66,33 @@ class Register extends React.Component<Iprops, Istate> {
       case PENDING:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Connecting to trustbase...</pre>
           </div>
         </div>
       case OFFLINE:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>You are offline!</pre>
           </div>
         </div>
       case NO_ACCOUNT: {
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Found no Ethereum account. (You may need to unlock MetaMask.)</pre>
           </div>
         </div>
@@ -97,9 +100,11 @@ class Register extends React.Component<Iprops, Istate> {
       case SUCCESS: {
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Register new account</pre>
             <p>Wallet Address: {currentEthereumAccount}</p>
             <button disabled={this.state.isRegistering} onClick={this.handleRegister}>Register</button>
@@ -112,19 +117,21 @@ class Register extends React.Component<Iprops, Istate> {
       case ERROR:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'fixed',
-            backgroundColor: '#ff6464',
-            width: '100%',
-            height: '100%',
-            top: 0,
-            marginTop: 50,
-            paddingTop: 20,
-            color: 'white'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'fixed',
+              backgroundColor: '#ff6464',
+              width: '100%',
+              height: '100%',
+              top: 0,
+              marginTop: 50,
+              paddingTop: 20,
+              color: 'white'
+            }}
+          >
             <pre>Something was gone wrong!</pre>
             <pre>{connectError.stack}</pre>
           </div>
@@ -186,10 +193,8 @@ Creating account...`
             return (err as Error).toString()
           case FOUND_ON_LOCAL:
             return `Found identity on local`
-          case OCCUPIED:
-            return `Username already registered. Try another account name.`
-          case INVALID_USERNAME:
-            return `Invalid username`
+          case REGISTERED:
+            return `User address already registered.`
           default:
             return 'other'
         }

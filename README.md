@@ -13,7 +13,6 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [x] Receive messages.
   - [x] Multi-account.
   - [x] Session summary, show a slice of latest message.
-  - [x] Unify username (length) to reduce spoofing. (*Allow same username*)
   - [x] Continue registration from record. (Allow user left the registration page when record saved)
     - [x] Show account registration records in register page
   - [x] Message sending
@@ -27,7 +26,6 @@ Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/38
   - [ ] Setting pages.
 
   ## Edge case handling
-  - [x] Truncate username when over length.
   - [ ] Interrupt registration process when user switch Ethereum Account.
   - [ ] Including current enviroment (Cryptobox/IndexedDBStore) for messages decryptions. (But what if user change network?)
 

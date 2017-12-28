@@ -34,7 +34,7 @@ class RegisterRecord extends React.Component<Iprops, Istate> {
     } = this.props
     return <li className="record">
       <span
-        className="username"
+        className="user-address"
       >
         {userAddress}
       </span>

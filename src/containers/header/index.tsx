@@ -5,8 +5,8 @@ import { withRouter, Redirect } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
-import { getUsernameHash as web3UtilsSha3 } from 'trustbase'
-import {downloadObjectAsJson} from '../../utils'
+import { sha3 } from 'trustbase'
+import { downloadObjectAsJson } from '../../utils'
 
 import {
   NETWORKS,
@@ -82,7 +82,8 @@ class Header extends React.Component<Iprops, Istate> {
         justifyContent: 'center',
         backgroundColor: 'white',
         marginBottom: 20
-      }}>
+      }}
+    >
       <div
         style={{
           maxWidth: '1200px',
@@ -99,7 +100,8 @@ class Header extends React.Component<Iprops, Istate> {
           fontSize: '20px',
           margin: 0,
           color: 'black'
-        }}>
+        }}
+        >
           <Link style={{textDecoration: 'none', color: 'black'}} to="/">Keymail</Link>
         </h1>
         <span style={{flexGrow: 1}} />
@@ -107,7 +109,8 @@ class Header extends React.Component<Iprops, Istate> {
           style={{
             marginRight: 20,
             fontSize: '14px',
-          }}>
+          }}
+        >
           <span
             title={(CONNECT_STATUS_INDICATOR_TEXTS as any)[connectStatus]}
             style={{
@@ -115,7 +118,8 @@ class Header extends React.Component<Iprops, Istate> {
               fontWeight: 'bold',
               marginRight: 10,
               userSelect: 'none'
-            }}>
+            }}
+          >
             ●
           </span>
           {
@@ -138,7 +142,8 @@ class Header extends React.Component<Iprops, Istate> {
                         cursor: offlineAvailableNetworks.length > 1 ? 'pointer' : 'default'
                       }}
                       title="Current Ethereum network"
-                      onClick={offlineAvailableNetworks.length > 1 ? this.handleShowNetworks : noop}>
+                      onClick={offlineAvailableNetworks.length > 1 ? this.handleShowNetworks : noop}
+                  >
                       {`${(NETWORK_NAMES as any)[offlineSelectedEthereumNetwork as NETWORKS]
                       || `Custom(${currentEthereumNetwork})`}`}
                       {
@@ -154,11 +159,12 @@ class Header extends React.Component<Iprops, Istate> {
                                 border: '1px solid #a5a5a5',
                                 borderTopColor: 'transparent',
                                 borderRightColor: 'transparent',
-                                transformOrigin: '2px 5px'}}>
-                            </span>
+                                transformOrigin: '2px 5px'}
+                              }
+                          />
                           : null
                       }
-                    </span>
+                  </span>
                   : null
           }
           {
@@ -190,9 +196,10 @@ class Header extends React.Component<Iprops, Istate> {
                     fontSize: 14,
                     cursor: 'pointer'
                   }}
-                  onClick={this.handleShowUsers}>
+                  onClick={this.handleShowUsers}
+              >
                 {currentUser.status !== USER_STATUS.PENDING
-                  ? <Avatar size={40} hash={web3UtilsSha3(`${currentUser.userAddress}${currentUser.blockHash}`)} />
+                  ? <Avatar size={40} hash={sha3(`${currentUser.userAddress}${currentUser.blockHash}`)} />
                   : null}
                 {currentUser.userAddress}
                 {
@@ -208,8 +215,8 @@ class Header extends React.Component<Iprops, Istate> {
                         border: '1px solid #a5a5a5',
                         borderTopColor: 'transparent',
                         borderRightColor: 'transparent',
-                        transformOrigin: '2px 5px'}}>
-                    </span>
+                        transformOrigin: '2px 5px'}}
+                    />
                     : null
                 }
               </span>
@@ -232,17 +239,19 @@ class Header extends React.Component<Iprops, Istate> {
           }
           {
             currentUser
-              ? <ul style={{
-                  display: this.state.showUsers ? 'block' : 'none',
-                  zIndex: 99,
-                  position: 'absolute',
-                  backgroundColor: 'white',
-                  color: 'black',
-                  padding: 0,
-                  margin: 0,
-                  marginTop: -3,
-                  boxShadow: 'rgba(0, 0, 0, 0.117647) 0px 1px 6px, rgba(0, 0, 0, 0.117647) 0px 1px 4px'
-                }}>
+              ? <ul
+                  style={{
+                    display: this.state.showUsers ? 'block' : 'none',
+                    zIndex: 99,
+                    position: 'absolute',
+                    backgroundColor: 'white',
+                    color: 'black',
+                    padding: 0,
+                    margin: 0,
+                    marginTop: -3,
+                    boxShadow: 'rgba(0, 0, 0, 0.117647) 0px 1px 6px, rgba(0, 0, 0, 0.117647) 0px 1px 4px'
+                  }}
+              >
                   {
                     currentNetworkUsers
                       .filter((user) => user.userAddress !== currentUser.userAddress)
@@ -258,7 +267,8 @@ class Header extends React.Component<Iprops, Istate> {
                       style={{
                         display: 'block',
                         listStyle: 'none',
-                    }}>
+                      }}
+                    >
                       <Link
                         to="/register"
                         style={{
@@ -270,7 +280,8 @@ class Header extends React.Component<Iprops, Istate> {
                           cursor: 'pointer',
                           textDecoration: 'none',
                           color: 'orange'
-                        }}>
+                        }}
+                      >
                         Register
                       </Link>
                     </li>
@@ -280,9 +291,14 @@ class Header extends React.Component<Iprops, Istate> {
               : null
           }
         </div>
-        <button style={{
-          display: currentUser ? 'block' : 'none',
-        }} onClick={this.handleExport}>Export</button>
+        <button
+          style={{
+            display: currentUser ? 'block' : 'none',
+          }}
+          onClick={this.handleExport}
+        >
+          Export
+        </button>
         <label> Import <input key={this.state.importKey} type="file" onChange={this.handleImport}/> </label>
       </div>
     </header>
@@ -298,7 +314,7 @@ class Header extends React.Component<Iprops, Istate> {
       return {
         showNetworks: !showNetworks
       }
-    }, () => {
+    },            () => {
       this.state.showNetworks
         ? document.addEventListener('click', this.handleClickOtherPlaceHideNetworks)
         : document.removeEventListener('click', this.handleClickOtherPlaceHideNetworks)
@@ -332,7 +348,7 @@ class Header extends React.Component<Iprops, Istate> {
       return {
         showUsers: !showUsers
       }
-    }, () => {
+    },            () => {
       this.state.showUsers
         ? document.addEventListener('click', this.handleClickOtherPlaceHideUsers)
         : document.removeEventListener('click', this.handleClickOtherPlaceHideUsers)

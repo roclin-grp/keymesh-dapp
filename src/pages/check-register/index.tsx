@@ -31,7 +31,7 @@ const {
 const {
   UNKNOWN,
   FOUND_ON_LOCAL,
-  OCCUPIED,
+  REGISTERED,
   TIMEOUT
 } = REGISTER_FAIL_CODE
 
@@ -121,27 +121,33 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       case PENDING:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Connecting to trustbase...</pre>
           </div>
         </div>
       case OFFLINE:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>You are offline!</pre>
           </div>
         </div>
       case NO_ACCOUNT: {
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Found no Ethereum account. (You may need to unlock MetaMask.)</pre>
           </div>
         </div>
@@ -149,9 +155,11 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       case SUCCESS: {
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             {
               networkId
               ? <RegisterRecordsWithStore />
@@ -168,19 +176,21 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       case ERROR:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'fixed',
-            backgroundColor: '#ff6464',
-            width: '100%',
-            height: '100%',
-            top: 0,
-            marginTop: 50,
-            paddingTop: 20,
-            color: 'white'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'fixed',
+              backgroundColor: '#ff6464',
+              width: '100%',
+              height: '100%',
+              top: 0,
+              marginTop: 50,
+              paddingTop: 20,
+              color: 'white'
+            }}
+          >
             <pre>Something was gone wrong!</pre>
             <pre>{connectError.stack}</pre>
           </div>
@@ -209,8 +219,8 @@ class CheckRegister extends React.Component<Iprops, Istate> {
             return (err as Error).toString()
           case FOUND_ON_LOCAL:
             return `Found identity on local`
-          case OCCUPIED:
-            return `Username already registered. Try another account name.`
+          case REGISTERED:
+            return `User address already registered.`
           case TIMEOUT:
             return `Transaction was not mined within 50 blocks, you can refresh the page to retry.`
           default:

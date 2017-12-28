@@ -59,7 +59,8 @@ class Message extends React.Component<Iprops> {
       <div className="meta-info">
         <span
           title={`${contact.userAddress}`}
-          className="sender">
+          className="sender"
+        >
           {isFromYourself ? 'me' : contact.userAddress}
         </span>
         <span className="time">{timeStr}</span>

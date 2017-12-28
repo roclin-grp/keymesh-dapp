@@ -46,7 +46,7 @@ class Home extends React.Component<Iprops, Istate> {
   private toInput: HTMLInputElement | null
   private subjectInput: HTMLInputElement | null
   private messageInput: HTMLTextAreaElement | null
-  public componentDidMount(isFirstMount = true) {
+  public componentDidMount(isFirstMount: boolean = true) {
     const {
       connectStatus,
       currentUser,
@@ -88,9 +88,11 @@ class Home extends React.Component<Iprops, Istate> {
       case PENDING:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Connecting to trustbase...</pre>
           </div>
         </div>
@@ -100,13 +102,15 @@ class Home extends React.Component<Iprops, Istate> {
       case CONTRACT_ADDRESS_ERROR:
       case ERROR:
         return <div>
-          <HeaderWithStore shouldRefreshSessions />
-          <div style={{
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center'
-          }}>
+          <HeaderWithStore shouldRefreshSessions={true} />
+          <div
+            style={{
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+          >
             {
               connectStatus === SUCCESS
               && currentUser
@@ -129,9 +133,11 @@ class Home extends React.Component<Iprops, Istate> {
                     {showCompose ? 'Cancel' : 'Compose'}
                   </button>
                   {showCompose
-                    ? <div style={{
-                        textAlign: 'center'
-                      }}>
+                    ? <div
+                        style={{
+                          textAlign: 'center'
+                        }}
+                    >
                         {/* FIXME: Dirty uncontrolled components */}
                         <div>
                           <label>To:</label><input ref={(input) => this.toInput = input}/>
@@ -146,7 +152,9 @@ class Home extends React.Component<Iprops, Istate> {
                           <button
                             disabled={this.state.isSending}
                             onClick={this.handleSend}
-                          >Send</button>
+                          >
+                            Send
+                          </button>
                         </div>
                       <pre>{this.state.sendingProgress}</pre>
                     </div>
@@ -265,18 +273,24 @@ class Home extends React.Component<Iprops, Istate> {
 
   private txCreated = () => {
     this.emptyForm()
-    this.setState({
-      sendingProgress: 'Sent.',
-      isSending: false
-    }, () => {
-      window.setTimeout(() => {
-        if (!this.state.isSending) {
-          this.setState({
-            sendingProgress: ''
-          })
-        }
-      }, 3000)
-    })
+    this.setState(
+      {
+        sendingProgress: 'Sent.',
+        isSending: false
+      }, 
+      () => {
+        window.setTimeout(
+          () => {
+            if (!this.state.isSending) {
+              this.setState({
+                sendingProgress: ''
+              })
+            }
+          },
+          3000
+        )
+      }
+    )
   }
 
   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
@@ -288,8 +302,6 @@ class Home extends React.Component<Iprops, Istate> {
         switch (code) {
           case SENDING_FAIL_CODE.UNKNOWN:
             return `${(err as Error).message} \n ${(err as Error).stack}`
-          case SENDING_FAIL_CODE.INVALID_USERNAME:
-            return `Invalid username.`
           case SENDING_FAIL_CODE.INVALID_MESSAGE:
             return `Invalid message.`
           default:

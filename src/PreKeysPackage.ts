@@ -1,5 +1,5 @@
 import * as CBOR from 'wire-webapp-cbor'
-const sodium = require('libsodium-wrappers')
+const sodium = require('libsodium-wrappers-sumo')
 
 import {
   IpreKeyPublicKeys

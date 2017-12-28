@@ -1,27 +1,50 @@
 import 'font-awesome/css/font-awesome.css'
 import 'normalize.css'
-
 import './index.css'
 
 import * as React from 'react'
 import { render } from 'react-dom'
+import { AppContainer } from 'react-hot-loader'
 
 import { Provider } from 'mobx-react'
 
 import { Store } from './store'
 import App from './routes'
 
-const AppWithStore: any = App
+const isDevelop = process.env.NODE_ENV === 'development'
 
-window.addEventListener('load', () => {
-  const store = new Store()
+const load = (Component: typeof App) => {
+  const store = (() => {
+    if (isDevelop) {
+      const oldStore = (window as any).__STORE
+      if (oldStore) {
+        return oldStore as Store
+      }
+    }
+    const newStore = new Store()
+    if (isDevelop) {
+      (window as any).__STORE = newStore
+    }
+    newStore.connect()
+    return newStore
+  })()
 
-  store.connectTrustbase()
+  if (isDevelop) {
+    localStorage.debug = 'keymail:*'
+  }
 
   render(
-    <Provider store={store}>
-      <AppWithStore />
-    </Provider>,
+    <AppContainer>
+      <Provider store={store}>
+        <Component />
+      </Provider>
+    </AppContainer>,
     document.getElementById('root'),
   )
-})
+}
+
+if ((module as any).hot) {
+  (module as any).hot.accept(() => load(App))
+}
+
+load(App)

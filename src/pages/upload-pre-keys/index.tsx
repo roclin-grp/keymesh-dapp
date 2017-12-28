@@ -74,27 +74,33 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       case PENDING:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Connecting to trustbase...</pre>
           </div>
         </div>
       case OFFLINE:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>You are offline!</pre>
           </div>
         </div>
       case NO_ACCOUNT: {
         return <div>
           <HeaderWithStore />
-          <div style={{
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              textAlign: 'center'
+            }}
+          >
             <pre>Found no Ethereum account. (You may need to unlock MetaMask.)</pre>
           </div>
         </div>
@@ -103,9 +109,11 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
         return <div>
           <HeaderWithStore />
           {currentUser
-            ? <div style={{
-              textAlign: 'center'
-            }}>
+            ? <div
+              style={{
+                textAlign: 'center'
+              }}
+            >
               {
                 currentUser.status === USER_STATUS.IDENTITY_UPLOADED
                 ? <pre>You need to upload pre keys before continue using this account</pre>
@@ -121,19 +129,21 @@ class UploadPreKeys extends React.Component<Iprops, Istate> {
       case ERROR:
         return <div>
           <HeaderWithStore />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'fixed',
-            backgroundColor: '#ff6464',
-            width: '100%',
-            height: '100%',
-            top: 0,
-            marginTop: 50,
-            paddingTop: 20,
-            color: 'white'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'fixed',
+              backgroundColor: '#ff6464',
+              width: '100%',
+              height: '100%',
+              top: 0,
+              marginTop: 50,
+              paddingTop: 20,
+              color: 'white'
+            }}
+          >
             <pre>Something was gone wrong!</pre>
             <pre>{connectError.stack}</pre>
           </div>

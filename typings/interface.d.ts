@@ -165,3 +165,10 @@ interface IDumpedTable {
 interface IDumpedDatabases {
   [dbname: string]: IDumpedTable[]
 }
+
+interface Logdown {
+  log: (str: string) => void
+  info: (str: string) => void
+  warn: (str: string) => void
+  error: (reason: string | Error) => void
+}

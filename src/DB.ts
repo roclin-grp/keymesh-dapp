@@ -131,13 +131,17 @@ export default class DB {
 
   public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {
     return this.tableUsers
-      .add(Object.assign({}, {
-        lastFetchBlock: 0,
-        contacts: [],
-        status: USER_STATUS.PENDING,
-        registerRecord,
-        blockHash: '0x0'
-      }, user))
+      .add(Object.assign(
+        {},
+        {
+          lastFetchBlock: 0,
+          contacts: [],
+          status: USER_STATUS.PENDING,
+          registerRecord,
+          blockHash: '0x0'
+        }, 
+        user
+      ))
   }
 
   public getUser(networkId: NETWORKS, userAddress: string) {
@@ -396,10 +400,12 @@ export default class DB {
     } = user
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableSessions
-        .where(Object.assign({
-          networkId,
-          userAddress
-        }, contact ? {contact} : null))
+        .where(Object.assign(
+          {
+            networkId,
+            userAddress
+          },
+          contact ? {contact} : null))
         .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
         .each((session) => this.deleteSession(user, session))
     })
@@ -457,10 +463,13 @@ export default class DB {
         }`
       }
       this.tableSessions
-        .update([sessionTag, userAddress], Object.assign({
-          lastUpdate: timestamp,
-          summary,
-        }, messageType === MESSAGE_TYPE.CLOSE_SESSION ? { isClosed: true } : null))
+        .update([sessionTag, userAddress], Object.assign(
+          {
+            lastUpdate: timestamp,
+            summary,
+          },
+          messageType === MESSAGE_TYPE.CLOSE_SESSION ? { isClosed: true } : null
+        ))
     })
   }
 
@@ -540,9 +549,9 @@ export default class DB {
 
     dbs.keymail = keymailDB
 
-    await Promise.all(users.rows
+    await Promise.all((users.rows as Iuser[])
       .map(async (row) => {
-        const db = await dumpCryptobox(row.usernameHash)
+        const db = await dumpCryptobox(row.userAddress)
         dbs[db.dbname] = db.tables
       })
     )

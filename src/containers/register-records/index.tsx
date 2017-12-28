@@ -32,7 +32,8 @@ class RegisterRecords extends React.Component<Iprops> {
         registeringUsers.map((user) =>
           <RegisterRecordWithStore
             key={(user.registerRecord as IregisterRecord).identityTransactionHash}
-            user={user} />)
+            user={user}
+          />)
       }</ul>
       : null
   }

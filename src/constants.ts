@@ -28,15 +28,14 @@ export enum REGISTER_FAIL_CODE {
   UNKNOWN = 0,
   FOUND_ON_LOCAL = 302,
   NOT_CONNECTED = 400,
-  INVALID_USERNAME = 401,
-  OCCUPIED = 402,
+  REGISTERED = 401,
   TIMEOUT = 501,
 }
 
 export enum SENDING_FAIL_CODE {
   UNKNOWN = 0,
   NOT_CONNECTED = 400,
-  INVALID_USERNAME = 401,
+  INVALID_USER_ADDRESS = 401,
   INVALID_MESSAGE = 402
 }
 
@@ -103,7 +102,7 @@ export const GLOBAL_SETTINGS_PRIMARY_KEY = 'global'
 
 export const LOCAL_STORAGE_KEYS = Object.freeze({
   LAST_USED_NETWORK_ID: 'keymail@last-used-network',
-  NETWORK_LAST_USED_USERNAME_HASH: Object.freeze(['keymail@', /* networdId */ '@last-used-user']),
+  NETWORK_LAST_USED_USER_ADDRESS: Object.freeze(['keymail@', /* networdId */ '@last-used-user']),
   LAST_USED_USER: 'keymail@last-used-user',
   USED_NETWORKS: 'keymail@used-networks'
 })

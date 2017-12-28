@@ -17,7 +17,9 @@ import { keys, message as proteusMessage } from 'wire-webapp-proteus'
 import { Cryptobox, CryptoboxSession } from 'wire-webapp-cryptobox'
 
 const ed2curve = require('ed2curve')
-const sodium = require('libsodium-wrappers')
+const sodium = require('libsodium-wrappers-sumo')
+
+const logger: Logdown = require('logdown')('keymail:store')
 
 import DB from './DB'
 import IndexedDBStore from './IndexedDBStore'
@@ -26,6 +28,7 @@ import PreKeyBundle from './PreKeyBundle'
 import Envelope from './Envelope'
 
 import {
+  Logdown,
   web3BlockType,
   IpreKeyPublicKeys,
   IglobalSettings,
@@ -132,7 +135,7 @@ export class Store {
     return Math.ceil(this.currentUserSessions.length / SESSION_PRE_PAGE)
   }
 
-  public connectTrustbase = async () => {
+  public connect = async () => {
     // read global settings from local storage
     const globalSettings = await this.db.getGlobalSettings()
 
@@ -164,7 +167,7 @@ export class Store {
          */
         let {
           networkId: lastUsedNetworkId
-          // usernamHash: lastUsedUsernameHash
+          // userAddress: lastUsedUserAddress
         } = getLastUsedUser()
 
         if (err.code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
@@ -176,14 +179,14 @@ export class Store {
           const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
           let loadedResult: [InetworkSettings, Iuser[], IloadedUserData]
           if (typeof currentNetworkId !== 'undefined') {
-            const usernameHash: string = getNetworkLastUsedUsernameHash(currentNetworkId)
+            const userAddress: string = getNetworkLastUsedUserAddress(currentNetworkId)
             loadedResult = await Promise.all([
               // currentNetworkSettings
               this.db.getNetworkSettings(currentNetworkId),
               // currentNetworkUsers
               this.db.getUsers(currentNetworkId),
               // *userData
-              this.db.getUser(currentNetworkId, usernameHash)
+              this.db.getUser(currentNetworkId, userAddress)
                 .catch(() => this.currentUser)
                 .then((currentUser) => this.loadUserData(currentUser))
             ])
@@ -270,7 +273,7 @@ export class Store {
       publicKey: identityFingerprint
     } = await this.identitiesContract.getIdentity(userAddress)
     if (Number(identityFingerprint) !== 0) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
+      return registerDidFail(null, REGISTER_FAIL_CODE.REGISTERED)
     }
 
     const identityKeyPair = IdentityKeyPair.new()
@@ -284,13 +287,16 @@ export class Store {
         await store.save_identity(identityKeyPair).catch(reject)
         const lastResortPrekey = PreKey.last_resort()
         await store.save_prekeys([lastResortPrekey]).catch(reject)
-        this.db.createUser({
-          networkId: currentNetworkId,
-          userAddress,
-        }, {
-          identityTransactionHash: transactionHash,
-          identity: sodium.to_hex(new Uint8Array(identityKeyPair.serialise()))
-        })
+        this.db.createUser(
+          {
+            networkId: currentNetworkId,
+            userAddress,
+          },
+          {
+            identityTransactionHash: transactionHash,
+            identity: sodium.to_hex(new Uint8Array(identityKeyPair.serialise()))
+          }
+        )
           .then(async () => {
             const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(reject)
             if (createdUser) {
@@ -331,7 +337,7 @@ export class Store {
       const receipt = await web3.eth.getTransactionReceipt(txHash)
         .catch(() => null)
       if (receipt !== null) {
-        if (counter >= CONFIRMATION_NUMBER) {
+        if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             .then(async () => {
               if (this.currentSession !== undefined && message.sessionTag === this.currentSession.sessionTag) {
@@ -344,7 +350,7 @@ export class Store {
               }
             })
             .catch(() => {
-              // console.log("update message status to DELIVERED error")
+              // logger.error("update message status to DELIVERED error")
             })
           return
         } else {
@@ -396,7 +402,7 @@ export class Store {
       const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash)
         .catch(() => null)
       if (receipt !== null) {
-        if (counter >= CONFIRMATION_NUMBER) {
+        if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           const {
             blockNumber,
             publicKey: registeredIdentityFingerprint
@@ -431,7 +437,7 @@ export class Store {
             return
           } else {
             this.db.deleteUser(user)
-            return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
+            return registerDidFail(null, REGISTER_FAIL_CODE.REGISTERED)
           }
         } else {
           window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
@@ -466,9 +472,10 @@ export class Store {
       case this.connectStatus !== SUCCESS:
         return sendingDidFail(null, SENDING_FAIL_CODE.NOT_CONNECTED)
       case toUserAddress === '':
-        return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
+        return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
       case plainText === '':
         return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE)
+      default:
     }
 
     if (!this.box) {
@@ -494,7 +501,7 @@ export class Store {
       return
     }
     if (Number(identityFingerprint) === 0) {
-      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
+      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
     }
 
     let session: CryptoboxSession | null = null
@@ -525,11 +532,11 @@ export class Store {
       lastPrekeyDate,
       preKeyPublicKeys
     } = await this.getPreKeys(toUserAddress).catch((err) => {
-      console.error(err)
+      logger.error(err)
       return new PreKeysPackage({}, 0, 0)
     })
     if (Object.keys(preKeyPublicKeys).length === 0) {
-      sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USERNAME)
+      sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
       return
     }
 
@@ -736,7 +743,7 @@ export class Store {
         }
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === CONFIRMATION_NUMBER) {
+        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           if (!receipt.events) {
             sendingDidFail(new Error('Unknown error'))
             return
@@ -847,11 +854,14 @@ export class Store {
           this.currentNetworkUsers = users
         })
         if (oldUsers.length > 0) {
-          const usernameHashs = oldUsers.reduce((result, user) => {
-            result[user.userAddress] = true
-            return result
-          }, {} as {[userAddress: string]: boolean})
-          const newUser = users.find((user) => !usernameHashs[user.userAddress])
+          const userAddresses = oldUsers.reduce(
+            (result, user) => {
+              result[user.userAddress] = true
+              return result
+            },
+            {} as {[userAddress: string]: boolean}
+          )
+          const newUser = users.find((user) => !userAddresses[user.userAddress])
           if (newUser && newUser.networkId === currentNetworkId) {
             await this.useUser(newUser, shouldRefreshSessions)
             if (shouldRefreshSessions) {
@@ -878,13 +888,13 @@ export class Store {
     globalSettings?: IglobalSettings,
     err?: Error
   ) => {
-    let usernameHash = getNetworkLastUsedUsernameHash(networkId)
+    let userAddress = getNetworkLastUsedUserAddress(networkId)
     let currentNetworkSettings: InetworkSettings | undefined
     let currentNetworkUsers: Iuser[] = []
     let loadedUserData: IloadedUserData
-    if (!usernameHash) {
+    if (!userAddress) {
       currentNetworkUsers = await this.db.getUsers(networkId)
-      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
+      userAddress = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
     }
     {[
       currentNetworkSettings,
@@ -897,7 +907,7 @@ export class Store {
         ? Promise.resolve(currentNetworkUsers)
         : this.db.getUsers(networkId),
 
-      this.db.getUser(networkId, usernameHash)
+      this.db.getUser(networkId, userAddress)
         .catch(() => this.currentUser)
         .then((_currentUser) => this.loadUserData(_currentUser))
     ])}
@@ -1083,7 +1093,7 @@ export class Store {
 
     const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce((result, preKey) => Object.assign(result, {
       [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
-    }), {})
+    }),                                                         {})
 
     // use lastPreKey as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
@@ -1092,7 +1102,7 @@ export class Store {
 
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
 
-    const uploadPreKeysUrl = KVASS_ENDPOINT + user.userAddress
+    const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + user.userAddress
     const hexedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
     const prekeysSignature = sodium.to_hex(this.box.identity.secret_key.sign(hexedPrekeys))
     const init = {
@@ -1130,7 +1140,7 @@ export class Store {
           })
           preKeysDidUpload()
         } else {
-          console.log(resp)
+          logger.error(resp.toString())
         }
       })
       .catch(preKeysUploadDidFail)
@@ -1214,11 +1224,11 @@ export class Store {
     if (typeof currentNetworkId === 'undefined') {
       return
     }
-    let usernameHash: string = getNetworkLastUsedUsernameHash(currentNetworkId)
+    let userAddress: string = getNetworkLastUsedUserAddress(currentNetworkId)
     let currentNetworkUsers: Iuser[] = []
-    if (!usernameHash) {
+    if (!userAddress) {
       currentNetworkUsers = await this.db.getUsers(currentNetworkId)
-      usernameHash = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
+      userAddress = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
     }
     const loadedResult = await Promise.all([
       // currentNetworkSettings
@@ -1228,7 +1238,7 @@ export class Store {
         ? Promise.resolve(currentNetworkUsers)
         : this.db.getUsers(currentNetworkId),
       // *userData
-      this.db.getUser(currentNetworkId, usernameHash)
+      this.db.getUser(currentNetworkId, userAddress)
         .catch(() => this.currentUser)
         .then((currentUser) => this.loadUserData(currentUser))
     ])
@@ -1322,7 +1332,7 @@ export class Store {
     ])
 
   private getPreKeys = async (userAddress: string) => {
-    const uploadPreKeysUrl = KVASS_ENDPOINT + userAddress
+    const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + userAddress
     const init = { method: 'GET', mode: 'cors' } as RequestInit
     const userIdentity = await this.identitiesContract.getIdentity(userAddress)
     const userPublicKey = publicKeyFromHexStr(userIdentity.publicKey.slice(2))
@@ -1527,20 +1537,20 @@ export class Store {
         blockNumber,
         publicKey: expectedFingerprint
       } = await this.identitiesContract.getIdentity(fromUserAddress).catch((err) => {
-        console.log(err)
+        logger.error(err)
         return {blockNumber: 0, publicKey: ''}
       })
 
       const web3 = getWeb3()
       blockHash = await web3.eth.getBlock(blockNumber)
         .then((block) => block.hash).catch((err) => {
-          console.log(err)
+          logger.error(err)
           return '0x0'
         })
 
       if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
         const err = new Error('Invalid message: sender identity not match')
-        console.log(err)
+        logger.error(err)
         throw err
       }
 
@@ -1553,7 +1563,7 @@ export class Store {
     const blockTimestamp = Number(blockTimestampSecStr) * 1000
     if (blockTimestamp > timestamp + 3600 * 1000 || blockTimestamp < timestamp - 3600 * 1000) {
       const err = new Error('Invalid message: timstamp is not trusted')
-      console.log(err)
+      logger.error(err)
       throw err
     }
 
@@ -1582,8 +1592,8 @@ function generatePrekeys(start: number, interval: number, size: number) {
     return []
   }
 
-  return [...Array(size).keys()]
-    .map((x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
+  return Array(size).fill(0)
+    .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
 }
 
 function getPreKey({
@@ -1678,7 +1688,7 @@ function setLastUsedUser(networkId: NETWORKS, userAddress: string) {
     LOCAL_STORAGE_KEYS.LAST_USED_USER,
     JSON.stringify({networkId, userAddress})
   )
-  setNetworkLastUsedUsernameHash(networkId, userAddress)
+  setNetworkLastUsedUserAddress(networkId, userAddress)
 }
 
 function getLastUsedUser(): {
@@ -1693,20 +1703,20 @@ function getLastUsedUser(): {
   }
 }
 
-function setNetworkLastUsedUsernameHash(networkId: NETWORKS, usernameHash: string) {
+function setNetworkLastUsedUserAddress(networkId: NETWORKS, userAddress: string) {
   localStorage.setItem(
     `${LOCAL_STORAGE_KEYS
-      .NETWORK_LAST_USED_USERNAME_HASH[0]}${networkId}${LOCAL_STORAGE_KEYS
-        .NETWORK_LAST_USED_USERNAME_HASH[1]}`,
-    usernameHash
+      .NETWORK_LAST_USED_USER_ADDRESS[0]}${networkId}${LOCAL_STORAGE_KEYS
+        .NETWORK_LAST_USED_USER_ADDRESS[1]}`,
+    userAddress
   )
 }
 
-function getNetworkLastUsedUsernameHash(networkId: NETWORKS) {
+function getNetworkLastUsedUserAddress(userAddress: NETWORKS) {
   return (localStorage.getItem(
     `${LOCAL_STORAGE_KEYS
-      .NETWORK_LAST_USED_USERNAME_HASH[0]}${networkId}${LOCAL_STORAGE_KEYS
-        .NETWORK_LAST_USED_USERNAME_HASH[1]}`)
+      .NETWORK_LAST_USED_USER_ADDRESS[0]}${userAddress}${LOCAL_STORAGE_KEYS
+        .NETWORK_LAST_USED_USER_ADDRESS[1]}`)
     || ''
   ).toString()
 }

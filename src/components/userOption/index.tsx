@@ -28,7 +28,8 @@ class UserOption extends React.Component<Iprops, Istate> {
         padding: '10px 20px'
       }}
       title={user.userAddress}
-      onClick={this.handleClick}>
+      onClick={this.handleClick}
+    >
       {user.userAddress}
     </li>
   }

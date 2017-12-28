@@ -16,10 +16,10 @@ import UploadPreKeys from './pages/upload-pre-keys'
 const App = () => (
   <Router>
     <Switch>
-      <Route exact path="/" component={Home} />
+      <Route exact={true} path="/" component={Home} />
       <Route path="/register" component={Register} />
-      <Route exact path="/settings" component={Settings} />
-      <Route exact path="/settings/:networkId" component={NetworkSettings} />
+      <Route exact={true} path="/settings" component={Settings} />
+      <Route exact={true} path="/settings/:networkId" component={NetworkSettings} />
       <Route path="/check-register/:networkId?" component={CheckRegister} />
       <Route path="/upload-pre-keys" component={UploadPreKeys} />
     </Switch>
