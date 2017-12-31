@@ -3,7 +3,8 @@ import * as React from 'react'
 import {
   BrowserRouter as Router,
   Route,
-  Switch
+  Switch,
+  Redirect
 } from 'react-router-dom'
 
 import Home from './pages/home'
@@ -24,6 +25,7 @@ const App = () => (
       <Route path="/check-register/:networkId?" component={CheckRegister} />
       <Route path="/upload-pre-keys" component={UploadPreKeys} />
       <Route path="/broadcast" component={Broadcast} />
+      <Redirect to="/" />
     </Switch>
   </Router>
 )

@@ -7,14 +7,16 @@ export enum TRUSTBASE_CONNECT_STATUS {
   ERROR = 401
 }
 
-export const CONNECT_STATUS_INDICATOR_COLORS = Object.freeze({
-  [TRUSTBASE_CONNECT_STATUS.PENDING]: 'transparent',
-  [TRUSTBASE_CONNECT_STATUS.OFFLINE]: 'grey',
-  [TRUSTBASE_CONNECT_STATUS.NO_ACCOUNT]: 'orange',
-  [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'chartreuse',
-  [TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR]: 'orange',
-  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'red'
-})
+export const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
+  [TRUSTBASE_CONNECT_STATUS.PENDING]: 'pending',
+  [TRUSTBASE_CONNECT_STATUS.OFFLINE]: 'offline',
+  [TRUSTBASE_CONNECT_STATUS.NO_ACCOUNT]: 'no-account',
+  [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'success',
+  [TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR]: 'contract-address-error',
+  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'error'
+}) as {
+  [connectStatus: number]: string
+}
 
 export const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [TRUSTBASE_CONNECT_STATUS.OFFLINE]: 'Offline',
@@ -22,7 +24,9 @@ export const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'Active',
   [TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR]: 'Contract addresses error, some function may not work',
   [TRUSTBASE_CONNECT_STATUS.ERROR]: 'Network error, refresh to retry'
-})
+}) as {
+  [connectStatus: number]: string
+}
 
 export enum REGISTER_FAIL_CODE {
   UNKNOWN = 0,
@@ -64,7 +68,9 @@ export const MESSAGE_STATUS_STR = Object.freeze({
   [MESSAGE_STATUS.DELIVERING]: 'Delivering',
   [MESSAGE_STATUS.FAILED]: 'Failed',
   [MESSAGE_STATUS.DELIVERED]: 'Delivered',
-})
+}) as {
+  [messageStatus: number]: string
+}
 
 export const NETWORK_NAMES = Object.freeze({
   [NETWORKS.OLYMPIC]: 'Olympic',
@@ -73,7 +79,9 @@ export const NETWORK_NAMES = Object.freeze({
   [NETWORKS.ROPSTEN]: 'Ropsten',
   [NETWORKS.RINKEBY]: 'Rinkeby',
   [NETWORKS.KOVAN]: 'Kovan'
-})
+}) as {
+  [network: number]: string
+}
 
 export enum TABLES {
   GLOBAL_SETTINGS = 'global-settings',

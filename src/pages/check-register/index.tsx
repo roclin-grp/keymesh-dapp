@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { withRouter, Redirect } from 'react-router-dom'
+import { withRouter, Redirect, RouteComponentProps } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
@@ -11,13 +11,10 @@ import {
   USER_STATUS
 } from '../../constants'
 
-import Header from '../../containers/header'
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import RegisterRecords from '../../containers/register-records'
 
 import './index.css'
-
-const HeaderWithStore = Header as any
-const RegisterRecordsWithStore = RegisterRecords as any
 
 const {
   PENDING,
@@ -35,16 +32,14 @@ const {
   TIMEOUT
 } = REGISTER_FAIL_CODE
 
-interface Iprops {
+interface Iparams {
+  networkId: string
+}
+
+type Iprops = RouteComponentProps<Iparams>
+
+interface IinjectedProps extends Iprops {
   store: Store
-  history: {
-    replace: (path: string) => void
-  }
-  match: {
-    params: {
-      networkId?: string
-    }
-  }
 }
 
 interface Istate {
@@ -53,18 +48,21 @@ interface Istate {
 
 @inject('store') @observer
 class CheckRegister extends React.Component<Iprops, Istate> {
-  public readonly state = {
+  public readonly state = Object.freeze({
     registerProgress: ''
-  }
+  })
+
+  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+
   private unmounted = false
   public componentDidMount() {
     const {
       store: {
         connectStatus,
-        checkRegister,
-        listenForConnectStatusChange,
         currentEthereumNetwork,
-        currentUser
+        currentUser,
+        checkRegister,
+        listenForConnectStatusChange
       },
       match: {
         params: {
@@ -72,7 +70,9 @@ class CheckRegister extends React.Component<Iprops, Istate> {
         }
       },
       history
-    } = this.props
+    } = this.injectedProps
+    const {
+    } = this.injectedProps.store
     if (
       typeof currentEthereumNetwork !== 'undefined'
       && typeof networkId !== 'undefined'
@@ -97,104 +97,79 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     const {
       removeConnectStatusListener,
       clearRegisteringUser
-    } = this.props.store
+    } = this.injectedProps.store
     this.unmounted = true
     clearRegisteringUser()
     removeConnectStatusListener(this.connectStatusListener)
   }
   public render() {
     const {
-      store: {
-        currentUser,
-        currentEthereumNetwork,
-        connectStatus,
-        connectError
-      },
       match: {
         params: {
           networkId
         }
       }
-    } = this.props
+    } = this.injectedProps
+    const {
+      currentUser,
+      currentEthereumNetwork,
+      connectStatus,
+      connectError
+    } = this.injectedProps.store
 
     switch (connectStatus) {
       case PENDING:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>Connecting to trustbase...</pre>
-          </div>
-        </div>
+        return <CommonHeaderPage />
       case OFFLINE:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
+        return (
+          <CommonHeaderPage>
             <pre>You are offline!</pre>
-          </div>
-        </div>
-      case NO_ACCOUNT: {
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
+          </CommonHeaderPage>
+        )
+      case NO_ACCOUNT:
+        return (
+          <CommonHeaderPage>
             <pre>Found no Ethereum account. (You may need to unlock MetaMask.)</pre>
-          </div>
-        </div>
-      }
-      case SUCCESS: {
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
+          </CommonHeaderPage>
+        )
+      case SUCCESS:
+        return (
+          <CommonHeaderPage>
             {
               networkId
-              ? <RegisterRecordsWithStore />
+              ? <RegisterRecords />
               : currentUser && currentUser.status === USER_STATUS.PENDING
                 ? <pre>{this.state.registerProgress}</pre>
                 : currentUser && currentUser.status === USER_STATUS.IDENTITY_UPLOADED
                   ? <Redirect to="/upload-pre-keys" />
                   : <Redirect to={`/check-register/${currentEthereumNetwork}`} />
             }
-          </div>
-        </div>
-      }
+          </CommonHeaderPage>
+        )
       case CONTRACT_ADDRESS_ERROR:
       case ERROR:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'fixed',
-              backgroundColor: '#ff6464',
-              width: '100%',
-              height: '100%',
-              top: 0,
-              marginTop: 50,
-              paddingTop: 20,
-              color: 'white'
-            }}
-          >
-            <pre>Something was gone wrong!</pre>
-            <pre>{connectError.stack}</pre>
-          </div>
-        </div>
+        return (
+          <CommonHeaderPage>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                position: 'fixed',
+                backgroundColor: '#ff6464',
+                width: '100%',
+                height: '100%',
+                top: 0,
+                marginTop: 50,
+                paddingTop: 20,
+                color: 'white'
+              }}
+            >
+              <pre>Something was gone wrong!</pre>
+              <pre>{(connectError as Error).stack}</pre>
+            </div>
+          </CommonHeaderPage>
+        )
       default:
         return null
     }
@@ -242,7 +217,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
         }
       },
       history
-    } = this.props
+    } = this.injectedProps
     if (this.unmounted) {
       return
     }
@@ -268,4 +243,4 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   }
 }
 
-export default withRouter(CheckRegister as any)
+export default withRouter(CheckRegister)

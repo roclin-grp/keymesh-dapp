@@ -105,7 +105,7 @@ type TypeConnectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE
 export class Store {
   @observable public connectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
   @observable public lastConnectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
-  @observable public connectError: Error
+  @observable public connectError: Error | undefined
   @observable.ref public globalSettings: IglobalSettings = {}
   @observable public currentEthereumNetwork: NETWORKS | undefined
   @observable public currentEthereumAccount = ''
@@ -123,6 +123,11 @@ export class Store {
   @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
   @observable public isFetchingMessage = false
   @observable public isFetchingBroadcast = false
+
+  public constructor() {
+    this.db = new DB()
+  }
+
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
   private currentUserlastFetchBlockOfBroadcast: web3BlockType = 0
@@ -137,13 +142,26 @@ export class Store {
   private db: DB
   private broadcastMessagesSignatures: string[]
 
-  constructor() {
-    this.db = new DB()
-  }
-
   @computed
   public get pageLength() {
     return Math.ceil(this.currentUserSessions.length / SESSION_PRE_PAGE)
+  }
+
+  @computed
+  public get canCreateUser() {
+    const {
+      connectStatus,
+      connectError,
+      currentNetworkUsers,
+      currentEthereumAccount
+    } = this
+    const isConnected = connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+    const hasContractErrorButNotIdentities = connectStatus === TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR
+      && !!connectError
+      && !connectError.message.includes('Identities')
+    const canConnectToIdentitesContract = isConnected || hasContractErrorButNotIdentities
+    return canConnectToIdentitesContract
+      && (currentNetworkUsers.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
 
   public connect = async () => {
@@ -173,7 +191,7 @@ export class Store {
     return initialize({
       provider
     })
-      .then(async () => this.processAfterNetworkConnected(true, globalSettings))
+      .then(() => this.processAfterNetworkConnected(true, globalSettings))
       .catch(async (err) => {
         /**
          * Offline mode
@@ -304,7 +322,7 @@ export class Store {
         this.db.createUser(
           {
             networkId: currentNetworkId,
-            userAddress,
+            userAddress
           },
           {
             identityTransactionHash: transactionHash,
@@ -364,7 +382,7 @@ export class Store {
               }
             })
             .catch(() => {
-              // logger.error("update message status to DELIVERED error")
+              logger.error('update message status to DELIVERED error')
             })
           return
         } else {
@@ -809,7 +827,10 @@ export class Store {
   }
 
   public useUser = async (user: Iuser, shouldRefreshSessions = false, redirect?: () => void) => {
-    const networkId = this.currentEthereumNetwork || this.offlineSelectedEthereumNetwork as NETWORKS
+    const networkId = this.currentEthereumNetwork || this.offlineSelectedEthereumNetwork
+    if (!networkId) {
+      return
+    }
     const userData = await this.loadUserData(user)
     const sessions = shouldRefreshSessions ? await this.db.getSessions(userData[0] as Iuser) : undefined
     runInAction(() => {
@@ -1286,8 +1307,8 @@ export class Store {
       window.clearTimeout(this.detectAccountChangeTimeout)
       if (typeof currentNetworkId === 'undefined') {
         runInAction(() => {
+          this.offlineSelectedEthereumNetwork = this.currentEthereumNetwork
           this.currentEthereumNetwork = undefined
-          this.offlineSelectedEthereumNetwork = currentNetworkId
           this.offlineAvailableNetworks = getUsedNetworks()
           const prevConnectStatus = this.connectStatus
           this.connectStatus = OFFLINE
@@ -1479,7 +1500,7 @@ export class Store {
       const userIdentity = await this.identitiesContract.getIdentity(userAddress)
       const userPublicKey = publicKeyFromHexStr(userIdentity.publicKey.slice(2))
       if (!userPublicKey.verify(sodium.from_hex(signedMessage.signature), signedMessage.message)) {
-        console.error(new Error('invalid signature')) 
+        logger.error(new Error('invalid signature')) 
         return null
       }
 
@@ -1501,7 +1522,6 @@ export class Store {
       runInAction(() => {
         this.broadcastMessages = this.broadcastMessages.concat(messages)
       })
-      console.log(messages)
     }
 
     const user = this.currentUser as Iuser
@@ -1802,12 +1822,7 @@ function publicKeyFromHexStr(publicKeyHexString: string) {
 }
 
 function identityKeyFromHexStr(identityKeyHexString: string) {
-  const bobIdentityKeyEd = sodium.from_hex(identityKeyHexString)
-  const bobIdentityKeyCurve = ed2curve.convertPublicKey(bobIdentityKeyEd)
-  return keys.IdentityKey.new(keys.PublicKey.new(
-    bobIdentityKeyEd,
-    bobIdentityKeyCurve
-  ))
+  return keys.IdentityKey.new(publicKeyFromHexStr(identityKeyHexString))
 }
 
 function padTo512Bytes(plaintext: string) {
@@ -1845,7 +1860,7 @@ function setLastUsedUser(networkId: NETWORKS, userAddress: string) {
 
 function getLastUsedUser(): {
   networkId?: NETWORKS,
-  usernamHash?: string
+  userAddress?: string
 } {
   try {
     return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEYS.LAST_USED_USER) || '{}')
@@ -1864,10 +1879,10 @@ function setNetworkLastUsedUserAddress(networkId: NETWORKS, userAddress: string)
   )
 }
 
-function getNetworkLastUsedUserAddress(userAddress: NETWORKS) {
+function getNetworkLastUsedUserAddress(networkId: NETWORKS) {
   return (localStorage.getItem(
     `${LOCAL_STORAGE_KEYS
-      .NETWORK_LAST_USED_USER_ADDRESS[0]}${userAddress}${LOCAL_STORAGE_KEYS
+      .NETWORK_LAST_USED_USER_ADDRESS[0]}${networkId}${LOCAL_STORAGE_KEYS
         .NETWORK_LAST_USED_USER_ADDRESS[1]}`)
     || ''
   ).toString()

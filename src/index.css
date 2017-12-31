@@ -1,11 +1,4 @@
-html, body {
-  height: 100%;
+.container {
+  padding: 0 20px;
   width: 100%;
-  background: #f0f0f0;
-  font-family: "Lato";
-}
-
-#root {
-  /* Block formatting context */
-  overflow: hidden;
 }

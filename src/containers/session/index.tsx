@@ -5,7 +5,7 @@ import { Store } from '../../store'
 
 import { formatSessionTimestamp } from '../../utils'
 import Message from '../../components/message'
-import Avatar from '../../components/avatar'
+import HashAvatar from '../../components/HashAvatar'
 import { sha3 } from 'trustbase'
 
 import {
@@ -25,6 +25,9 @@ const noop = () => {/**/}
 
 interface Iprops {
   session: Isession
+}
+
+interface IinjectedProps extends Iprops {
   store: Store
 }
 
@@ -36,31 +39,33 @@ interface Istate {
 
 @inject('store') @observer
 class Session extends React.Component<Iprops, Istate> {
-  public readonly state = {
+  public readonly state = Object.freeze({
     isLoading: false,
     isSending: false,
     sendingProgress: ''
-  }
+  })
+
+  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+
   private input: HTMLInputElement | null
+
   public render() {
     const {
-      session: {
-        isClosed,
-        sessionTag,
-        unreadCount,
-        contact,
-        subject,
-        summary,
-        lastUpdate,
-        userAddress
-      },
-      store: {
-        currentSession,
-        currentSessionMessages,
-        connectStatus,
-        checkMessageStatus,
-      }
-    } = this.props
+      isClosed,
+      sessionTag,
+      unreadCount,
+      contact,
+      subject,
+      summary,
+      lastUpdate,
+      userAddress
+    } = this.props.session
+    const {
+      currentSession,
+      currentSessionMessages,
+      connectStatus,
+      checkMessageStatus,
+    } = this.injectedProps.store
 
     const {
       isLoading
@@ -135,30 +140,32 @@ class Session extends React.Component<Iprops, Istate> {
       </li>
     }
     const avatarHash = sha3(`${contact.userAddress}${contact.blockHash}`)
-    return <li
-      className="session--unexpand"
-      onClick={isLoading ? noop : this.handleSelect}
-    >
-      <Avatar hash={avatarHash} size={35}/>
-      <span
-        title={contact.userAddress}
-        className="contact"
+    return (
+      <li
+        className="session--unexpand"
+        onClick={isLoading ? noop : this.handleSelect}
       >
-        {contact.userAddress}
-      </span>
-      {unreadCount > 0
-        ? <span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        : null
-      }
-      <span
-        title={subject === '' ? '(No subject)' : subject}
-        className={`subject${subject === '' ? ' subject--empty' : ''}`}
-      >
-        {showSubject}
-      </span>
-      <span className={`summary${isClosed ? ' summary--closed' : ''}`}>{summary}</span>
-      <span className="last-update-time">{formatSessionTimestamp(lastUpdate)}</span>
-    </li>
+        <HashAvatar hash={avatarHash} size="small"/>
+        <span
+          title={contact.userAddress}
+          className="contact"
+        >
+          {contact.userAddress}
+        </span>
+        {unreadCount > 0
+          ? <span className="unread-msg-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+          : null
+        }
+        <span
+          title={subject === '' ? '(No subject)' : subject}
+          className={`subject${subject === '' ? ' subject--empty' : ''}`}
+        >
+          {showSubject}
+        </span>
+        <span className={`summary${isClosed ? ' summary--closed' : ''}`}>{summary}</span>
+        <span className="last-update-time">{formatSessionTimestamp(lastUpdate)}</span>
+      </li>
+    )
   }
   private handleSelect = async () => {
     const selection = window.getSelection()
@@ -166,11 +173,11 @@ class Session extends React.Component<Iprops, Istate> {
       return
     }
     const {
-      session,
-      store: {
-        selectSession
-      }
+      session
     } = this.props
+    const {
+      selectSession
+    } = this.injectedProps.store
     this.setState({
       isLoading: true
     })
@@ -186,17 +193,17 @@ class Session extends React.Component<Iprops, Istate> {
     if (selection.type === 'Range') {
       return
     }
-    this.props.store.unselectSession()
+    this.injectedProps.store.unselectSession()
   }
 
   private handleSend = async () => {
     const {
-      session,
-      store: {
-        connectStatus,
-        currentUser
-      }
+      session
     } = this.props
+    const {
+      connectStatus,
+      currentUser
+    } = this.injectedProps.store
     if (
       (!this.input || !this.input.value)
       || session.isClosed
@@ -210,7 +217,7 @@ class Session extends React.Component<Iprops, Istate> {
     })
     const {
       send
-    } = this.props.store
+    } = this.injectedProps.store
 
     send(
       session.contact.userAddress,
@@ -227,14 +234,14 @@ class Session extends React.Component<Iprops, Istate> {
 
   private handleDeleteSession = () => {
     const {
-      session,
-      store: {
-        send,
-        connectStatus,
-        deleteSession,
-        currentUser
-      }
+      session
     } = this.props
+    const {
+      send,
+      connectStatus,
+      deleteSession,
+      currentUser
+    } = this.injectedProps.store
 
     if (!currentUser) {
       return
@@ -279,6 +286,8 @@ class Session extends React.Component<Iprops, Istate> {
         switch (code) {
           case SENDING_FAIL_CODE.UNKNOWN:
             return `${(err as Error).message} \n ${(err as Error).stack}`
+          case SENDING_FAIL_CODE.INVALID_USER_ADDRESS:
+            return `Invalid user address`
           case SENDING_FAIL_CODE.INVALID_MESSAGE:
             return `Invalid message.`
           default:

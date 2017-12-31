@@ -9,32 +9,38 @@ import { IregisterRecord } from '../../../typings/interface.d'
 
 import './index.css'
 
-interface Iprops {
+interface IinjectedProps {
   store: Store
 }
 
-const RegisterRecordWithStore = RegisterRecord as any
-
 @inject('store') @observer
-class RegisterRecords extends React.Component<Iprops> {
+class RegisterRecords extends React.Component<{}> {
+  private get injectedProps() {
+    return this.props as IinjectedProps
+  }
   public componentDidMount() {
-    this.props.store.loadRegisteringUser()
+    this.injectedProps.store.loadRegisteringUser()
   }
   public componentWillUnmount() {
-    this.props.store.clearRegisteringUser()
+    this.injectedProps.store.clearRegisteringUser()
   }
   public render() {
     const {
       registeringUsers
-    } = this.props.store
+    } = this.injectedProps.store
     return registeringUsers.length > 0
-      ? <ul>{
-        registeringUsers.map((user) =>
-          <RegisterRecordWithStore
-            key={(user.registerRecord as IregisterRecord).identityTransactionHash}
-            user={user}
-          />)
-      }</ul>
+      ? (
+        <ul>
+          {
+            registeringUsers.map((user) => (
+              <RegisterRecord
+                key={(user.registerRecord as IregisterRecord).identityTransactionHash}
+                user={user}
+              />
+            ))
+          }
+        </ul>
+      )
       : null
   }
 }

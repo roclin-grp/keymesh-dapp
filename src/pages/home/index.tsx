@@ -8,7 +8,7 @@ import {
   SENDING_FAIL_CODE
 } from '../../constants'
 
-import Header from '../../containers/header'
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import Session from '../../containers/session'
 
 import './index.css'
@@ -22,10 +22,7 @@ const {
   ERROR
 } = TRUSTBASE_CONNECT_STATUS
 
-const HeaderWithStore = Header as any
-const SessionWithStore = Session as any
-
-interface Iprops {
+interface IinjectedProps {
   store: Store
 }
 
@@ -36,12 +33,15 @@ interface Istate {
 }
 
 @inject('store') @observer
-class Home extends React.Component<Iprops, Istate> {
-  public readonly state = {
+class Home extends React.Component<{}, Istate> {
+  public readonly state = Object.freeze({
     isSending: false,
     sendingProgress: '',
     showCompose: false
-  }
+  })
+
+  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+
   private unmounted = false
   private toInput: HTMLInputElement | null
   private subjectInput: HTMLInputElement | null
@@ -54,7 +54,7 @@ class Home extends React.Component<Iprops, Istate> {
       isFetchingMessage,
       startFetchMessages,
       listenForConnectStatusChange
-    } = this.props.store
+    } = this.injectedProps.store
     if (currentUser) {
       loadSessions()
     }
@@ -69,7 +69,7 @@ class Home extends React.Component<Iprops, Istate> {
     const {
       stopFetchMessages,
       removeConnectStatusListener
-    } = this.props.store
+    } = this.injectedProps.store
     this.unmounted = true
     stopFetchMessages()
     removeConnectStatusListener(this.connectStatusListener)
@@ -80,37 +80,19 @@ class Home extends React.Component<Iprops, Istate> {
       currentUser,
       currentUserSessions,
       newMessageCount
-    } = this.props.store
+    } = this.injectedProps.store
     const {
       showCompose
     } = this.state
     switch (connectStatus) {
       case PENDING:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>Connecting to trustbase...</pre>
-          </div>
-        </div>
+        return <CommonHeaderPage />
       case SUCCESS:
       case OFFLINE:
       case NO_ACCOUNT:
       case CONTRACT_ADDRESS_ERROR:
       case ERROR:
-        return <div>
-          <HeaderWithStore shouldRefreshSessions={true} />
-          <div
-            style={{
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
-          >
+        return <CommonHeaderPage shouldRefreshSessions={true}>
             {
               connectStatus === SUCCESS
               && currentUser
@@ -133,11 +115,7 @@ class Home extends React.Component<Iprops, Istate> {
                     {showCompose ? 'Cancel' : 'Compose'}
                   </button>
                   {showCompose
-                    ? <div
-                        style={{
-                          textAlign: 'center'
-                        }}
-                    >
+                    ? <div>
                         {/* FIXME: Dirty uncontrolled components */}
                         <div>
                           <label>To:</label><input ref={(input) => this.toInput = input}/>
@@ -178,15 +156,14 @@ class Home extends React.Component<Iprops, Istate> {
               currentUser
                 ? <ul className="session-list">{
                     currentUserSessions
-                      .map((session) => <SessionWithStore
+                      .map((session) => <Session
                         key={session.sessionTag}
                         session={session}
                       />)
                   }</ul>
                 : 'No account'
             }
-          </div>
-        </div>
+        </CommonHeaderPage>
       default:
         return null
     }
@@ -194,7 +171,7 @@ class Home extends React.Component<Iprops, Istate> {
   private refreshSessions = () => {
     const {
       loadSessions
-    } = this.props.store
+    } = this.injectedProps.store
     if (this.unmounted) {
       return
     }
@@ -204,7 +181,7 @@ class Home extends React.Component<Iprops, Istate> {
   private connectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => {
     const {
       stopFetchMessages
-    } = this.props.store
+    } = this.injectedProps.store
     if (this.unmounted) {
       return
     }
@@ -227,7 +204,7 @@ class Home extends React.Component<Iprops, Istate> {
       (!this.toInput || !this.toInput.value)
       || (!this.messageInput || !this.messageInput.value)
       || !this.subjectInput
-      || !this.props.store.currentUser
+      || !this.injectedProps.store.currentUser
     ) {
       return
     }
@@ -236,7 +213,7 @@ class Home extends React.Component<Iprops, Istate> {
     })
     const {
       send
-    } = this.props.store
+    } = this.injectedProps.store
 
     send(
       this.toInput.value,
@@ -277,7 +254,7 @@ class Home extends React.Component<Iprops, Istate> {
       {
         sendingProgress: 'Sent.',
         isSending: false
-      }, 
+      },
       () => {
         window.setTimeout(
           () => {

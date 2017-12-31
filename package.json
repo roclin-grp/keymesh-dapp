@@ -57,6 +57,7 @@
     "antd": "^3.0.3",
     "babel-polyfill": "^6.26.0",
     "classnames": "^2.2.5",
+    "copy-to-clipboard": "^3.0.8",
     "dexie": "^2.0.1",
     "ed2curve": "^0.2.1",
     "font-awesome": "^4.7.0",

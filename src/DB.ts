@@ -80,7 +80,16 @@ interface IgetMessagesOptions {
 }
 
 export default class DB {
-  private db: Dexie
+  public constructor() {
+    if (typeof indexedDB === 'undefined') {
+      throw new Error(`IndexedDB isn't supported by your platform.`)
+    }
+
+    this.db = new Dexie('keymail')
+    this.db.version(1).stores(SCHEMA_V1)
+  }
+
+  private readonly db: Dexie
   private get tableGlobalSettings(): TableGlobalSettings {
     return (this.db as any)[TABLES.GLOBAL_SETTINGS]
   }
@@ -95,15 +104,6 @@ export default class DB {
   }
   private get tableMessages(): TableMessages {
     return (this.db as any)[TABLES.MESSAGES]
-  }
-
-  constructor() {
-    if (typeof indexedDB === 'undefined') {
-      throw new Error(`IndexedDB isn't supported by your platform.`)
-    }
-
-    this.db = new Dexie('keymail')
-    this.db.version(1).stores(SCHEMA_V1)
   }
 
   public saveGlobalSettings(settings: IglobalSettings) {
@@ -417,7 +417,8 @@ export default class DB {
             networkId,
             userAddress
           },
-          contact ? {contact} : null))
+          contact ? {contact} : null)
+        )
         .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
         .each((session) => this.deleteSession(user, session))
     })
