@@ -551,7 +551,7 @@ export default class DB {
 
     await Promise.all((users.rows as Iuser[])
       .map(async (row) => {
-        const db = await dumpCryptobox(row.userAddress)
+        const db = await dumpCryptobox(row)
         dbs[db.dbname] = db.tables
       })
     )
