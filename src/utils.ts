@@ -1,6 +1,11 @@
 import Dexie from 'dexie'
-import { IDumpedTable } from '../typings/interface'
+
 const sodium = require('libsodium-wrappers-sumo')
+
+import {
+  IDumpedTable,
+  Iuser
+} from '../typings/interface'
 
 const CRYPTOBOX_TABLES = {
   LOCAL_IDENTITY: 'keys',
@@ -13,8 +18,12 @@ CRYPTOBOX_SCHEMA[CRYPTOBOX_TABLES.LOCAL_IDENTITY] = ''
 CRYPTOBOX_SCHEMA[CRYPTOBOX_TABLES.PRE_KEYS] = ''
 CRYPTOBOX_SCHEMA[CRYPTOBOX_TABLES.SESSIONS] = ''
 
-export async function dumpCryptobox(userAddress: string) {
-  const dbname = 'cryptobox@' + userAddress
+export async function dumpCryptobox({
+  networkId,
+  userAddress
+}: Iuser
+) {
+  const dbname = `cryptobox@${networkId}@${userAddress}`
   const db = new Dexie(dbname)
   db.version(1).stores(CRYPTOBOX_SCHEMA)
   return {dbname, tables: await dumpDB(db)}

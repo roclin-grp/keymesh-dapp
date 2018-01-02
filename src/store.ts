@@ -283,7 +283,7 @@ export class Store {
     this.identitiesContract.register(newIdentityFingerprint)
       .on('transactionHash', async (transactionHash) => {
         transactionDidCreate(transactionHash)
-        const store = new IndexedDBStore(userAddress)
+        const store = new IndexedDBStore(`${currentNetworkId}@${userAddress}`)
         await store.save_identity(identityKeyPair).catch(reject)
         const lastResortPrekey = PreKey.last_resort()
         await store.save_prekeys([lastResortPrekey]).catch(reject)
@@ -834,7 +834,7 @@ export class Store {
         { table: 'sessions', rows: sessions},
         { table: 'messages', rows: messages}
     ]
-    const cryptobox = await dumpCryptobox(user.userAddress)
+    const cryptobox = await dumpCryptobox(user)
     dbs[cryptobox.dbname] = cryptobox.tables
     return dbs
   }
@@ -1312,7 +1312,7 @@ export class Store {
       if (!currentUser) {
         return Promise.reject(null)
       }
-      const store = new IndexedDBStore(currentUser.userAddress)
+      const store = new IndexedDBStore(`${currentUser.networkId}@${currentUser.userAddress}`)
       /**
        * Looks like cryptobox constructure function has a wrong signature...
        * Dont forget to set the second argument to 0 to disable cryptobox's
