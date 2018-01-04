@@ -10,6 +10,8 @@ import { Provider } from 'mobx-react'
 import { Store } from './store'
 import App from './routes'
 
+import { storeLogger } from './utils'
+
 const isDevelop = process.env.NODE_ENV === 'development'
 
 const load = (Component: typeof App) => {
@@ -24,7 +26,9 @@ const load = (Component: typeof App) => {
     if (isDevelop) {
       (window as any).__STORE = newStore
     }
-    newStore.connect()
+    newStore.connect().catch((err: Error) => {
+      storeLogger.error(err)
+    })
     return newStore
   })()
 

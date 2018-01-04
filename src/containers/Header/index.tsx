@@ -12,11 +12,13 @@ import { Store } from '../../store'
 import { sha3 } from 'trustbase'
 
 import * as copy from 'copy-to-clipboard'
+const throttle = require('lodash.throttle')
 
 import {
+  storeLogger,
   downloadObjectAsJson,
   getBEMClassNamesMaker,
-  IextendableClassNamesProps
+  IextendableClassNamesProps,
 } from '../../utils'
 
 import {
@@ -25,7 +27,7 @@ import {
   NETWORK_NAMES,
   CONNECT_STATUS_INDICATOR_MODIFIER,
   CONNECT_STATUS_INDICATOR_TEXTS,
-  USER_STATUS
+  USER_STATUS,
 } from '../../constants'
 
 import {
@@ -34,7 +36,7 @@ import {
   Icon,
   Dropdown,
   Menu,
-  message
+  message,
 } from 'antd'
 
 import SwitchNetworkOption from '../../components/SwitchNetworkOption'
@@ -54,6 +56,8 @@ interface IinjectedProps extends Iprops {
 
 interface Istate {
   isSwitchingUser: boolean
+  hidden: boolean
+  hasShadow: boolean
 }
 
 @inject('store') @observer
@@ -67,16 +71,56 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   public readonly state = {
-    isSwitchingUser: false
+    isSwitchingUser: false,
+    hidden: false,
+    hasShadow: false
   }
 
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Header.blockName, this.props)
 
+  private throttledScrollCallback = throttle(
+    (() => {
+      let scrollBefore = 0
+      return () => {
+        if (this.isUnmounted) {
+          return
+        }
+        const scrollCurrent = window.pageYOffset
+        const scrollDiff = scrollBefore - scrollCurrent
+        const isTop = scrollCurrent === 0
+        const DELTA = 7
+        const isHidden = this.state.hidden
+        if (scrollDiff < -DELTA) {
+          if (!isHidden) {
+            this.setState({
+              hidden: true
+            })
+          }
+        } else if (isTop || scrollDiff > DELTA) {
+          if (isHidden || (isTop && this.state.hasShadow)) {
+            this.setState({
+              hidden: false,
+              hasShadow: !isTop
+            })
+          }
+        }
+        scrollBefore = scrollCurrent
+      }
+    })(),
+    300
+  )
+
   private isUnmounted = false
+
+  public componentDidMount() {
+    document.addEventListener('scroll', this.throttledScrollCallback)
+  }
+
   public componentWillUnmount() {
     this.isUnmounted = true
+    document.removeEventListener('scroll', this.throttledScrollCallback)
   }
 
   public render() {
@@ -87,7 +131,7 @@ class Header extends React.Component<Iprops, Istate> {
       currentNetworkUsers,
       offlineAvailableNetworks,
       offlineSelectedEthereumNetwork,
-      canCreateUser
+      canCreateOrImportUser
     } = this.injectedProps.store
     const {getBEMClassNames} = this
     const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
@@ -132,7 +176,7 @@ class Header extends React.Component<Iprops, Istate> {
     const userOptions = currentUser
       ? (
         <Menu>
-          <Menu.Item 
+          <Menu.Item
             className={getBEMClassNames('current-user-address')}
             disabled={true}
           >
@@ -173,11 +217,11 @@ class Header extends React.Component<Iprops, Istate> {
             : null
           }
           {
-            canCreateUser
+            canCreateOrImportUser
               ? (
                 <Menu.Item>
                   <Link className={getBEMClassNames('register-new')} to="/register">
-                    Register new
+                    Sign up/Import
                   </Link>
                 </Menu.Item>
               )
@@ -235,7 +279,15 @@ class Header extends React.Component<Iprops, Istate> {
     )
 
     return (
-      <header className={getBEMClassNames()}>
+      <header
+        className={getBEMClassNames(
+          '',
+          {
+            hidden: this.state.hidden,
+            shadow: this.state.hasShadow
+          }
+        )}
+      >
         <div className={getBEMClassNames('content', {}, { container: true })}>
           <h1 className={getBEMClassNames('logo')}>
             <Link tabIndex={0} className={getBEMClassNames('logo-text')} to="/">
@@ -301,7 +353,10 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleSelectNetwork = (networkId: NETWORKS) => {
-    this.injectedProps.store.selectOfflineNetwork(networkId, this.props.shouldRefreshSessions).catch(() => {/**/})
+    this.injectedProps.store.selectOfflineNetwork(networkId, this.props.shouldRefreshSessions).catch((err: Error) => {
+      storeLogger.error(err)
+      message.error('Something has gone wrong! please retry.')
+    })
   }
 
   private handleSelectUser = (user: Iuser) => {
@@ -328,9 +383,13 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleExport = async () => {
-    if (this.injectedProps.store.currentUser) {
-      const dumped = await this.injectedProps.store.dumpCurrentUser()
-      downloadObjectAsJson(dumped, this.injectedProps.store.currentUser.userAddress)
+    const {
+      currentUser,
+      dumpCurrentUser
+    } = this.injectedProps.store
+    if (currentUser) {
+      const dumped = await dumpCurrentUser()
+      downloadObjectAsJson(dumped, `keymail@${currentUser.networkId}@${currentUser.userAddress}`)
     }
   }
 

@@ -140,7 +140,7 @@ export default class DB {
           status: USER_STATUS.PENDING,
           registerRecord,
           blockHash: '0x0'
-        }, 
+        },
         user
       ))
   }

@@ -1,25 +1,35 @@
 import * as React from 'react'
-
-import { withRouter, RouteComponentProps, Redirect } from 'react-router-dom'
-
-import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
+import {
+  withRouter,
+  RouteComponentProps,
+  Redirect,
+} from 'react-router-dom'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
-  REGISTER_FAIL_CODE
-} from '../../constants'
+  inject,
+  observer,
+} from 'mobx-react'
+import { Store } from '../../store'
 
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
-import { getBEMClassNamesMaker } from '../../utils'
 
 import {
   Divider,
   Button,
   Icon,
   Upload,
-  message
+  message,
 } from 'antd'
+
+import {
+  storeLogger,
+  getBEMClassNamesMaker
+} from '../../utils'
+
+import {
+  TRUSTBASE_CONNECT_STATUS,
+  REGISTER_FAIL_CODE,
+} from '../../constants'
 
 import { UploadFile } from 'antd/lib/upload/interface.d'
 
@@ -36,7 +46,7 @@ interface IinjectedProps extends Iprops {
 }
 
 interface Istate {
-  registerProgress: string
+  registerButtonContent: string
   isRegistering: boolean
   isImporting: boolean
 }
@@ -46,7 +56,7 @@ class Register extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'register'
 
   public readonly state = Object.freeze({
-    registerProgress: '',
+    registerButtonContent: 'Register',
     isRegistering: false,
     isImporting: false
   })
@@ -64,23 +74,23 @@ class Register extends React.Component<Iprops, Istate> {
     const {
       connectStatus,
       currentEthereumAccount,
-      canCreateUser
+      canCreateOrImportUser
     } = this.injectedProps.store
     const {
       getBEMClassNames,
       state: {
-        registerProgress
+        registerButtonContent
       }
     } = this
     const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
 
-    if (!isPending && !canCreateUser) {
+    if (!isPending && !canCreateOrImportUser) {
       return <Redirect to="/" />
     }
 
     return (
       <CommonHeaderPage prefixClass={Register.blockName} className={getBEMClassNames()}>
-        <h2 className={getBEMClassNames('subtitle')}>
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
           Register new account
         </h2>
         <h3>
@@ -94,13 +104,10 @@ class Register extends React.Component<Iprops, Istate> {
           disabled={this.state.isRegistering}
           onClick={this.handleRegister}
         >
-          {registerProgress
-            ? registerProgress
-            : 'Register'
-          }
+          {registerButtonContent}
         </Button>
         <Divider className={getBEMClassNames('divider', {}, { container: true })} />
-        <h2 className={getBEMClassNames('subtitle')}>
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
           Import account
         </h2>
         <Dragger
@@ -125,7 +132,7 @@ class Register extends React.Component<Iprops, Istate> {
   private handleRegister = () => {
     this.setState({
       isRegistering: true,
-      registerProgress: 'Registering...'
+      registerButtonContent: 'Checking...'
     })
 
     this.injectedProps.store.register({
@@ -135,41 +142,43 @@ class Register extends React.Component<Iprops, Istate> {
     })
       .catch(this.registerDidFail)
   }
+
   private transactionWillCreate = () => {
     if (this.unmounted) {
       return
     }
     this.setState({
-      registerProgress: 'Please confirm the transaction...'
+      registerButtonContent: 'Please confirm the transaction...'
     })
   }
+
   private userDidCreate = () => {
     if (this.unmounted) {
       return
     }
     this.injectedProps.history.replace('/check-register')
   }
+
   private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return
     }
     message.error((() => {
       switch (code) {
+        case REGISTER_FAIL_CODE.OCCUPIED:
+          return `User address already registered.`
         case REGISTER_FAIL_CODE.UNKNOWN:
           if ((err as Error).message.includes('User denied transaction signature')) {
             return 'Register fail, you reject the transaction.'
           }
-          return (err as Error).toString()
-        case REGISTER_FAIL_CODE.FOUND_ON_LOCAL:
-          return `Found identity on local.`
-        case REGISTER_FAIL_CODE.REGISTERED:
-          return `User address already registered.`
+        // tslint:disable-next-line no-switch-case-fall-through
         default:
-          return 'Unknown error.'
+          storeLogger.error('Unexpected register error:', err as Error)
+          return 'Something has gone wrong, please retry.'
       }
     })())
     this.setState({
-      registerProgress: '',
+      registerButtonContent: 'Register',
       isRegistering: false
     })
   }

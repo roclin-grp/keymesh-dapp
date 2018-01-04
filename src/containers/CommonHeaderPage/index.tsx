@@ -49,7 +49,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
     const {
       connectStatus,
       currentUser,
-      canCreateUser
+      canCreateOrImportUser
     } = this.injectedProps.store
     const {
       getBEMClassNames
@@ -63,21 +63,15 @@ class CommonHeaderPage extends React.Component<Iprops> {
     const currentPathname = this.injectedProps.location.pathname
     if (
       !currentUser
-      && canCreateUser
+      && canCreateOrImportUser
       && currentPathname !== '/register'
       && currentPathname !== '/network-settings'
     ) {
       return <Redirect to="/register" />
     }
     if (currentUser && currentPathname !== '/register') {
-      if (currentUser.status === USER_STATUS.PENDING && currentPathname !== '/check-register') {
+      if (currentUser.status !== USER_STATUS.OK && currentPathname !== '/check-register') {
         return <Redirect to="/check-register" />
-      }
-      if (
-        currentUser.status === USER_STATUS.IDENTITY_UPLOADED
-        && currentPathname !== '/upload-pre-keys'
-      ) {
-        return <Redirect to="/upload-pre-keys" />
       }
     }
     return (

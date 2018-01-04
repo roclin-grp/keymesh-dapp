@@ -1,10 +1,12 @@
 import Dexie from 'dexie'
 import * as classnames from 'classnames'
 const sodium = require('libsodium-wrappers-sumo')
+const logdown = require('logdown')
 
 import {
   IDumpedTable,
-  Iuser
+  Iuser,
+  Logdown
 } from '../typings/interface'
 
 const CRYPTOBOX_TABLES = {
@@ -218,3 +220,8 @@ export function getBEMClassNamesMaker(
     )
   }
 }
+
+export const storeLogger: Logdown = logdown('keymail:store')
+export const uiLogger: Logdown = logdown('keymail:ui')
+
+export const noop = () => { /* FOR LINT */ }

@@ -20,8 +20,6 @@ import { Cryptobox, CryptoboxSession } from 'wire-webapp-cryptobox'
 const ed2curve = require('ed2curve')
 const sodium = require('libsodium-wrappers-sumo')
 
-const logger: Logdown = require('logdown')('keymail:store')
-
 import DB from './DB'
 import IndexedDBStore from './IndexedDBStore'
 import PreKeysPackage from './PreKeysPackage'
@@ -29,7 +27,6 @@ import PreKeyBundle from './PreKeyBundle'
 import Envelope from './Envelope'
 
 import {
-  Logdown,
   web3BlockType,
   IpreKeyPublicKeys,
   IglobalSettings,
@@ -68,7 +65,14 @@ import {
   USER_STATUS,
   MESSAGE_STATUS
 } from './constants'
-import { dumpCryptobox, utf8ToHex, hexToUtf8 } from './utils'
+
+import {
+  utf8ToHex,
+  hexToUtf8,
+  noop,
+  storeLogger,
+  dumpCryptobox
+} from './utils'
 
 const {
   IdentityKeyPair,
@@ -84,7 +88,6 @@ const {
   ERROR
 } = TRUSTBASE_CONNECT_STATUS
 
-const noop = () => { /* FOR LINT */ }
 useStrict(true)
 
 const SESSION_PRE_PAGE = 25
@@ -109,7 +112,6 @@ export class Store {
   @observable.ref public globalSettings: IglobalSettings = {}
   @observable public currentEthereumNetwork: NETWORKS | undefined
   @observable public currentEthereumAccount = ''
-  @observable.ref public offlineAvailableNetworks: NETWORKS[] = []
   @observable public offlineSelectedEthereumNetwork: NETWORKS | undefined
   @observable.ref public currentNetworkSettings: InetworkSettings | undefined
   @observable.ref public currentNetworkUsers: Iuser[] = []
@@ -137,6 +139,7 @@ export class Store {
   private messagesContract: Messages
   private broadcastMessagesContract: BroadcastMessages
   private detectAccountChangeTimeout: number
+  private detectNetworkChangeTimeout: number
   private fetchMessagesTimeout: number
   private fetchBroadcastMessagesTimeout: number
   private db: DB
@@ -147,21 +150,41 @@ export class Store {
     return Math.ceil(this.currentUserSessions.length / SESSION_PRE_PAGE)
   }
 
-  @computed
-  public get canCreateUser() {
+  @computed get offlineAvailableNetworks(): NETWORKS[] {
     const {
-      connectStatus,
-      connectError,
+      connectStatus
+    } = this
+    if (
+      connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
+      || connectStatus === TRUSTBASE_CONNECT_STATUS.OFFLINE
+    ) {
+      return getUsedNetworks()
+    }
+    return []
+  }
+
+  @computed
+  public get canCreateOrImportUser() {
+    const {
+      canConnectToIdentitesContract,
       currentNetworkUsers,
       currentEthereumAccount
+    } = this
+    return canConnectToIdentitesContract
+      && (currentNetworkUsers.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
+  }
+
+  @computed
+  public get canConnectToIdentitesContract() {
+    const {
+      connectStatus,
+      connectError
     } = this
     const isConnected = connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
     const hasContractErrorButNotIdentities = connectStatus === TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR
       && !!connectError
       && !connectError.message.includes('Identities')
-    const canConnectToIdentitesContract = isConnected || hasContractErrorButNotIdentities
-    return canConnectToIdentitesContract
-      && (currentNetworkUsers.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
+    return isConnected || hasContractErrorButNotIdentities
   }
 
   public connect = async () => {
@@ -191,42 +214,49 @@ export class Store {
     return initialize({
       provider
     })
-      .then(() => this.processAfterNetworkConnected(true, globalSettings))
-      .catch(async (err) => {
+      .then(() => this.processAfterNetworkConnected(globalSettings))
+      .catch(async (err: Error) => {
         /**
          * Offline mode
          */
-        let {
-          networkId: lastUsedNetworkId
-          // userAddress: lastUsedUserAddress
-        } = getLastUsedUser()
-
-        if (err.code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
+        if ((err as TrustbaseError).code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
           /**
            * We did have connected to a network and instantiated web3 but
            * found no account. Just wait for a available account.
            */
           const web3 = getWeb3()
-          const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
+          const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch((_err) => {
+            storeLogger.error(_err)
+            return undefined
+          })
           let loadedResult: [InetworkSettings, Iuser[], IloadedUserData]
           if (typeof currentNetworkId !== 'undefined') {
             const userAddress: string = getNetworkLastUsedUserAddress(currentNetworkId)
             loadedResult = await Promise.all([
               // currentNetworkSettings
-              this.db.getNetworkSettings(currentNetworkId),
+              this.db.getNetworkSettings(currentNetworkId).catch((_err: Error) => {
+                storeLogger.error(_err)
+                return {networkId: currentNetworkId}
+              }),
               // currentNetworkUsers
-              this.db.getUsers(currentNetworkId),
+              this.db.getUsers(currentNetworkId).catch((_err: Error) => {
+                storeLogger.error(_err)
+                return []
+              }),
               // *userData
               this.db.getUser(currentNetworkId, userAddress)
-                .catch(() => this.currentUser)
+                .catch((_err: Error) => {
+                  storeLogger.error(_err)
+                  return undefined
+                })
                 .then((currentUser) => this.loadUserData(currentUser))
             ])
           }
 
           runInAction(() => {
             this.globalSettings = globalSettings
-            this.currentEthereumNetwork = currentNetworkId
             if (typeof currentNetworkId !== 'undefined') {
+              this.currentEthereumNetwork = currentNetworkId
               {[
                 this.currentNetworkSettings,
                 this.currentNetworkUsers,
@@ -248,9 +278,15 @@ export class Store {
           })
 
           const waitForAccount = async () => {
-            const accounts = await web3.eth.getAccounts().catch(() => [] as string[])
+            const accounts: string[] = await web3.eth.getAccounts().catch((_err: Error) => {
+              storeLogger.error(_err)
+              return []
+            })
             if (accounts.length > 0) {
-              return this.processAfterNetworkConnected()
+              return this.processAfterNetworkConnected().catch((_err: Error) => {
+                storeLogger.error(_err)
+                this.processError(_err, globalSettings)
+              })
             }
             return window.setTimeout(waitForAccount, 100)
           }
@@ -260,23 +296,7 @@ export class Store {
            * In this case, we can't instantiate web3, user need to refresh the
            * page to retry.
            */
-          const usedNetworks: NETWORKS[] = getUsedNetworks()
-          if (!lastUsedNetworkId && usedNetworks.length > 0) {
-            lastUsedNetworkId = usedNetworks[0]
-          }
-          if (typeof lastUsedNetworkId !== 'undefined') {
-            this.selectOfflineNetwork(lastUsedNetworkId, false, true, globalSettings, err)
-          } else {
-            runInAction(() => {
-              this.globalSettings = globalSettings
-              this.offlineAvailableNetworks = usedNetworks
-              this.offlineSelectedEthereumNetwork = lastUsedNetworkId
-              const prevConnectStatus = this.connectStatus
-              this.connectStatus = ERROR
-              this.connectError = err
-              this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-            })
-          }
+          this.processError(err, globalSettings)
         }
       })
   }
@@ -287,25 +307,23 @@ export class Store {
     userDidCreate = noop,
     registerDidFail = noop
   }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
-    if (this.connectStatus !== SUCCESS) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
-    }
-
     const userAddress = this.currentEthereumAccount
-    // Check local records first.
-    if (Object.keys(this.currentNetworkUsers).includes(userAddress)) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.FOUND_ON_LOCAL)
-    }
+    const currentNetworkId = this.currentEthereumNetwork
 
-    // connectStatus === SUCCESS means we had connected to a network
-    const currentNetworkId = this.currentEthereumNetwork as NETWORKS
+    // unexpected error
+    if (!currentNetworkId) {
+      throw new Error('Ethereum Network not found!')
+    }
+    if (!userAddress) {
+      throw new Error('Ethereum Account not found!')
+    }
 
     // check if registered, avoid unnecessary transaction
     const {
       publicKey: identityFingerprint
     } = await this.identitiesContract.getIdentity(userAddress)
     if (Number(identityFingerprint) !== 0) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.REGISTERED)
+      return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
 
     const identityKeyPair = IdentityKeyPair.new()
@@ -342,10 +360,12 @@ export class Store {
           .catch(reject)
       })
       .on('error', async (err) => {
-        const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(() => undefined)
-        if (createdUser) {
-          this.db.deleteUser(createdUser)
-        }
+        storeLogger.error(err)
+        // TODO: delete user
+        // const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(() => undefined)
+        // if (createdUser) {
+        //   this.db.deleteUser(createdUser)
+        // }
         reject(err)
       })
   }).catch(registerDidFail)
@@ -353,7 +373,7 @@ export class Store {
   public checkMessageStatus = async (
     message: Imessage,
     {
-      deliveryFailed = noop,
+      sendingDidFail = noop,
     }: IcheckMessageStatusLifecycle = {}
   ) => {
     if (message.transactionHash === undefined) {
@@ -382,7 +402,7 @@ export class Store {
               }
             })
             .catch(() => {
-              logger.error('update message status to DELIVERED error')
+              storeLogger.error('update message status to DELIVERED error')
             })
           return
         } else {
@@ -392,7 +412,7 @@ export class Store {
       }
 
       if (counter === 50) {
-        return deliveryFailed()
+        return sendingDidFail()
       }
 
       window.setTimeout(waitForTransactionReceipt, 1000, counter)
@@ -405,15 +425,16 @@ export class Store {
     user: Iuser,
     {
       checkRegisterWillStart = noop,
-      registerDidFail = noop
+      identityDidUpload = noop,
+      registerDidFail = noop,
     }: IcheckRegisterLifecycle = {}
   ) => {
-    if (this.connectStatus !== SUCCESS) {
-      return registerDidFail(null, REGISTER_FAIL_CODE.NOT_CONNECTED)
+    if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
+      return identityDidUpload()
     }
 
     if (!user.registerRecord) {
-      return registerDidFail(new Error('Register record not found'))
+      throw new Error('Register record not found')
     }
 
     const {
@@ -431,45 +452,60 @@ export class Store {
       if (this.connectStatus !== SUCCESS) {
         return
       }
-      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash)
-        .catch(() => null)
-      if (receipt !== null) {
+      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash).catch((err: Error) => {
+        storeLogger.error(err)
+        return null
+      })
+      if (receipt) {
         if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           const {
             blockNumber,
             publicKey: registeredIdentityFingerprint
           } = await this.identitiesContract.getIdentity(userAddress)
-            .catch(() => {
+            .catch((err: Error) => {
+              storeLogger.error(err)
               return {publicKey: '', blockNumber: 0}
             })
+          // we have receipt but found no identity, retry
           if (!registeredIdentityFingerprint || Number(registeredIdentityFingerprint) === 0) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
           }
+
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch(() => '0x0')
-            if (blockHash === '0x0') {
+            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch((err: Error) => {
+              storeLogger.error(err)
+              return '0x0'
+            })
+            if (Number(blockHash) === 0) {
               return window.setTimeout(waitForTransactionReceipt, 1000, counter)
             }
             user.blockHash = blockHash
-            await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED).catch(registerDidFail)
-            runInAction(() => {
-              if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
-                this.currentUser = Object.assign({}, this.currentUser, {
-                  status: USER_STATUS.IDENTITY_UPLOADED,
-                  blockHash
-                })
-                const index = this.currentNetworkUsers
-                .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
-                if (index !== -1) {
-                  this.currentNetworkUsers[index] = this.currentUser
-                  this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+            try {
+              await this.db.updateUserStatus(user, USER_STATUS.IDENTITY_UPLOADED)
+              runInAction(() => {
+                if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
+                  this.currentUser = Object.assign({}, this.currentUser, {
+                    status: USER_STATUS.IDENTITY_UPLOADED,
+                    blockHash
+                  })
+                  const index = this.currentNetworkUsers
+                    .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
+                  if (index !== -1) {
+                    this.currentNetworkUsers[index] = this.currentUser
+                    this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+                  }
                 }
-              }
-            })
-            return
+              })
+              return identityDidUpload()
+            } catch (err) {
+              registerDidFail(err)
+            }
           } else {
-            this.db.deleteUser(user)
-            return registerDidFail(null, REGISTER_FAIL_CODE.REGISTERED)
+            // TODO: delete user
+            // this.db.deleteUser(user).catch((err: Error) => {
+            //   storeLogger.error(err)
+            // })
+            return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
           }
         } else {
           window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
@@ -506,7 +542,6 @@ export class Store {
       case toUserAddress === '':
         return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
       case plainText === '':
-        return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE)
       default:
     }
 
@@ -515,7 +550,15 @@ export class Store {
       return sendingDidFail(new Error('Could not found cryptobox instance'))
     }
 
-    const currentUser = this.currentUser as Iuser
+    const currentUser = this.currentUser
+
+    if (!currentUser) {
+      return sendingDidFail(new Error('Could not found user'))
+    }
+
+    if (toUserAddress === currentUser.userAddress) {
+      return sendingDidFail(null, SENDING_FAIL_CODE.SEND_TO_YOURSELF)
+    }
 
     const web3 = getWeb3()
 
@@ -564,7 +607,7 @@ export class Store {
       lastPrekeyDate,
       preKeyPublicKeys
     } = await this.getPreKeys(toUserAddress).catch((err) => {
-      logger.error(err)
+      storeLogger.error(err)
       return new PreKeysPackage({}, 0, 0)
     })
     if (Object.keys(preKeyPublicKeys).length === 0) {
@@ -920,44 +963,25 @@ export class Store {
     networkId: NETWORKS,
     shouldRefreshSessions = false,
     isFirstConnect = false,
-    globalSettings?: IglobalSettings,
+    globalSettings = this.globalSettings,
     err?: Error
   ) => {
-    let userAddress = getNetworkLastUsedUserAddress(networkId)
-    let currentNetworkSettings: InetworkSettings | undefined
-    let currentNetworkUsers: Iuser[] = []
-    let loadedUserData: IloadedUserData
-    if (!userAddress) {
-      currentNetworkUsers = await this.db.getUsers(networkId)
-      userAddress = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
-    }
-    {[
+    const [
       currentNetworkSettings,
       currentNetworkUsers,
       loadedUserData
-    ] = await Promise.all([
-      this.db.getNetworkSettings(networkId),
-
-      currentNetworkUsers.length > 0
-        ? Promise.resolve(currentNetworkUsers)
-        : this.db.getUsers(networkId),
-
-      this.db.getUser(networkId, userAddress)
-        .catch(() => this.currentUser)
-        .then((_currentUser) => this.loadUserData(_currentUser))
-    ])}
+    ] = await this.loadNetworkData(networkId)
 
     const currentUser = loadedUserData[0]
     const sessions = currentUser && shouldRefreshSessions ? await this.db.getSessions(currentUser) : undefined
 
     runInAction(() => {
       if (isFirstConnect) {
-        this.globalSettings = globalSettings as IglobalSettings
-        this.offlineAvailableNetworks = getUsedNetworks()
         this.connectStatus = ERROR
         this.connectError = err as Error
         this.connectStatusDidChange(this.connectStatus, ERROR)
       }
+      this.globalSettings = globalSettings as IglobalSettings
       this.newMessageCount = 0
       this.currentNetworkSettings = currentNetworkSettings
       this.currentNetworkUsers = currentNetworkUsers
@@ -1051,32 +1075,29 @@ export class Store {
     if (this.connectStatus !== SUCCESS) {
       return
     }
-    let deletedOutdatedPrekey = false
-    const fetchNewMessagesLoop = async () => {
-      if (this.connectStatus !== SUCCESS) {
-        return
-      }
-      const web3 = getWeb3()
-      const currentBlockNumber = await web3.eth.getBlockNumber().catch(() => undefined)
-      if (typeof currentBlockNumber === 'undefined') {
-        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
-        return
-      }
+    let isOutdatedPrekeysDeleted = false
 
-      if (currentBlockNumber === this.currentUserlastFetchBlock) {
-        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
+    const fetchNewMessagesLoop = async () => {
+      if (this.connectStatus !== SUCCESS || !this.isFetchingMessage) {
         return
       }
 
       try {
-        await this.fetchNewMessages()
+        const web3 = getWeb3()
+        const currentBlockNumber = await web3.eth.getBlockNumber()
 
-        if (!deletedOutdatedPrekey) {
-          this.deleteOutdatedPrekeys()
-          deletedOutdatedPrekey = true
+        if (currentBlockNumber !== this.currentUserlastFetchBlock) {
+          await this.fetchNewMessages()
+
+          if (!isOutdatedPrekeysDeleted) {
+            this.deleteOutdatedPrekeys()
+            isOutdatedPrekeysDeleted = true
+          }
         }
       } finally {
-        window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
+        runInAction(() => {
+          this.fetchMessagesTimeout = window.setTimeout(fetchNewMessagesLoop, FETCH_MESSAGES_INTERVAL)
+        })
       }
     }
     runInAction(() => {
@@ -1197,9 +1218,12 @@ export class Store {
     }
     const preKeys = generatePrekeys(unixToday(), interval, numOfPreKeys)
 
-    const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce((result, preKey) => Object.assign(result, {
-      [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
-    }),                                                         {})
+    const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce(
+      (result, preKey) => Object.assign(result, {
+        [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
+      }),
+      {}
+    )
 
     // use lastPreKey as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
@@ -1217,39 +1241,40 @@ export class Store {
       body: hexedPrekeys + ' ' + prekeysSignature,
     } as RequestInit
 
-    await fetch(uploadPreKeysUrl, init)
-      .then(async (resp) => {
-        if (resp.status === 201) {
-          if (!this.indexedDBStore || !this.box) {
-            return
-          }
+    const resp = await fetch(uploadPreKeysUrl, init)
+    if (resp.status === 201) {
+      if (!this.indexedDBStore || !this.box) {
+        return
+      }
 
-          const store = this.indexedDBStore
-          // enhancement: remove all local prekeys before save
-          await store.save_prekeys(preKeys.concat(lastResortPrekey))
-          await this.box.load()
-          this.db.updateUserStatus(user, USER_STATUS.OK)
-          runInAction(() => {
-            if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
-              if (typeof this.currentEthereumNetwork === 'undefined') {
-                return
-              }
-              this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
+      const store = this.indexedDBStore
+      // enhancement: remove all local prekeys before save
+      await store.save_prekeys(preKeys.concat(lastResortPrekey))
+      await this.box.load()
+      preKeysDidUpload()
+    } else {
+      storeLogger.error(resp.toString())
+    }
+  }
 
-              const index = this.currentNetworkUsers
-                .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
-              if (index !== -1) {
-                this.currentNetworkUsers[index] = this.currentUser
-                this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
-              }
-            }
-          })
-          preKeysDidUpload()
-        } else {
-          logger.error(resp.toString())
+  public updateUserStatusToOk = (user: Iuser) => {
+    this.db.updateUserStatus(user, USER_STATUS.OK)
+    runInAction(() => {
+      if (this.currentUser && this.currentUser.userAddress === user.userAddress) {
+        if (typeof this.currentEthereumNetwork === 'undefined') {
+          return
         }
-      })
-      .catch(preKeysUploadDidFail)
+        this.currentUser = Object.assign({}, this.currentUser, {status: USER_STATUS.OK})
+
+        const index = this.currentNetworkUsers
+          .findIndex((_user) => _user.userAddress === (this.currentUser as Iuser).userAddress)
+        if (index !== -1) {
+          this.currentNetworkUsers[index] = this.currentUser
+          this.currentNetworkUsers = this.currentNetworkUsers.slice(0)
+        }
+      }
+    })
+    this.db.updateUserStatus(user, USER_STATUS.OK)
   }
 
   public deleteSession = async (session: Isession, user: Iuser) => {
@@ -1277,31 +1302,40 @@ export class Store {
 
   private listenForEthereumAccountChange = async () => {
     const web3 = getWeb3()
-    const accounts = await web3.eth.getAccounts().catch(() => [] as string[])
+    const accounts: string[] = await web3.eth.getAccounts().catch((err: Error) => {
+      storeLogger.error(err)
+      return []
+    })
+
     if (accounts.length > 0) {
       if (this.currentEthereumAccount !== accounts[0]) {
         runInAction(() => {
           this.currentEthereumAccount = web3.eth.defaultAccount = accounts[0]
           const prevConnectStatus = this.connectStatus
-          this.connectStatus = this.connectError ? CONTRACT_ADDRESS_ERROR : SUCCESS
-          this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
+          const currentConnectStatus = this.connectStatus = this.connectError ? CONTRACT_ADDRESS_ERROR : SUCCESS
+          if (currentConnectStatus !== prevConnectStatus) {
+            this.connectStatusDidChange(prevConnectStatus, currentConnectStatus)
+          }
         })
       }
     } else if (this.connectStatus !== NO_ACCOUNT) {
       runInAction(() => {
         this.currentEthereumAccount = ''
-        this.offlineAvailableNetworks = getUsedNetworks()
         const prevConnectStatus = this.connectStatus
         this.connectStatus = NO_ACCOUNT
         this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       })
     }
+    window.clearTimeout(this.detectAccountChangeTimeout)
     this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
 
   private listenForNetworkChange = async () => {
     const web3 = getWeb3()
-    const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
+    const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch((err: Error) => {
+      storeLogger.error(err)
+      return undefined
+    })
 
     if (this.currentEthereumNetwork !== currentNetworkId) {
       window.clearTimeout(this.detectAccountChangeTimeout)
@@ -1309,50 +1343,30 @@ export class Store {
         runInAction(() => {
           this.offlineSelectedEthereumNetwork = this.currentEthereumNetwork
           this.currentEthereumNetwork = undefined
-          this.offlineAvailableNetworks = getUsedNetworks()
           const prevConnectStatus = this.connectStatus
           this.connectStatus = OFFLINE
           this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
         })
       } else {
-        return this.processAfterNetworkConnected()
+        return this.processAfterNetworkConnected().catch((err: Error) => {
+          storeLogger.error(err)
+          this.processError(err)
+        })
       }
     }
-    window.setTimeout(this.listenForNetworkChange, 100)
+    window.clearTimeout(this.detectNetworkChangeTimeout)
+    this.detectNetworkChangeTimeout = window.setTimeout(this.listenForNetworkChange, 100)
   }
 
   private processAfterNetworkConnected = async (
-    isFirstConnect = false,
-    globalSettings?: IglobalSettings
+    globalSettings = this.globalSettings
   ) => {
     const web3 = getWeb3()
-    const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch(() => undefined)
-    if (typeof currentNetworkId === 'undefined') {
-      return
-    }
-    let userAddress: string = getNetworkLastUsedUserAddress(currentNetworkId)
-    let currentNetworkUsers: Iuser[] = []
-    if (!userAddress) {
-      currentNetworkUsers = await this.db.getUsers(currentNetworkId)
-      userAddress = currentNetworkUsers.length > 0 ? currentNetworkUsers[0].userAddress : ''
-    }
-    const loadedResult = await Promise.all([
-      // currentNetworkSettings
-      this.db.getNetworkSettings(currentNetworkId),
-      // currentNetworkUsers
-      currentNetworkUsers.length > 0
-        ? Promise.resolve(currentNetworkUsers)
-        : this.db.getUsers(currentNetworkId),
-      // *userData
-      this.db.getUser(currentNetworkId, userAddress)
-        .catch(() => this.currentUser)
-        .then((currentUser) => this.loadUserData(currentUser))
-    ])
+    const networkId: NETWORKS = await web3.eth.net.getId()
+    const loadedData = await this.loadNetworkData(networkId)
 
     runInAction(() => {
-      if (isFirstConnect) {
-        this.globalSettings = globalSettings as IglobalSettings
-      }
+      this.globalSettings = globalSettings as IglobalSettings
       {[
         this.currentNetworkSettings,
         this.currentNetworkUsers,
@@ -1365,16 +1379,16 @@ export class Store {
           this.currentUserContacts,
           this.currentUserlastFetchBlock
         ]
-      ] = loadedResult}
+      ] = loadedData}
       this.newMessageCount = 0
 
       if (this.currentUser) {
-        addUsedNetwork(currentNetworkId)
-        setLastUsedUser(currentNetworkId, this.currentUser.userAddress)
+        addUsedNetwork(networkId)
+        setLastUsedUser(networkId, this.currentUser.userAddress)
       }
 
       this.currentEthereumAccount = web3.eth.defaultAccount
-      this.currentEthereumNetwork = currentNetworkId
+      this.currentEthereumNetwork = networkId
       try {
         const {
           IdentitiesAddress,
@@ -1384,17 +1398,17 @@ export class Store {
 
         this.identitiesContract = new Identities(Object.assign({
           address: IdentitiesAddress,
-          currentNetworkId
+          networkId
         }))
 
         this.messagesContract = new Messages(Object.assign({
           address: MessagesAddress,
-          currentNetworkId
+          networkId
         }))
 
         this.broadcastMessagesContract = new BroadcastMessages(Object.assign({
           address: BroadcastMessagesAddress,
-          currentNetworkId
+          currentNetworkId: networkId
         }))
 
         const prevConnectStatus = this.connectStatus
@@ -1407,8 +1421,10 @@ export class Store {
         this.connectError = err
         this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
       }
+      window.clearTimeout(this.detectAccountChangeTimeout)
+      window.clearTimeout(this.detectNetworkChangeTimeout)
       this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
-      window.setTimeout(this.listenForNetworkChange, 100)
+      this.detectNetworkChangeTimeout = window.setTimeout(this.listenForNetworkChange, 100)
     })
   }
 
@@ -1416,13 +1432,11 @@ export class Store {
     currentUser: Iuser | undefined
   ): Promise<IloadedUserData> => Promise.all([
     // currentUser
-    currentUser
-      ? this.db.getUser(currentUser.networkId, currentUser.userAddress).catch(() => currentUser)
-      : currentUser,
+    Promise.resolve(currentUser),
     // box
     (async () => {
       if (!currentUser) {
-        return Promise.reject(null)
+        throw null
       }
       const store = new IndexedDBStore(`${currentUser.networkId}@${currentUser.userAddress}`)
       /**
@@ -1430,8 +1444,11 @@ export class Store {
        * Dont forget to set the second argument to 0 to disable cryptobox's
        * pre-keys auto-refill
        */
-      const box = new Cryptobox(store as any, 0)
-      await box.load()
+      let box: Cryptobox | undefined = new Cryptobox(store as any, 0)
+      await box.load().catch((err: Error) => {
+        storeLogger.error(err)
+        box = undefined
+      })
       return [store, box] as [IndexedDBStore, Cryptobox]
     })()
       .catch(() => {
@@ -1500,7 +1517,7 @@ export class Store {
       const userIdentity = await this.identitiesContract.getIdentity(userAddress)
       const userPublicKey = publicKeyFromHexStr(userIdentity.publicKey.slice(2))
       if (!userPublicKey.verify(sodium.from_hex(signedMessage.signature), signedMessage.message)) {
-        logger.error(new Error('invalid signature')) 
+        storeLogger.error(new Error('invalid signature'))
         return null
       }
 
@@ -1709,20 +1726,20 @@ export class Store {
         blockNumber,
         publicKey: expectedFingerprint
       } = await this.identitiesContract.getIdentity(fromUserAddress).catch((err) => {
-        logger.error(err)
+        storeLogger.error(err)
         return {blockNumber: 0, publicKey: ''}
       })
 
       const web3 = getWeb3()
       blockHash = await web3.eth.getBlock(blockNumber)
         .then((block) => block.hash).catch((err) => {
-          logger.error(err)
+          storeLogger.error(err)
           return '0x0'
         })
 
       if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
         const err = new Error('Invalid message: sender identity not match')
-        logger.error(err)
+        storeLogger.error(err)
         throw err
       }
 
@@ -1735,7 +1752,7 @@ export class Store {
     const blockTimestamp = Number(blockTimestampSecStr) * 1000
     if (blockTimestamp > timestamp + 3600 * 1000 || blockTimestamp < timestamp - 3600 * 1000) {
       const err = new Error('Invalid message: timstamp is not trusted')
-      logger.error(err)
+      storeLogger.error(err)
       throw err
     }
 
@@ -1756,6 +1773,62 @@ export class Store {
     return Promise.all(preKeysFromStorage
       .filter((preKey) => Number(preKey.key_id) < today)
       .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
+  }
+
+  private loadNetworkData = async (networkId: NETWORKS) => {
+    let userAddress: string = getNetworkLastUsedUserAddress(networkId)
+    let currentNetworkUsers: Iuser[] = []
+    let user: Iuser | undefined
+
+    if (userAddress) {
+      user = await this.db.getUser(networkId, userAddress)
+      if (!user) {
+        userAddress = ''
+      }
+    }
+    if (!userAddress) {
+      currentNetworkUsers = await this.db.getUsers(networkId)
+      user = currentNetworkUsers.length > 0 ? currentNetworkUsers[0] : undefined
+    }
+
+    return Promise.all([
+      // currentNetworkSettings
+      this.db.getNetworkSettings(networkId),
+      // currentNetworkUsers
+      currentNetworkUsers.length > 0
+        ? Promise.resolve(currentNetworkUsers)
+        : this.db.getUsers(networkId),
+      // *userData
+      Promise.resolve(user).then((_currentUser) => this.loadUserData(_currentUser))
+    ])
+  }
+
+  private processError = (err: Error, globalSettings = this.globalSettings) => {
+    let {
+      networkId: lastUsedNetworkId
+    } = getLastUsedUser()
+    const usedNetworks: NETWORKS[] = getUsedNetworks()
+    if (!lastUsedNetworkId && usedNetworks.length > 0) {
+      lastUsedNetworkId = usedNetworks[0]
+    }
+    const changeStore = (reason: Error) => {
+      runInAction(() => {
+        this.globalSettings = globalSettings
+        this.offlineSelectedEthereumNetwork = lastUsedNetworkId
+        const prevConnectStatus = this.connectStatus
+        this.connectStatus = ERROR
+        this.connectError = reason
+        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
+      })
+    }
+    if (typeof lastUsedNetworkId !== 'undefined') {
+      this.selectOfflineNetwork(lastUsedNetworkId, false, true, globalSettings, err).catch((_err: Error) => {
+        storeLogger.error(_err)
+        changeStore(_err)
+      })
+    } else {
+      changeStore(err)
+    }
   }
 }
 
@@ -1829,7 +1902,7 @@ function padTo512Bytes(plaintext: string) {
   const typeArrayText = sodium.from_string(plaintext)
   const messageByteLength: number = typeArrayText.byteLength
   if (messageByteLength >= 512) {
-    throw new RangeError('Message to large')
+    throw new RangeError('Message too large')
   }
   const result = new Uint8Array(512).fill(0xFF)
   result.set(typeArrayText)

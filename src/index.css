@@ -1,4 +1,12 @@
 .container {
-  padding: 0 20px;
+  padding: 0 1.25rem;
   width: 100%;
+}
+
+.title {
+  font-size: 1.8rem;
+}
+
+.center {
+  text-align: center;
 }

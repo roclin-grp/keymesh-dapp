@@ -3,6 +3,8 @@ import * as React from 'react'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
+import { storeLogger } from '../../utils'
+
 interface Iprops {
   store: Store
 }
@@ -26,11 +28,10 @@ class BroadcastForm extends React.Component<Iprops, Istate> {
         this.setState({message: ''})
       },
       sendingDidComplete: () => {
-        console.log('completed')
+        storeLogger.log('completed')
       },
-      sendingDidFail: (err) => {
-          console.log('failed')
-          console.error(err)
+      sendingDidFail: (err: Error) => {
+        storeLogger.error(err)
       }
     })
   }

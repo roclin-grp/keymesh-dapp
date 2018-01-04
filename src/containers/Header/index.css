@@ -3,11 +3,21 @@
   flex-wrap: wrap;
   justify-content: center;
   background-color: white;
+  width: 100%;
   min-height: 3.25rem;
+  z-index: 98;
+  position: fixed;
+  top: 0;
+  left: 0;
+  transition: transform .25s ease-in-out;
 }
 
-.header:not(:last-child) {
-  margin-bottom: 4rem;
+.header--hidden {
+  transform: translateY(-100%);
+}
+
+.header--shadow {
+  box-shadow: 0 1px 2px rgba(0,0,0,.1);
 }
 
 .header__content {
@@ -16,8 +26,8 @@
 }
 
 .header__logo {
-  font-size: 24px;
-  margin: 0px;
+  font-size: 1.5rem;
+  margin: 0;
   margin-right: auto;
 }
 
@@ -44,7 +54,7 @@
   user-select: none;
 }
 .header__network-indicator:not(:last-child) {
-  margin-right: 10px;
+  margin-right: 0.625rem;
 }
 .header__network-indicator--offline {
   background-color: grey;
@@ -56,7 +66,7 @@
   background-color: chartreuse;
 }
 .header__network-indicator--contract-address-error {
-  background-color: rgb(255, 107, 188);
+  background-color: #BB6BD9;
 }
 .header__network-indicator--error {
   background-color: rgb(255, 58, 58);
@@ -98,4 +108,8 @@
 
 .header__user-avatar-down-icon {
   font-size: 0.5rem !important;
+}
+
+.header__broadcast:not(:last-child) {
+  margin-right: 1.25rem;
 }
