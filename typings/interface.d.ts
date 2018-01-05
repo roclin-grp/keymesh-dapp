@@ -76,6 +76,22 @@ export interface InetworkSettings {
   networkId: NETWORKS
   IdentitiesAddress?: string
   MessagesAddress?: string
+  BroadcastMessagesAddress?: string
+}
+
+export interface IbroadcastMessage {
+  message: string
+  timestamp: number
+}
+
+export interface IsignedBroadcastMessage extends IbroadcastMessage {
+  signature: string
+}
+
+export interface IreceviedBroadcastMessage extends IsignedBroadcastMessage {
+  author: string
+  isInvalidTimestamp: boolean
+  blockTimestamp?: number // if isInvalidTimestamp is true, it will be filled
 }
 
 interface IuserIdentityKeys {
@@ -90,6 +106,7 @@ export interface IregisterRecord {
 
 export interface Iuser extends IuserIdentityKeys {
   lastFetchBlock: web3.BlockType
+  lastFetchBlockOfBroadcast: web3.BlockType
   contacts: Icontact[]
   status: USER_STATUS
   registerRecord?: IregisterRecord

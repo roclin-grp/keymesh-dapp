@@ -10,7 +10,8 @@ import {
   getWeb3,
   Identities,
   Messages,
-  TrustbaseError
+  TrustbaseError,
+  BroadcastMessages,
 } from 'trustbase'
 
 import { keys, message as proteusMessage } from 'wire-webapp-proteus'
@@ -49,6 +50,8 @@ import {
   Icontact,
   IcheckMessageStatusLifecycle,
   IDumpedDatabases,
+  IsignedBroadcastMessage,
+  IreceviedBroadcastMessage,
 } from '../typings/interface.d'
 
 import {
@@ -59,12 +62,13 @@ import {
   MESSAGE_TYPE,
   LOCAL_STORAGE_KEYS,
   FETCH_MESSAGES_INTERVAL,
+  FETCH_BROADCAST_MESSAGES_INTERVAL,
   PRE_KEY_ID_BYTES_LENGTH,
   SUMMARY_LENGTH,
   USER_STATUS,
   MESSAGE_STATUS
 } from './constants'
-import { dumpCryptobox } from './utils'
+import { dumpCryptobox, utf8ToHex, hexToUtf8 } from './utils'
 
 const {
   IdentityKeyPair,
@@ -92,6 +96,7 @@ type IloadedUserData = [
     Cryptobox | undefined
   ],
   Icontact[],
+  web3BlockType,
   web3BlockType
 ]
 
@@ -115,16 +120,22 @@ export class Store {
   @observable.ref public currentSession: Isession | undefined
   @observable.ref public currentSessionMessages: Imessage[] = []
   @observable.ref public registeringUsers: Iuser[] = []
+  @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
   @observable public isFetchingMessage = false
+  @observable public isFetchingBroadcast = false
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
+  private currentUserlastFetchBlockOfBroadcast: web3BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
   private messagesContract: Messages
+  private broadcastMessagesContract: BroadcastMessages
   private detectAccountChangeTimeout: number
   private fetchMessagesTimeout: number
+  private fetchBroadcastMessagesTimeout: number
   private db: DB
+  private broadcastMessagesSignatures: string[]
 
   constructor() {
     this.db = new DB()
@@ -156,6 +167,8 @@ export class Store {
       }
       return _provider
     })()
+
+    this.broadcastMessagesSignatures = []
 
     return initialize({
       provider
@@ -206,7 +219,8 @@ export class Store {
                     this.box
                   ],
                   this.currentUserContacts,
-                  this.currentUserlastFetchBlock
+                  this.currentUserlastFetchBlock,
+                  this.currentUserlastFetchBlockOfBroadcast,
                 ]
               ] = loadedResult}
             }
@@ -947,6 +961,71 @@ export class Store {
     })
   }
 
+  public publishBoradcastMessage = (
+    message: string,
+    {
+      transactionWillCreate = noop,
+      transactionDidCreate = noop,
+      sendingDidComplete = noop,
+      sendingDidFail = noop
+    }: IsendingLifecycle = {},
+  ) => {
+    //
+    const user = this.currentUser
+    if (typeof user === 'undefined' || user.status !== USER_STATUS.OK) {
+      //      todo: deal with undeifned
+      return
+    }
+
+    if (typeof this.box === 'undefined') {
+      //      todo: deal with undeifned
+      return
+    }
+
+    const signature = sodium.to_hex(this.box.identity.secret_key.sign(message))
+    const timestamp = Math.floor(Date.now() / 1000)
+    const signedMessage: IsignedBroadcastMessage = {
+        message,
+        signature,
+        timestamp,
+    }
+    const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
+    this.broadcastMessagesContract.publish(signedMessageHex, user.userAddress)
+      .on('transactionHash', async (hash) => {
+        transactionDidCreate(hash)
+      })
+      .on('confirmation', async (confirmationNumber, receipt) => {
+        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+          if (!receipt.events) {
+            sendingDidFail(new Error('Unknown error'))
+            return
+          }
+          sendingDidComplete()
+        }
+      })
+      .on('error', async (error: Error) => {
+        sendingDidFail(error)
+      })
+  }
+
+  public startFetchBroadcast = async () => {
+    if (this.connectStatus !== SUCCESS || this.isFetchingBroadcast) {
+      return
+    }
+    const fetNewBroadcastMessagesLoop = async () => {
+      try {
+        await this.fetchNewBroadcastMessages()
+      } finally {
+        window.setTimeout(fetNewBroadcastMessagesLoop, FETCH_BROADCAST_MESSAGES_INTERVAL)
+      }
+    }
+
+    runInAction(() => {
+      this.isFetchingBroadcast = true
+      this.fetchBroadcastMessagesTimeout = window.setTimeout(fetNewBroadcastMessagesLoop, 0)
+    })
+  }
+
   public startFetchMessages = () => {
     if (this.connectStatus !== SUCCESS) {
       return
@@ -985,10 +1064,16 @@ export class Store {
     })
   }
 
+  public stopFetchBroadcastMessages = () => {
+    runInAction(() => {
+      this.isFetchingBroadcast = false
+      window.clearTimeout(this.fetchBroadcastMessagesTimeout)
+    })
+  }
   public stopFetchMessages = () => {
     runInAction(() => {
       this.isFetchingMessage = false
-      window.clearInterval(this.fetchMessagesTimeout)
+      window.clearTimeout(this.fetchMessagesTimeout)
     })
   }
 
@@ -1272,7 +1357,8 @@ export class Store {
       try {
         const {
           IdentitiesAddress,
-          MessagesAddress
+          MessagesAddress,
+          BroadcastMessagesAddress,
         } = this.currentNetworkSettings
 
         this.identitiesContract = new Identities(Object.assign({
@@ -1282,6 +1368,11 @@ export class Store {
 
         this.messagesContract = new Messages(Object.assign({
           address: MessagesAddress,
+          currentNetworkId
+        }))
+
+        this.broadcastMessagesContract = new BroadcastMessages(Object.assign({
+          address: BroadcastMessagesAddress,
           currentNetworkId
         }))
 
@@ -1302,7 +1393,7 @@ export class Store {
 
   private loadUserData = (
     currentUser: Iuser | undefined
-  ) => Promise.all([
+  ): Promise<IloadedUserData> => Promise.all([
     // currentUser
     currentUser
       ? this.db.getUser(currentUser.networkId, currentUser.userAddress).catch(() => currentUser)
@@ -1328,7 +1419,9 @@ export class Store {
     // contacts
     Promise.resolve(currentUser ? currentUser.contacts : []),
     // lastFetchBlock
-    Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0)
+    Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0),
+    // lastFetchBlockOfBroadcast
+    Promise.resolve(currentUser ? currentUser.lastFetchBlockOfBroadcast : 0),
     ])
 
   private getPreKeys = async (userAddress: string) => {
@@ -1354,6 +1447,65 @@ export class Store {
       }
     }
     throw (new Error('status is not 200'))
+  }
+  private updateLastFetchBlockOfBroadcast = async (lastBlock: number, user: Iuser) => {
+      const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
+      await this.db.updateLastFetchBlockOfBroadcast(user, _newLastBlock).then(noop)
+      runInAction(() => {
+        this.currentUserlastFetchBlockOfBroadcast = _newLastBlock
+      })
+  }
+
+  private fetchNewBroadcastMessages = async (
+    lastFetchBlock = this.currentUserlastFetchBlockOfBroadcast
+  ) => {
+    const {
+      lastBlock,
+      broadcastMessages
+    } = await this.broadcastMessagesContract.getBroadcastMessages({
+      fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0
+    })
+
+    let messages = (await Promise.all(broadcastMessages.map(async (message: any) => {
+      const userAddress = message.userAddress
+      const blockTimestamp = message.timestamp
+      const signedMessage = JSON.parse(hexToUtf8(message.signedMessage.slice(2))) as IsignedBroadcastMessage
+      if (this.broadcastMessagesSignatures.includes(signedMessage.signature)) {
+        return null
+      }
+
+      this.broadcastMessagesSignatures.push(signedMessage.signature)
+
+      const userIdentity = await this.identitiesContract.getIdentity(userAddress)
+      const userPublicKey = publicKeyFromHexStr(userIdentity.publicKey.slice(2))
+      if (!userPublicKey.verify(sodium.from_hex(signedMessage.signature), signedMessage.message)) {
+        console.error(new Error('invalid signature')) 
+        return null
+      }
+
+      const isInvalidTimestamp = Math.abs(signedMessage.timestamp - blockTimestamp) >= 10 * 60
+
+      const m = {
+        message: signedMessage.message,
+        timestamp: Number(signedMessage.timestamp) * 1000,
+        author: userAddress,
+        isInvalidTimestamp,
+      } as IreceviedBroadcastMessage
+      if (isInvalidTimestamp) {
+        m.blockTimestamp = Number(blockTimestamp) * 1000
+      }
+      return m
+    }))).filter((m) => m !== null) as IreceviedBroadcastMessage[]
+
+    if (messages.length > 0) {
+      runInAction(() => {
+        this.broadcastMessages = this.broadcastMessages.concat(messages)
+      })
+      console.log(messages)
+    }
+
+    const user = this.currentUser as Iuser
+    await this.updateLastFetchBlockOfBroadcast(lastBlock, user)
   }
 
   private fetchNewMessages = async (

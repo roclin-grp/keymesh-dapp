@@ -300,6 +300,7 @@ class Header extends React.Component<Iprops, Istate> {
           Export
         </button>
         <label> Import <input key={this.state.importKey} type="file" onChange={this.handleImport}/> </label>
+        <Link style={{textDecoration: 'none', color: 'black'}} to="/broadcast">Broadcast</Link>
       </div>
     </header>
   }

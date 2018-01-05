@@ -12,6 +12,7 @@ import Settings from './pages/settings'
 import CheckRegister from './pages/check-register'
 import NetworkSettings from './pages/network-settings'
 import UploadPreKeys from './pages/upload-pre-keys'
+import Broadcast from './pages/broadcast'
 
 const App = () => (
   <Router>
@@ -22,6 +23,7 @@ const App = () => (
       <Route exact={true} path="/settings/:networkId" component={NetworkSettings} />
       <Route path="/check-register/:networkId?" component={CheckRegister} />
       <Route path="/upload-pre-keys" component={UploadPreKeys} />
+      <Route path="/broadcast" component={Broadcast} />
     </Switch>
   </Router>
 )

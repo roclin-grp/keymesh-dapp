@@ -135,6 +135,7 @@ export default class DB {
         {},
         {
           lastFetchBlock: 0,
+          lastFetchBlockOfBroadcast: 0,
           contacts: [],
           status: USER_STATUS.PENDING,
           registerRecord,
@@ -203,6 +204,17 @@ export default class DB {
         status === USER_STATUS.IDENTITY_UPLOADED ? {blockHash} : null,
         status === USER_STATUS.OK ? {registerRecord: undefined} : null,
       ))
+  }
+
+  public updateLastFetchBlockOfBroadcast(
+    {
+      networkId,
+      userAddress,
+    }: Iuser,
+    lastFetchBlockOfBroadcast: number
+  ) {
+    return this.tableUsers
+      .update([networkId, userAddress], {lastFetchBlockOfBroadcast})
   }
 
   public updateLastFetchBlock(

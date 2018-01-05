@@ -108,6 +108,7 @@ export const LOCAL_STORAGE_KEYS = Object.freeze({
 })
 
 export const FETCH_MESSAGES_INTERVAL = 10000
+export const FETCH_BROADCAST_MESSAGES_INTERVAL = 10000
 
 export const PRE_KEY_ID_BYTES_LENGTH = 2
 
