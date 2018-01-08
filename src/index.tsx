@@ -1,5 +1,4 @@
 import 'font-awesome/css/font-awesome.css'
-import 'normalize.css'
 import './index.css'
 
 import * as React from 'react'
@@ -10,6 +9,8 @@ import { Provider } from 'mobx-react'
 
 import { Store } from './store'
 import App from './routes'
+
+import { storeLogger } from './utils'
 
 const isDevelop = process.env.NODE_ENV === 'development'
 
@@ -25,7 +26,9 @@ const load = (Component: typeof App) => {
     if (isDevelop) {
       (window as any).__STORE = newStore
     }
-    newStore.connect()
+    newStore.connect().catch((err: Error) => {
+      storeLogger.error(err)
+    })
     return newStore
   })()
 

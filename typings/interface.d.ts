@@ -36,11 +36,12 @@ export interface IcreateAccountLifecycle {
 }
 
 export interface IcheckMessageStatusLifecycle {
-  deliveryFailed?: () => void
+  sendingDidFail?: () => void
 }
 
-export interface IcheckRegisterLifecycle extends IcreateAccountLifecycle, IuploadPreKeysLifecycle {
+export interface IcheckRegisterLifecycle {
   checkRegisterWillStart?: (hash: string) => void
+  identityDidUpload?: () => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
@@ -184,8 +185,8 @@ interface IDumpedDatabases {
 }
 
 interface Logdown {
-  log: (str: string) => void
-  info: (str: string) => void
-  warn: (str: string) => void
-  error: (reason: string | Error) => void
+  log: (...str: string[]) => void
+  info: (...str: string[]) => void
+  warn: (...str: string[]) => void
+  error: (...reason: Array<string | Error>) => void
 }

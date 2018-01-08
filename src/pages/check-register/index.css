@@ -1,0 +1,27 @@
+.check-register__progress {
+  padding: 0 8%;
+}
+.check-register__progress:not(:last-child) {
+  margin-bottom: 2.5rem;
+}
+
+.check-register__title {
+  margin-bottom: 5rem;
+}
+
+.check-register__result-icon {
+  font-size: 4rem;
+}
+.check-register__result-icon--error {
+  color: #f5222d;
+}
+.check-register__result-icon--success {
+  color: #2ED95D;
+}
+.check-register__result-icon:not(:last-child) {
+  margin-bottom: 1.25rem;
+}
+
+.check-register__subtitle {
+  font-size: 1.25rem;
+}

@@ -1,0 +1,115 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  background-color: white;
+  width: 100%;
+  min-height: 3.25rem;
+  z-index: 98;
+  position: fixed;
+  top: 0;
+  left: 0;
+  transition: transform .25s ease-in-out;
+}
+
+.header--hidden {
+  transform: translateY(-100%);
+}
+
+.header--shadow {
+  box-shadow: 0 1px 2px rgba(0,0,0,.1);
+}
+
+.header__content {
+  display: flex;
+  align-items: center;
+}
+
+.header__logo {
+  font-size: 1.5rem;
+  margin: 0;
+  margin-right: auto;
+}
+
+.header__logo-text {
+  color: black;
+  text-decoration: none;
+  font-weight: 700;
+}
+.header__logo-text:hover {
+  color: black;
+}
+
+.header__network-indicator-wrapper {
+  width: 1.5rem;
+  padding-top: 0.125rem;
+  justify-content: center;
+}
+
+.header__network-indicator {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 1rem;
+  user-select: none;
+}
+.header__network-indicator:not(:last-child) {
+  margin-right: 0.625rem;
+}
+.header__network-indicator--offline {
+  background-color: grey;
+}
+.header__network-indicator--no-account {
+  background-color: orange;
+}
+.header__network-indicator--success {
+  background-color: chartreuse;
+}
+.header__network-indicator--contract-address-error {
+  background-color: #BB6BD9;
+}
+.header__network-indicator--error {
+  background-color: rgb(255, 58, 58);
+}
+
+.header__network-text {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.header__network-options-button:not(:last-child),
+.header__user-options-button:not(:last-child) {
+  margin-right: 1rem;
+}
+
+.header__network-indicator-wrapper,
+.header__network-options-button,
+.header__user-options-button {
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.header__network-text:not(:last-child),
+.header__user-avatar:not(:last-child) {
+  margin-right: 0.25rem;
+}
+
+.header__current-user-address {
+  cursor: pointer !important;
+}
+
+.header__user-address {
+  color: rgb(189, 189, 189)
+}
+
+.header__register-new {
+  color: #1890ff !important;
+}
+
+.header__user-avatar-down-icon {
+  font-size: 0.5rem !important;
+}
+
+.header__broadcast:not(:last-child) {
+  margin-right: 1.25rem;
+}

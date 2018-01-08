@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { withRouter } from 'react-router-dom'
+import { withRouter, RouteComponentProps } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
@@ -9,12 +9,12 @@ import { Iuser } from '../../../typings/interface'
 
 import './index.css'
 
-interface Iprops {
-  history: {
-    push: (path: string) => void
-  }
-  store: Store
+interface Iprops extends RouteComponentProps<{}> {
   user: Iuser
+}
+
+interface IinjectedProps extends Iprops {
+  store: Store
 }
 
 interface Istate {
@@ -23,9 +23,12 @@ interface Istate {
 
 @inject('store') @observer
 class RegisterRecord extends React.Component<Iprops, Istate> {
-  public readonly state = {
+  public readonly state = Object.freeze({
     isClicked: false
-  }
+  })
+
+  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+
   public render() {
     const {
       user: {
@@ -45,13 +48,13 @@ class RegisterRecord extends React.Component<Iprops, Istate> {
   private handleCheckRegister = () => {
     const {
       user,
-      store: {
-        useUser
-      },
       history: {
         push
       }
     } = this.props
+    const {
+      useUser
+    } = this.injectedProps.store
     this.setState({
       isClicked: true
     })
@@ -67,4 +70,4 @@ class RegisterRecord extends React.Component<Iprops, Istate> {
   }
 }
 
-export default withRouter(RegisterRecord as any)
+export default withRouter(RegisterRecord)

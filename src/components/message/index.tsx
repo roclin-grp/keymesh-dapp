@@ -52,7 +52,7 @@ class Message extends React.Component<Iprops> {
 
     let statusStr: string | undefined
     if (isFromYourself) {
-      statusStr = (MESSAGE_STATUS_STR as any)[status]
+      statusStr = MESSAGE_STATUS_STR[status]
     }
 
     return <li className={`message${isFromYourself ? ' message--self' : ''}`}>

@@ -1,207 +1,209 @@
 import * as React from 'react'
+import {
+  withRouter,
+  RouteComponentProps,
+  Redirect,
+} from 'react-router-dom'
 
-import { withRouter,  } from 'react-router-dom'
-
-import { inject, observer } from 'mobx-react'
+import {
+  inject,
+  observer,
+} from 'mobx-react'
 import { Store } from '../../store'
+
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
+
+import {
+  Divider,
+  Button,
+  Icon,
+  Upload,
+  message,
+} from 'antd'
+
+import {
+  storeLogger,
+  getBEMClassNamesMaker
+} from '../../utils'
 
 import {
   TRUSTBASE_CONNECT_STATUS,
-  REGISTER_FAIL_CODE
+  REGISTER_FAIL_CODE,
 } from '../../constants'
 
-import Header from '../../containers/header'
-import RegisterRecords from '../../containers/register-records'
+import { UploadFile } from 'antd/lib/upload/interface.d'
 
 import './index.css'
 
-const HeaderWithStore = Header as any
-const RegisterRecordsWithStore = RegisterRecords as any
-
 const {
-  PENDING,
-  OFFLINE,
-  NO_ACCOUNT,
-  CONTRACT_ADDRESS_ERROR,
-  SUCCESS,
-  ERROR
-} = TRUSTBASE_CONNECT_STATUS
+  Dragger
+} = Upload
 
-const {
-  UNKNOWN,
-  FOUND_ON_LOCAL,
-  REGISTERED
-} = REGISTER_FAIL_CODE
+type Iprops = RouteComponentProps<{}>
 
-interface Iprops {
-  history: {
-    replace: (path: string) => void
-  }
+interface IinjectedProps extends Iprops {
   store: Store
 }
 
 interface Istate {
-  registerProgress: string,
+  registerButtonContent: string
   isRegistering: boolean
+  isImporting: boolean
 }
 
 @inject('store') @observer
 class Register extends React.Component<Iprops, Istate> {
-  public readonly state = {
-    registerProgress: '',
-    isRegistering: false
-  }
+  public static readonly blockName = 'register'
+
+  public readonly state = Object.freeze({
+    registerButtonContent: 'Register',
+    isRegistering: false,
+    isImporting: false
+  })
+
+  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+
+  private readonly getBEMClassNames = getBEMClassNamesMaker(Register.blockName, this.props)
+
   private unmounted = false
   public componentWillUnmount() {
     this.unmounted = true
   }
+
   public render() {
     const {
       connectStatus,
-      connectError,
       currentEthereumAccount,
-    } = this.props.store
+      canCreateOrImportUser
+    } = this.injectedProps.store
+    const {
+      getBEMClassNames,
+      state: {
+        registerButtonContent
+      }
+    } = this
+    const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
 
-    switch (connectStatus) {
-      case PENDING:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>Connecting to trustbase...</pre>
-          </div>
-        </div>
-      case OFFLINE:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>You are offline!</pre>
-          </div>
-        </div>
-      case NO_ACCOUNT: {
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>Found no Ethereum account. (You may need to unlock MetaMask.)</pre>
-          </div>
-        </div>
-      }
-      case SUCCESS: {
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              textAlign: 'center'
-            }}
-          >
-            <pre>Register new account</pre>
-            <p>Wallet Address: {currentEthereumAccount}</p>
-            <button disabled={this.state.isRegistering} onClick={this.handleRegister}>Register</button>
-            <pre>{this.state.registerProgress}</pre>
-            <RegisterRecordsWithStore />
-          </div>
-        </div>
-      }
-      case CONTRACT_ADDRESS_ERROR:
-      case ERROR:
-        return <div>
-          <HeaderWithStore />
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'fixed',
-              backgroundColor: '#ff6464',
-              width: '100%',
-              height: '100%',
-              top: 0,
-              marginTop: 50,
-              paddingTop: 20,
-              color: 'white'
-            }}
-          >
-            <pre>Something was gone wrong!</pre>
-            <pre>{connectError.stack}</pre>
-          </div>
-        </div>
-      default:
-        return null
+    if (!isPending && !canCreateOrImportUser) {
+      return <Redirect to="/" />
     }
+
+    return (
+      <CommonHeaderPage prefixClass={Register.blockName} className={getBEMClassNames()}>
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+          Register new account
+        </h2>
+        <h3>
+          Wallet Address: {currentEthereumAccount}
+        </h3>
+        <p>Click the button below and confirm the transaction to create a new account</p>
+        <Button
+          loading={this.state.isRegistering}
+          size="large"
+          type="primary"
+          disabled={this.state.isRegistering}
+          onClick={this.handleRegister}
+        >
+          {registerButtonContent}
+        </Button>
+        <Divider className={getBEMClassNames('divider', {}, { container: true })} />
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+          Import account
+        </h2>
+        <Dragger
+          className={getBEMClassNames('import', {}, { container: true })}
+          action="/"
+          beforeUpload={this.handleImport}
+          accept=".json"
+          disabled={this.state.isImporting}
+        >
+          <p className="ant-upload-drag-icon">
+            <Icon type="plus" />
+          </p>
+          <p className="ant-upload-text">Click or drag file to this area to import</p>
+          <p className="ant-upload-hint">
+            Support JSON format exported user data
+          </p>
+        </Dragger>
+      </CommonHeaderPage>
+    )
   }
 
   private handleRegister = () => {
-    const {
-      register
-    } = this.props.store
-
     this.setState({
-      isRegistering: true
+      isRegistering: true,
+      registerButtonContent: 'Checking...'
     })
 
-    register({
+    this.injectedProps.store.register({
       transactionWillCreate: this.transactionWillCreate,
-      transactionDidCreate: this.transactionDidCreate,
       userDidCreate: this.userDidCreate,
       registerDidFail: this.registerDidFail,
     })
       .catch(this.registerDidFail)
   }
+
   private transactionWillCreate = () => {
     if (this.unmounted) {
       return
     }
     this.setState({
-      registerProgress: `Creating transaction...
-(You may need to confirm the transaction.)`
+      registerButtonContent: 'Please confirm the transaction...'
     })
   }
-  private transactionDidCreate = (hash: string) => {
-    if (this.unmounted) {
-      return
-    }
-    this.setState({
-      registerProgress: `Transaction created (hash: ${hash}).
-Creating account...`
-    })
-  }
+
   private userDidCreate = () => {
     if (this.unmounted) {
       return
     }
-    this.props.history.replace('/check-register')
+    this.injectedProps.history.replace('/check-register')
   }
-  private registerDidFail = (err: Error | null, code = UNKNOWN) => {
+
+  private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return
     }
+    message.error((() => {
+      switch (code) {
+        case REGISTER_FAIL_CODE.OCCUPIED:
+          return `User address already registered.`
+        case REGISTER_FAIL_CODE.UNKNOWN:
+          if ((err as Error).message.includes('User denied transaction signature')) {
+            return 'Register fail, you reject the transaction.'
+          }
+        // tslint:disable-next-line no-switch-case-fall-through
+        default:
+          storeLogger.error('Unexpected register error:', err as Error)
+          return 'Something has gone wrong, please retry.'
+      }
+    })())
     this.setState({
-      registerProgress: (() => {
-        switch (code) {
-          case UNKNOWN:
-            return (err as Error).toString()
-          case FOUND_ON_LOCAL:
-            return `Found identity on local`
-          case REGISTERED:
-            return `User address already registered.`
-          default:
-            return 'other'
-        }
-      })(),
+      registerButtonContent: 'Register',
       isRegistering: false
     })
   }
+
+  private handleImport = (_: UploadFile, files: UploadFile[]) => {
+    if (files.length === 0) {
+      return false
+    }
+    this.setState({
+      isImporting: true
+    })
+    const file: File = files[0] as any
+    const reader = new FileReader()
+    reader.onload = async (oFREvent) => {
+      await this.injectedProps.store.restoreDumpedUser(
+        (oFREvent.target as any).result,
+        false
+      )
+      if (this.injectedProps.location.pathname === '/register') {
+        this.injectedProps.history.push('/')
+      }
+    }
+    reader.readAsText(file)
+    return false
+  }
 }
 
-export default withRouter(Register as any)
+export default withRouter(Register)

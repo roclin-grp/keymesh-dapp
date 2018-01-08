@@ -13,16 +13,19 @@ interface Iprops {
 interface Istate {
   showNetworks: boolean
 }
-class NetworkOption extends React.Component<Iprops, Istate> {
+class SwitchNetworkOption extends React.Component<Iprops, Istate> {
   public render() {
     const {
       networkId
     } = this.props
-    return <li onClick={this.handleClick}>
-      {(NETWORK_NAMES as any)[networkId] || `Custom(${networkId})`}
-    </li>
+
+    return (
+      <a onClick={this.handleClick}>
+        {NETWORK_NAMES[networkId] || `Custom(${networkId})`}
+      </a>
+    )
   }
-  private handleClick = (e: React.MouseEvent<HTMLLIElement>) => {
+  private handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
     e.stopPropagation()
     const selection = window.getSelection()
@@ -37,4 +40,4 @@ class NetworkOption extends React.Component<Iprops, Istate> {
   }
 }
 
-export default NetworkOption
+export default SwitchNetworkOption
