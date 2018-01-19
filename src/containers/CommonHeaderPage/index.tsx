@@ -65,6 +65,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
       !currentUser
       && canCreateOrImportUser
       && currentPathname !== '/register'
+      && !currentPathname.includes('profile')
       && currentPathname !== '/network-settings'
     ) {
       return <Redirect to="/register" />

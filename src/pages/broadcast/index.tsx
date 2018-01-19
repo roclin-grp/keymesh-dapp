@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
@@ -70,10 +71,10 @@ class Broadcast extends React.Component<Iprops> {
       )
     }
 
-    return <div><div>Broadcast</div>
+    return <CommonHeaderPage><div>Broadcast</div>
       <BroadcastForm store={this.props.store} />
       <div>{messagesElements}</div>
-    </div>
+    </CommonHeaderPage>
   }
 }
 

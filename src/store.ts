@@ -12,12 +12,12 @@ import {
   Messages,
   TrustbaseError,
   BroadcastMessages,
+  BoundSocials,
 } from 'trustbase'
 
 import { keys, message as proteusMessage } from 'wire-webapp-proteus'
 import { Cryptobox, CryptoboxSession } from 'wire-webapp-cryptobox'
 
-const ed2curve = require('ed2curve')
 const sodium = require('libsodium-wrappers-sumo')
 
 import DB from './DB'
@@ -63,7 +63,10 @@ import {
   PRE_KEY_ID_BYTES_LENGTH,
   SUMMARY_LENGTH,
   USER_STATUS,
-  MESSAGE_STATUS
+  MESSAGE_STATUS,
+  FETCH_BOUND_EVENTS_INTERVAL,
+  SOCIAL_MEDIA_PLATFORMS,
+  BINDING_SOCIAL_STATUS,
 } from './constants'
 
 import {
@@ -71,8 +74,21 @@ import {
   hexToUtf8,
   noop,
   storeLogger,
-  dumpCryptobox
+  dumpCryptobox,
+  unixToday,
 } from './utils'
+
+import {
+  publicKeyFromHexStr
+} from './crypto.utils'
+
+import {
+  IboundSocials,
+  IsignedBoundSocials,
+  IbindingSocial,
+  IbindingSocials,
+} from '../typings/proof.interface'
+import { TwitterResource } from './resources/twitter'
 
 const {
   IdentityKeyPair,
@@ -100,6 +116,7 @@ type IloadedUserData = [
   ],
   Icontact[],
   web3BlockType,
+  web3BlockType,
   web3BlockType
 ]
 
@@ -125,7 +142,10 @@ export class Store {
   @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
   @observable public isFetchingMessage = false
   @observable public isFetchingBroadcast = false
+  @observable public isFetchingBoundEvents = false
 
+  @observable.ref public currentUserBoundSocials: IboundSocials = {}
+  @observable public currentUserBindingSocials: IbindingSocials = {}
   public constructor() {
     this.db = new DB()
   }
@@ -133,17 +153,36 @@ export class Store {
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
   private currentUserlastFetchBlockOfBroadcast: web3BlockType = 0
+  private currentUserlastFetchBlockOfBoundSocials: web3BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
   private messagesContract: Messages
   private broadcastMessagesContract: BroadcastMessages
+  private boundSocialsContract: BoundSocials
   private detectAccountChangeTimeout: number
   private detectNetworkChangeTimeout: number
   private fetchMessagesTimeout: number
   private fetchBroadcastMessagesTimeout: number
+  private fetchBoundEventsTimeout: number
   private db: DB
   private broadcastMessagesSignatures: string[]
+  private _twitterResource: TwitterResource|undefined
+
+  public get twitterResource(): TwitterResource|undefined {
+    if (typeof this._twitterResource === 'undefined') {
+      const consumerKey = process.env.REACT_APP_TWITTER_CONSUMER_KEY
+      const secretKey = process.env.REACT_APP_TWITTER_SECRET_KEY
+      if (typeof consumerKey === 'undefined' || typeof secretKey === 'undefined') {
+        storeLogger.error('REACT_APP_TWITTER_CONSUMER_KEY or REACT_APP_TWITTER_SECRET_KEY must be set.')
+        return undefined
+      }
+
+      this._twitterResource = new TwitterResource(consumerKey, secretKey)
+    }
+
+    return this._twitterResource
+  }
 
   @computed
   public get pageLength() {
@@ -269,8 +308,13 @@ export class Store {
                   this.currentUserContacts,
                   this.currentUserlastFetchBlock,
                   this.currentUserlastFetchBlockOfBroadcast,
+                  this.currentUserlastFetchBlockOfBoundSocials,
                 ]
               ] = loadedResult}
+              if (typeof this.currentUser !== 'undefined') {
+                this.currentUserBoundSocials = this.currentUser.boundSocials
+                this.currentUserBindingSocials = this.currentUser.bindingSocials
+              }
             }
             const prevConnectStatus = this.connectStatus
             this.connectStatus = NO_ACCOUNT
@@ -299,6 +343,143 @@ export class Store {
           this.processError(err, globalSettings)
         }
       })
+  }
+
+  public startFetchBoundEvents = () => {
+    if (this.connectStatus !== SUCCESS || this.isFetchingBoundEvents) {
+      return
+    }
+    const fetchLoop = async () => {
+      try {
+        await this.fetchBoundEvents()
+      } finally {
+        runInAction(() => {
+          this.fetchBoundEventsTimeout = window.setTimeout(fetchLoop, FETCH_BOUND_EVENTS_INTERVAL)
+        })
+      }
+    }
+
+    runInAction(() => {
+      this.isFetchingBoundEvents = true
+      this.fetchBoundEventsTimeout = window.setTimeout(fetchLoop, 0)
+    })
+  }
+
+  public addBindingSocial = async (
+    platform: SOCIAL_MEDIA_PLATFORMS,
+    bindingSocial: IbindingSocial,
+  ) => {
+    if (typeof this.currentUser === 'undefined') {
+      return
+    }
+
+    const bindingSocials: IbindingSocials = Object.assign({}, this.currentUser.bindingSocials)
+    switch (platform) {
+      case SOCIAL_MEDIA_PLATFORMS.GITHUB:
+        bindingSocials.github = bindingSocial
+        break
+      case SOCIAL_MEDIA_PLATFORMS.TWITTER:
+        bindingSocials.twitter = bindingSocial
+        break
+      default:
+        return
+    }
+
+    this.updateBindingSocials(bindingSocials, this.currentUser)
+  }
+
+  public uploadBindingSocials = async (
+    {
+      transactionWillCreate = noop,
+      transactionDidCreate = noop,
+      sendingDidComplete = noop,
+      sendingDidFail = noop
+    }: IsendingLifecycle = {},
+  ) => {
+    if (typeof this.currentUser === 'undefined') {
+      // todo: deal with empty user
+      return
+    }
+
+    const newBoundSocials: IboundSocials = Object.assign({}, this.currentUserBoundSocials)
+    if (typeof this.currentUserBindingSocials.github !== 'undefined') {
+      const _bindingSocial = this.currentUserBindingSocials.github
+      newBoundSocials.github = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
+    }
+
+    if (typeof this.currentUserBindingSocials.twitter !== 'undefined') {
+      const _bindingSocial = this.currentUserBindingSocials.twitter
+      newBoundSocials.twitter = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
+    }
+
+    const signature = '0x' + this.currentUserSign(JSON.stringify(newBoundSocials))
+    const signedBoundSocials: IsignedBoundSocials = {signature, socialMedias: newBoundSocials}
+    const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
+
+    transactionWillCreate()
+    this.boundSocialsContract.bind(this.currentUser.userAddress, signedBoundSocialsHex)
+      .on('transactionHash', (hash) => {
+        transactionDidCreate(hash)
+        runInAction(() => {
+          if (typeof this.currentUserBindingSocials.github !== 'undefined') {
+            this.currentUserBindingSocials.github.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
+          }
+          if (typeof this.currentUserBindingSocials.twitter !== 'undefined') {
+            this.currentUserBindingSocials.twitter.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
+          }
+        })
+      })
+      .on('confirmation', async (confirmationNumber, receipt) => {
+        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+          if (!receipt.events) {
+            sendingDidFail(new Error('Unknown error'))
+            return
+          }
+          const _bindingSocials = Object.assign({}, this.currentUserBindingSocials)
+          if (typeof _bindingSocials.github !== 'undefined') {
+            _bindingSocials.github = undefined
+          }
+          if (typeof _bindingSocials.twitter !== 'undefined') {
+            _bindingSocials.twitter = undefined
+          }
+          if (typeof this.currentUser !== 'undefined') {
+            runInAction(() => {
+              this.currentUserBoundSocials = Object.assign({}, newBoundSocials)
+              storeLogger.info(JSON.stringify(this.currentUserBoundSocials))
+            })
+            await this.updateBindingSocials(_bindingSocials, this.currentUser)
+          }
+
+          sendingDidComplete()
+        }
+      })
+      .on('error', (error: Error) => {
+        sendingDidFail(error)
+      })
+  }
+
+  public getUserPublicKey = async (
+    userAddress: string
+  ) => {
+    const {
+      publicKey: identityFingerprint
+    } = await this.getIdentity(userAddress)
+    if (Number(identityFingerprint) === 0) {
+      return ''
+    }
+    return identityFingerprint
+  }
+
+  public getIdentity = async (userAddress: string) => {
+    return await this.identitiesContract.getIdentity(userAddress)
+  }
+
+  public getCurrentUserPublicKey = async () => {
+    if (typeof this.currentUser === 'undefined') {
+      return ''
+    }
+
+    return await this.getUserPublicKey(this.currentUser.userAddress)
   }
 
   public register = async ({
@@ -421,6 +602,15 @@ export class Store {
     return waitForTransactionReceipt()
   }
 
+  public getBlockHash = async (blockNumber: number): Promise<string|'0x0'> => {
+    return await getWeb3().eth.getBlock(blockNumber)
+      .then((block) => block.hash)
+      .catch((err: Error) => {
+        storeLogger.error(err)
+        return '0x0'
+      })
+  }
+
   public checkRegister = async (
     user: Iuser,
     {
@@ -472,10 +662,7 @@ export class Store {
           }
 
           if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch((err: Error) => {
-              storeLogger.error(err)
-              return '0x0'
-            })
+            const blockHash = await this.getBlockHash(blockNumber)
             if (Number(blockHash) === 0) {
               return window.setTimeout(waitForTransactionReceipt, 1000, counter)
             }
@@ -587,7 +774,7 @@ export class Store {
         if (err.name !== 'RecordNotFoundError') {
           // Maybe we have a corrupted session on local, delete it.
           return Promise.all([
-            (this.box as Cryptobox).session_delete(sessionTag).then(noop),
+            (this.box as Cryptobox).session_delete(sessionTag),
             this.db.getSession(sessionTag, currentUser.userAddress).then((_session) => {
               if (_session) {
                 return this.db.deleteSession(this.currentUser as Iuser, _session)
@@ -884,7 +1071,9 @@ export class Store {
           this.box,
         ],
         this.currentUserContacts,
-        this.currentUserlastFetchBlock
+        this.currentUserlastFetchBlock,
+        this.currentUserlastFetchBlockOfBoundSocials,
+        this.currentUserlastFetchBlockOfBroadcast,
       ] = userData
       if (sessions) {
         this.currentSession = undefined
@@ -893,6 +1082,10 @@ export class Store {
       this.newMessageCount = 0
       addUsedNetwork(networkId)
       setLastUsedUser(networkId, user.userAddress)
+      if (typeof this.currentUser !== 'undefined') {
+        this.currentUserBoundSocials = this.currentUser.boundSocials
+        this.currentUserBindingSocials = this.currentUser.bindingSocials
+      }
       if (redirect) {
         redirect()
       }
@@ -998,6 +1191,8 @@ export class Store {
       if (this.currentUser) {
         addUsedNetwork(networkId)
         setLastUsedUser(networkId, this.currentUser.userAddress)
+        this.currentUserBoundSocials = this.currentUser.boundSocials
+        this.currentUserBindingSocials = this.currentUser.bindingSocials
       }
       if (sessions) {
         this.currentSession = undefined
@@ -1061,7 +1256,11 @@ export class Store {
       try {
         await this.fetchNewBroadcastMessages()
       } finally {
-        window.setTimeout(fetNewBroadcastMessagesLoop, FETCH_BROADCAST_MESSAGES_INTERVAL)
+        runInAction(() => {
+          this.fetchBroadcastMessagesTimeout = window.setTimeout(
+            fetNewBroadcastMessagesLoop,
+            FETCH_BROADCAST_MESSAGES_INTERVAL)
+        })
       }
     }
 
@@ -1106,6 +1305,12 @@ export class Store {
     })
   }
 
+  public stopFetchBoundEvents = () => {
+    runInAction(() => {
+      this.isFetchingBoundEvents = false
+      window.clearTimeout(this.fetchBoundEventsTimeout)
+    })
+  }
   public stopFetchBroadcastMessages = () => {
     runInAction(() => {
       this.isFetchingBroadcast = false
@@ -1203,6 +1408,13 @@ export class Store {
     })
   }
 
+  public currentUserSign = (message: string) => {
+    if (typeof this.box === 'undefined') {
+      return ''
+    }
+    return sodium.to_hex(this.box.identity.secret_key.sign(message))
+  }
+
   public uploadPreKeys = async (
     user: Iuser,
     interval = 1, // 1 day
@@ -1234,7 +1446,7 @@ export class Store {
 
     const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + user.userAddress
     const hexedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    const prekeysSignature = sodium.to_hex(this.box.identity.secret_key.sign(hexedPrekeys))
+    const prekeysSignature = this.currentUserSign(hexedPrekeys)
     const init = {
       method: 'PUT',
       mode: 'cors',
@@ -1292,6 +1504,52 @@ export class Store {
           .filter((_session) => _session.sessionTag !== session.sessionTag)
       }
     })
+  }
+
+  public getBoundEvents = async (
+    lastFetchBlock: web3BlockType,
+    userAddress: string,
+  ) => {
+    return await this.boundSocialsContract.getBindEvents({
+      fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
+      filter: {
+        userAddress
+      }
+    })
+  }
+
+  private fetchBoundEvents = async (
+    lastFetchBlock = this.currentUserlastFetchBlockOfBoundSocials,
+    userAddress = this.currentUser!.userAddress
+  ) => {
+    const {
+      lastBlock,
+      bindEvents
+    } = await this.getBoundEvents(lastFetchBlock, userAddress)
+
+    if (typeof this.currentUser === 'undefined' || bindEvents.length === 0) {
+      return
+    }
+    const _user: Iuser = this.currentUser as Iuser
+
+    for (let i = bindEvents.length - 1; i >= 0; i--) {
+      const bindEvent = bindEvents[i]
+      const _signedBoundSocial = JSON.parse(hexToUtf8(
+        bindEvent.signedBoundSocials.slice(2))) as IsignedBoundSocials
+
+      if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(_user.boundSocials)) {
+        const currentUserPublicKey = await this.getCurrentUserPublicKey()
+        const userPublicKey = publicKeyFromHexStr(currentUserPublicKey.slice(2))
+        if (userPublicKey.verify(
+          sodium.from_hex(_signedBoundSocial.signature.slice(2)),
+          JSON.stringify(_signedBoundSocial.socialMedias)
+        )) {
+          await this.updateBoundSocials(_signedBoundSocial.socialMedias, _user)
+          break
+        }
+      }
+    }
+    await this.updateLastFetchBlockOfBoundSocials(lastBlock, _user)
   }
 
   private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {
@@ -1385,6 +1643,8 @@ export class Store {
       if (this.currentUser) {
         addUsedNetwork(networkId)
         setLastUsedUser(networkId, this.currentUser.userAddress)
+        this.currentUserBoundSocials = this.currentUser.boundSocials
+        this.currentUserBindingSocials = this.currentUser.bindingSocials
       }
 
       this.currentEthereumAccount = web3.eth.defaultAccount
@@ -1394,6 +1654,7 @@ export class Store {
           IdentitiesAddress,
           MessagesAddress,
           BroadcastMessagesAddress,
+          BoundSocialsAddress,
         } = this.currentNetworkSettings
 
         this.identitiesContract = new Identities(Object.assign({
@@ -1408,6 +1669,11 @@ export class Store {
 
         this.broadcastMessagesContract = new BroadcastMessages(Object.assign({
           address: BroadcastMessagesAddress,
+          currentNetworkId: networkId
+        }))
+
+        this.boundSocialsContract = new BoundSocials(Object.assign({
+          address: BoundSocialsAddress,
           currentNetworkId: networkId
         }))
 
@@ -1460,6 +1726,8 @@ export class Store {
     Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0),
     // lastFetchBlockOfBroadcast
     Promise.resolve(currentUser ? currentUser.lastFetchBlockOfBroadcast : 0),
+    // lastFetchBlockOfBoundSocials
+    Promise.resolve(currentUser ? currentUser.lastFetchBlockOfBoundSocials : 0),
     ])
 
   private getPreKeys = async (userAddress: string) => {
@@ -1486,9 +1754,29 @@ export class Store {
     }
     throw (new Error('status is not 200'))
   }
+  private updateBindingSocials = async (bindingSocials: IbindingSocials, user: Iuser) => {
+      await this.db.updateBindingSocials(user, bindingSocials)
+      runInAction(() => {
+        this.currentUserBindingSocials = bindingSocials
+      })
+  }
+  private updateBoundSocials = async (boundSocials: IboundSocials, user: Iuser) => {
+      await this.db.updateBoundSocials(user, boundSocials)
+      runInAction(() => {
+        this.currentUserBoundSocials = boundSocials
+      })
+  }
+  private updateLastFetchBlockOfBoundSocials = async (lastBlock: number, user: Iuser) => {
+      const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
+      await this.db.updateLastFetchBlockOfBoundSocials(user, _newLastBlock)
+      runInAction(() => {
+        this.currentUserlastFetchBlockOfBoundSocials = _newLastBlock
+      })
+  }
+
   private updateLastFetchBlockOfBroadcast = async (lastBlock: number, user: Iuser) => {
       const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
-      await this.db.updateLastFetchBlockOfBroadcast(user, _newLastBlock).then(noop)
+      await this.db.updateLastFetchBlockOfBroadcast(user, _newLastBlock)
       runInAction(() => {
         this.currentUserlastFetchBlockOfBroadcast = _newLastBlock
       })
@@ -1559,7 +1847,7 @@ export class Store {
 
     if (messages.length === 0) {
       const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
-      await this.db.updateLastFetchBlock(user, _newLastBlock).then(noop)
+      await this.db.updateLastFetchBlock(user, _newLastBlock)
       runInAction(() => {
         this.currentUserlastFetchBlock = _newLastBlock
       })
@@ -1680,7 +1968,7 @@ export class Store {
       if (err.name !== 'RecordNotFoundError') {
         // Maybe we have a corrupted session on local, delete it.
         return Promise.all([
-          box.session_delete(sessionTag).then(noop),
+          box.session_delete(sessionTag),
           this.db.getSession(sessionTag, (this.currentUser as Iuser).userAddress).then((session) => {
             if (session) {
               return this.db.deleteSession(this.currentUser as Iuser, session)
@@ -1875,23 +2163,6 @@ function getPreKey({
     id: preKeyID,
     publicKey
   }
-}
-
-function unixToday() {
-  return getUnixDay(Date.now())
-}
-
-function getUnixDay(javaScriptTimestamp: number) {
-  return Math.floor(javaScriptTimestamp / 1000 / 3600 / 24)
-}
-
-function publicKeyFromHexStr(publicKeyHexString: string) {
-  const preKeyPublicKeyEd = sodium.from_hex(publicKeyHexString)
-  const preKeyPublicKeyCurve = ed2curve.convertPublicKey(preKeyPublicKeyEd)
-  return keys.PublicKey.new(
-    preKeyPublicKeyEd,
-    preKeyPublicKeyCurve
-  )
 }
 
 function identityKeyFromHexStr(identityKeyHexString: string) {

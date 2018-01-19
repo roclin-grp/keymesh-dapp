@@ -195,6 +195,16 @@ class Header extends React.Component<Iprops, Istate> {
             </Tooltip>
           </Menu.Item>
           <Menu.Item>
+            <Link to="/broadcast">
+              Broadcast
+            </Link>
+          </Menu.Item>
+          <Menu.Item>
+            <Link to="/profile">
+              Profile
+            </Link>
+          </Menu.Item>
+          <Menu.Item>
             <a onClick={this.handleExport}>
               Export account
             </a>

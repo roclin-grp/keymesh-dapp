@@ -27,6 +27,7 @@ import {
   MESSAGE_STATUS
 } from './constants'
 import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
+import { IboundSocials, IbindingSocials } from '../typings/proof.interface'
 
 interface IcreateUserArgs {
   networkId: NETWORKS
@@ -136,10 +137,13 @@ export default class DB {
         {
           lastFetchBlock: 0,
           lastFetchBlockOfBroadcast: 0,
+          lastFetchBlockOfBoundSocials: 0,
           contacts: [],
           status: USER_STATUS.PENDING,
           registerRecord,
-          blockHash: '0x0'
+          blockHash: '0x0',
+          boundSocials: {},
+          bindingSocials: {},
         },
         user
       ))
@@ -204,6 +208,38 @@ export default class DB {
         status === USER_STATUS.IDENTITY_UPLOADED ? {blockHash} : null,
         status === USER_STATUS.OK ? {registerRecord: undefined} : null,
       ))
+  }
+  public updateBindingSocials(
+    {
+      networkId,
+      userAddress,
+    }: Iuser,
+    bindingSocials: IbindingSocials
+  ) {
+    return this.tableUsers
+      .update([networkId, userAddress], {bindingSocials})
+  }
+
+  public updateBoundSocials(
+    {
+      networkId,
+      userAddress,
+    }: Iuser,
+    boundSocials: IboundSocials
+  ) {
+    return this.tableUsers
+      .update([networkId, userAddress], {boundSocials})
+  }
+
+  public updateLastFetchBlockOfBoundSocials(
+    {
+      networkId,
+      userAddress,
+    }: Iuser,
+    lastFetchBlockOfBoundSocials: number
+  ) {
+    return this.tableUsers
+      .update([networkId, userAddress], {lastFetchBlockOfBoundSocials})
   }
 
   public updateLastFetchBlockOfBroadcast(

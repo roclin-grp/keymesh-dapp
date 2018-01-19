@@ -52,19 +52,27 @@ class Home extends React.Component<{}, Istate> {
       currentUser,
       loadSessions,
       isFetchingMessage,
+      isFetchingBoundEvents,
       startFetchMessages,
+      startFetchBoundEvents,
       listenForConnectStatusChange
     } = this.injectedProps.store
     if (currentUser) {
       loadSessions()
     }
-    if (connectStatus === SUCCESS && currentUser && !isFetchingMessage) {
-      startFetchMessages()
+    if (connectStatus === SUCCESS && currentUser) {
+      if (!isFetchingMessage) {
+        startFetchMessages()
+      }
+      if (!isFetchingBoundEvents) {
+        startFetchBoundEvents()
+      }
     }
     if (isFirstMount) {
       listenForConnectStatusChange(this.connectStatusListener)
     }
   }
+
   public componentWillUnmount() {
     const {
       stopFetchMessages,
@@ -74,6 +82,7 @@ class Home extends React.Component<{}, Istate> {
     stopFetchMessages()
     removeConnectStatusListener(this.connectStatusListener)
   }
+
   public render() {
     const {
       connectStatus,

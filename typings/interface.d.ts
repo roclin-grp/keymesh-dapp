@@ -14,8 +14,10 @@ import {
   GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
   USER_STATUS,
-  MESSAGE_STATUS
+  MESSAGE_STATUS,
+  SOCIAL_MEDIA_PLATFORMS,
 } from '../src/constants'
+import { IboundSocials, IbindingSocials } from './proof.interface';
 
 export interface IpreKeyPublicKeys {
   [preKeyId: string]: string
@@ -78,6 +80,7 @@ export interface InetworkSettings {
   IdentitiesAddress?: string
   MessagesAddress?: string
   BroadcastMessagesAddress?: string
+  BoundSocialsAddress?: string
 }
 
 export interface IbroadcastMessage {
@@ -108,10 +111,13 @@ export interface IregisterRecord {
 export interface Iuser extends IuserIdentityKeys {
   lastFetchBlock: web3.BlockType
   lastFetchBlockOfBroadcast: web3.BlockType
+  lastFetchBlockOfBoundSocials: web3.BlockType
   contacts: Icontact[]
   status: USER_STATUS
   registerRecord?: IregisterRecord
   blockHash: string
+  boundSocials: IboundSocials
+  bindingSocials: IbindingSocials
 }
 
 interface Icontact {
