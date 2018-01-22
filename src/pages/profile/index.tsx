@@ -29,6 +29,9 @@ import {
 } from '../../constants'
 
 import {
+  FacebookResource,
+} from '../../resources/facebook'
+import {
   IboundSocials,
   IsignedBoundSocials,
   ItwitterClaim
@@ -55,7 +58,6 @@ interface Istate {
     github?: VERIFY_SOCIAL_STATUS
     twitter?: VERIFY_SOCIAL_STATUS
     facebook?: VERIFY_SOCIAL_STATUS
-    nacker_news?: VERIFY_SOCIAL_STATUS
   }
   userBoundSocials: IboundSocials
   userAddress: string
@@ -119,6 +121,30 @@ class Profile extends React.Component<Iprops, Istate> {
     const userPublicKey = publicKeyFromHexStr(currentUserPublicKey.slice(2))
 
     const socials = this.state.userBoundSocials
+    const verifyFacebook = async () => {
+      if (typeof socials.facebook !== 'undefined') {
+        const unverifiedClaim = await FacebookResource.getClaimByPostURL(socials.facebook.proofURL)
+        if (unverifiedClaim === null) {
+          this.setState({
+            verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.INVALID })
+          })
+        } else {
+          if (!userPublicKey.verify(
+            sodium.from_hex(unverifiedClaim.signature.slice(2)),
+            JSON.stringify(unverifiedClaim.claim))) {
+            this.setState({
+              verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.INVALID })
+            })
+          } else {
+            this.setState({
+              verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.VALID })
+            })
+          }
+        }
+      }
+    }
+    verifyFacebook()
+
     const verifyGithub = async () => {
       if (typeof socials.github !== 'undefined') {
         const signedGithubClaim = await getGithubClaimByProofURL(socials.github.proofURL)
@@ -276,10 +302,12 @@ class Profile extends React.Component<Iprops, Istate> {
       getBlockHash,
     } = this.props.store
     if (connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS) {
+      let userAddress = this.state.userAddress
       if (currentUser) {
         if ('' === this.state.userAddress) {
+          userAddress = currentUser.userAddress
           this.setState({
-            userAddress: currentUser.userAddress,
+            userAddress,
           })
         }
         if (!isFetchingBoundEvents) {
@@ -287,7 +315,7 @@ class Profile extends React.Component<Iprops, Istate> {
         }
       }
 
-      getIdentity(this.state.userAddress).then(async ({blockNumber}) => {
+      getIdentity(userAddress).then(async ({blockNumber}) => {
         return await getBlockHash(blockNumber)
       }).then(blockHash => {
           this.setState({userBlockHash: blockHash})

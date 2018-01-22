@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { inject, observer } from 'mobx-react'
+import FacebookLogin from 'react-facebook-login'
 
 import {
   Link,
@@ -29,10 +30,13 @@ import {
   ItwitterClaim,
   IsignedTwitterClaim,
   IbindingSocial,
+  IsignedFacebookClaim,
+  IfacebookClaim,
 } from '../../../typings/proof.interface'
 
 import { GithubResource } from '../../resources/github'
 import { Itweet } from '../../resources/twitter'
+import { FacebookResource } from '../../resources/facebook'
 
 interface Iparams {
   platform: string
@@ -46,7 +50,15 @@ interface Istate {
   username: string
   githubClaim?: IsignedGithubClaim
   twitterClaim?: IsignedTwitterClaim
+  facebookClaim?: IsignedFacebookClaim
   successful: boolean
+}
+
+const getFacebookClaim = (signedClaim: IsignedFacebookClaim) => {
+  return `Keymail
+addr: ${signedClaim.claim.userAddress}
+public key: ${signedClaim.claim.publicKey}
+sig: ${signedClaim.signature}`
 }
 
 const getTwitterClaim = (signedClaim: IsignedTwitterClaim) => {
@@ -99,6 +111,8 @@ class Proving extends React.Component<Iprops, Istate> {
 
   private claimTextarea: any
   private platform: string
+  private facebookAccessToken: string
+  private facebookUserID: string
 
   public render() {
     const {
@@ -127,17 +141,43 @@ class Proving extends React.Component<Iprops, Istate> {
 
     const steps = (() => {
       if (!this.state.isProving) {
-        return <div>
-          <h3>Prove your {socialMedia.label} identity</h3>
-          <input
-            value={this.state.username}
-            onChange={this.handleChange}
-            placeholder={`Your ${socialMedia.label} username`}
-          />
-          <br />
-          <Link to="/profile">Cancel</Link>
-          <a onClick={this.handleContinue}>Continue</a>
-        </div>
+        if (platform === SOCIAL_MEDIA_PLATFORMS.FACEBOOK) {
+          const responseFacebook = (response: any) => {
+            this.facebookAccessToken = response.accessToken
+            this.facebookUserID = response.userID
+            this.setState({username: response.name})
+
+            storeLogger.info('Facebook AccessToken:' + this.facebookAccessToken)
+            storeLogger.info('Facebook UserID:' + this.facebookUserID)
+            this.handleContinue()
+          }
+          return <div>
+            <h3>Prove your {socialMedia.label} identity</h3>
+            <p>Please login and authorize</p>
+            <FacebookLogin
+              appId="162817767674605"
+              autoLoad={false}
+              fields="name"
+              scope="user_posts"
+              callback={responseFacebook}
+            />
+            <br />
+            <Link to="/profile">Cancel</Link>
+          </div>
+        } else {
+          return <div>
+            <h3>Prove your {socialMedia.label} identity</h3>
+            <input
+              value={this.state.username}
+              onChange={this.handleChange}
+              placeholder={`Your ${socialMedia.label} username`}
+            />
+            <br />
+            <Link to="/profile">Cancel</Link>
+            <a onClick={this.handleContinue}>Continue</a>
+          </div>
+        }
+
       } else if (typeof this.state.githubClaim !== 'undefined') {
         return <div>
           <p>{this.state.username}</p>
@@ -192,6 +232,42 @@ class Proving extends React.Component<Iprops, Istate> {
           <br />
           <a onClick={this.uploadProof}>Upload the proof to blockchain!</a>
         </div>
+      } else if (typeof this.state.facebookClaim !== 'undefined') {
+        const text = getFacebookClaim(this.state.facebookClaim)
+        const postURL = 'https://www.facebook.com/'
+        return <div>
+          <p>{this.state.username}</p>
+          <p>@{this.platform}</p>
+          <p>
+            Finally, post your proof to Facebook.
+            We'll ask for permission to read your posts,
+            so that we can find this one afterwards.
+          </p>
+          <p>
+            This is really important
+            -- <b>the text must be the same as below, and make sure your post is public, like this</b>
+          </p>
+          <textarea
+            cols={80}
+            rows={15}
+            onClick={this.focusClaimTextarea}
+            ref={(textarea) => { this.claimTextarea = textarea }}
+            value={text}
+            readOnly={true}
+          />
+
+          <br />
+          <a href={postURL} target="_blank">Post it now</a>
+
+          <br />
+          <Link to="/profile">Cancel</Link>
+
+          <br />
+          <a onClick={this.checkFacebookProof}>OK posted! Check for it!</a>
+
+          <br />
+          <a onClick={this.uploadProof}>Upload the proof to blockchain!</a>
+        </div>
       } else {
         return null
       }
@@ -218,6 +294,41 @@ class Proving extends React.Component<Iprops, Istate> {
         this.setState({ successful: true })
       }
     })
+  }
+  private checkFacebookProof = async () => {
+    if (typeof this.state.facebookClaim === 'undefined') {
+      return
+    }
+
+    const text = getFacebookClaim(this.state.facebookClaim)
+    const proofPost = await FacebookResource.getPosts(this.facebookUserID, this.facebookAccessToken)
+      .then(posts => {
+        for (let post of posts) {
+          if (!post.hasOwnProperty('message')) {
+            continue
+          }
+          if (text === post.message) {
+            return post
+          }
+        }
+        return null
+      })
+    if (proofPost === null) {
+      alert('cloud not found claim!')
+      return
+    }
+
+    const parts = proofPost.id.split('_')
+    const postID = parts[1]
+    const bindingSocial: IbindingSocial = {
+      status: BINDING_SOCIAL_STATUS.CHECKED,
+      signedClaim: this.state.facebookClaim,
+      proofURL: `https://www.facebook.com/${this.facebookUserID}/posts/${postID}`,
+      username: this.state.username,
+    }
+
+    this.props.store.addBindingSocial(SOCIAL_MEDIA_PLATFORMS.FACEBOOK, bindingSocial)
+    alert('Congratulations! the claim is verified!')
   }
   private checkTwitterProof = async () => {
     if (typeof this.state.twitterClaim === 'undefined') {
@@ -253,7 +364,7 @@ class Proving extends React.Component<Iprops, Istate> {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: this.state.twitterClaim,
       proofURL: `https://twitter.com/statuses/${claimTweet.id_str}`,
-      username: this.state.username
+      username: this.state.username,
     }
     this.props.store.addBindingSocial(SOCIAL_MEDIA_PLATFORMS.TWITTER, bindingSocial)
     alert('Congratulations! the claim is verified!')
@@ -303,7 +414,7 @@ class Proving extends React.Component<Iprops, Istate> {
     this.claimTextarea.select()
   }
 
-  private handleContinue = async (e: any) => {
+  private handleContinue = async () => {
     const {
       currentUser,
       getCurrentUserPublicKey
@@ -351,6 +462,18 @@ class Proving extends React.Component<Iprops, Istate> {
         })
         break
       case SOCIAL_MEDIA_PLATFORMS.FACEBOOK:
+        const facebookClaim: IfacebookClaim = {
+          userAddress: currentUser.userAddress,
+          publicKey: currentUserPublicKey,
+        }
+        const facebookSignature = '0x' + this.props.store.currentUserSign(JSON.stringify(facebookClaim))
+        this.setState({
+          isProving: true,
+          facebookClaim: {
+            claim: facebookClaim,
+            signature: facebookSignature,
+          },
+        })
         break
       default:
     }

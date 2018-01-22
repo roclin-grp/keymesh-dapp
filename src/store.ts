@@ -381,6 +381,9 @@ export class Store {
       case SOCIAL_MEDIA_PLATFORMS.TWITTER:
         bindingSocials.twitter = bindingSocial
         break
+      case SOCIAL_MEDIA_PLATFORMS.FACEBOOK:
+        bindingSocials.facebook = bindingSocial
+        break
       default:
         return
     }
@@ -412,6 +415,11 @@ export class Store {
       newBoundSocials.twitter = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
     }
 
+    if (typeof this.currentUserBindingSocials.facebook !== 'undefined') {
+      const _bindingSocial = this.currentUserBindingSocials.facebook
+      newBoundSocials.facebook = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
+    }
+
     const signature = '0x' + this.currentUserSign(JSON.stringify(newBoundSocials))
     const signedBoundSocials: IsignedBoundSocials = {signature, socialMedias: newBoundSocials}
     const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
@@ -427,6 +435,9 @@ export class Store {
           if (typeof this.currentUserBindingSocials.twitter !== 'undefined') {
             this.currentUserBindingSocials.twitter.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
           }
+          if (typeof this.currentUserBindingSocials.facebook !== 'undefined') {
+            this.currentUserBindingSocials.facebook.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
+          }
         })
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
@@ -435,19 +446,13 @@ export class Store {
             sendingDidFail(new Error('Unknown error'))
             return
           }
-          const _bindingSocials = Object.assign({}, this.currentUserBindingSocials)
-          if (typeof _bindingSocials.github !== 'undefined') {
-            _bindingSocials.github = undefined
-          }
-          if (typeof _bindingSocials.twitter !== 'undefined') {
-            _bindingSocials.twitter = undefined
-          }
+
           if (typeof this.currentUser !== 'undefined') {
             runInAction(() => {
               this.currentUserBoundSocials = Object.assign({}, newBoundSocials)
               storeLogger.info(JSON.stringify(this.currentUserBoundSocials))
             })
-            await this.updateBindingSocials(_bindingSocials, this.currentUser)
+            await this.updateBindingSocials({}, this.currentUser)
           }
 
           sendingDidComplete()

@@ -11,6 +11,7 @@ interface IboundSocial {
 interface IboundSocials {
   twitter?: IboundSocial
   github?: IboundSocial
+  facebook?: IboundSocial
 }
 
 interface IsignedBoundSocials {
@@ -43,12 +44,23 @@ interface IsignedTwitterClaim {
   signature: string
 }
 
+interface IfacebookClaim {
+  userAddress: string
+  publicKey: string
+}
+
+interface IsignedFacebookClaim {
+  claim: IfacebookClaim
+  signature: string
+}
+
 interface IbindingSocial extends IboundSocial {
-  signedClaim: IsignedGithubClaim|IsignedTwitterClaim
+  signedClaim: IsignedGithubClaim|IsignedTwitterClaim|IsignedFacebookClaim
   status: BINDING_SOCIAL_STATUS
 }
 
 interface IbindingSocials {
   twitter?: IbindingSocial
   github?: IbindingSocial
+  facebook?: IbindingSocial
 } 

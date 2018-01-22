@@ -43,7 +43,7 @@ export class TwitterResource {
     return await this.fetch(uri)
   }
 
-  private async authorize() {
+  private authorize() {
     const bearerTokenCredentials = encodeURIComponent(this.consumerKey) + ':' + encodeURIComponent(this.consumerSecret)
     const base64EncodedCredentials = '::' + btoa(bearerTokenCredentials)
 
@@ -57,8 +57,11 @@ export class TwitterResource {
       body: 'grant_type=client_credentials',
     } as RequestInit
 
-    fetch(`${this.apiPrefix}/oauth2/token`, init)
-      .then((resp) => resp.json())
+    return fetch(`${this.apiPrefix}/oauth2/token`, init)
+      .then((resp) => {
+        const json = resp.json()
+        return json
+      })
       .then(oauth2 => {
         this.accessToken = oauth2.access_token
       })
