@@ -2,7 +2,8 @@ import {
   observable,
   computed,
   runInAction,
-  useStrict
+  useStrict,
+  action,
 } from 'mobx'
 
 import {
@@ -15,8 +16,14 @@ import {
   BoundSocials,
 } from 'trustbase'
 
-import { keys, message as proteusMessage } from 'wire-webapp-proteus'
-import { Cryptobox, CryptoboxSession } from 'wire-webapp-cryptobox'
+import {
+  keys,
+  message as proteusMessage,
+} from 'wire-webapp-proteus'
+import {
+  Cryptobox,
+  CryptoboxSession,
+} from 'wire-webapp-cryptobox'
 
 const sodium = require('libsodium-wrappers-sumo')
 
@@ -29,13 +36,11 @@ import Envelope from './Envelope'
 import {
   web3BlockType,
   IpreKeyPublicKeys,
-  IglobalSettings,
   Isession,
   IregisterLifecycle,
   IasyncProvider,
   IcheckRegisterLifecycle,
   IuploadPreKeysLifecycle,
-  InetworkSettings,
   IsendingLifecycle,
   IenvelopeHeader,
   Iuser,
@@ -53,6 +58,7 @@ import {
 
 import {
   TRUSTBASE_CONNECT_STATUS,
+  TRUSTBASE_CONNECT_ERROR,
   REGISTER_FAIL_CODE,
   SENDING_FAIL_CODE,
   NETWORKS,
@@ -88,49 +94,32 @@ import {
   IbindingSocial,
   IbindingSocials,
 } from '../typings/proof.interface'
-import { TwitterResource } from './resources/twitter'
+import {
+  TwitterResource,
+} from './resources/twitter'
 
 const {
   IdentityKeyPair,
-  PreKey
+  PreKey,
 } = keys
 
 const {
   PENDING,
-  OFFLINE,
-  NO_ACCOUNT,
-  CONTRACT_ADDRESS_ERROR,
   SUCCESS,
-  ERROR
+  ERROR,
 } = TRUSTBASE_CONNECT_STATUS
 
 useStrict(true)
-
-const SESSION_PRE_PAGE = 25
-
-type IloadedUserData = [
-  Iuser | undefined,
-  [
-    IndexedDBStore | undefined,
-    Cryptobox | undefined
-  ],
-  Icontact[],
-  web3BlockType,
-  web3BlockType,
-  web3BlockType
-]
 
 type TypeConnectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => void
 
 export class Store {
   @observable public connectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
   @observable public lastConnectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
+  @observable public connectErrorCode: TRUSTBASE_CONNECT_ERROR | undefined
   @observable public connectError: Error | undefined
-  @observable.ref public globalSettings: IglobalSettings = {}
   @observable public currentEthereumNetwork: NETWORKS | undefined
   @observable public currentEthereumAccount = ''
-  @observable public offlineSelectedEthereumNetwork: NETWORKS | undefined
-  @observable.ref public currentNetworkSettings: InetworkSettings | undefined
   @observable.ref public currentNetworkUsers: Iuser[] = []
   @observable.ref public currentUser: Iuser | undefined
   @observable.ref public currentUserContacts: Icontact[] = []
@@ -146,9 +135,11 @@ export class Store {
 
   @observable.ref public currentUserBoundSocials: IboundSocials = {}
   @observable public currentUserBindingSocials: IbindingSocials = {}
-  public constructor() {
-    this.db = new DB()
-  }
+
+  public readonly twitterResource = new TwitterResource(
+    process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
+    process.env.REACT_APP_TWITTER_SECRET_KEY!
+  )
 
   private connectStatusListener: TypeConnectStatusListener[] = []
   private currentUserlastFetchBlock: web3BlockType = 0
@@ -165,182 +156,33 @@ export class Store {
   private fetchMessagesTimeout: number
   private fetchBroadcastMessagesTimeout: number
   private fetchBoundEventsTimeout: number
-  private db: DB
-  private broadcastMessagesSignatures: string[]
-  private _twitterResource: TwitterResource|undefined
-
-  public get twitterResource(): TwitterResource|undefined {
-    if (typeof this._twitterResource === 'undefined') {
-      const consumerKey = process.env.REACT_APP_TWITTER_CONSUMER_KEY
-      const secretKey = process.env.REACT_APP_TWITTER_SECRET_KEY
-      if (typeof consumerKey === 'undefined' || typeof secretKey === 'undefined') {
-        storeLogger.error('REACT_APP_TWITTER_CONSUMER_KEY or REACT_APP_TWITTER_SECRET_KEY must be set.')
-        return undefined
-      }
-
-      this._twitterResource = new TwitterResource(consumerKey, secretKey)
-    }
-
-    return this._twitterResource
-  }
-
-  @computed
-  public get pageLength() {
-    return Math.ceil(this.currentUserSessions.length / SESSION_PRE_PAGE)
-  }
-
-  @computed get offlineAvailableNetworks(): NETWORKS[] {
-    const {
-      connectStatus
-    } = this
-    if (
-      connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
-      || connectStatus === TRUSTBASE_CONNECT_STATUS.OFFLINE
-    ) {
-      return getUsedNetworks()
-    }
-    return []
-  }
+  private db: DB = new DB()
+  private broadcastMessagesSignatures: string[] = []
 
   @computed
   public get canCreateOrImportUser() {
-    const {
-      canConnectToIdentitesContract,
-      currentNetworkUsers,
-      currentEthereumAccount
-    } = this
-    return canConnectToIdentitesContract
-      && (currentNetworkUsers.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
-  }
-
-  @computed
-  public get canConnectToIdentitesContract() {
-    const {
-      connectStatus,
-      connectError
-    } = this
-    const isConnected = connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
-    const hasContractErrorButNotIdentities = connectStatus === TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR
-      && !!connectError
-      && !connectError.message.includes('Identities')
-    return isConnected || hasContractErrorButNotIdentities
+    return this.connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+      && (this.currentNetworkUsers.findIndex((user) => user.userAddress === this.currentEthereumAccount) === -1)
   }
 
   public connect = async () => {
-    // read global settings from local storage
-    const globalSettings = await this.db.getGlobalSettings()
+    const metaMasksWeb3 = (window as any).web3
+    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IasyncProvider : undefined
 
-    const provider = (() => {
-      // Check settings first
-      const _provider = globalSettings.provider || ''
-      if (_provider === '') {
-        const _window = window as any
-        const _web3 = _window.web3
-        // Checking if Web3 has been injected
-        if (typeof _web3 !== 'undefined') {
-          // Use injected provider
-          return _web3.currentProvider as IasyncProvider
-        } else {
-          // fallback - try to connect local node
-          return 'http://localhost:8545'
-        }
-      }
-      return _provider
-    })()
+    if (typeof provider === 'undefined') {
+      this.processError(TRUSTBASE_CONNECT_ERROR.NO_METAMASK)
+      return
+    }
 
-    this.broadcastMessagesSignatures = []
-
-    return initialize({
-      provider
-    })
-      .then(() => this.processAfterNetworkConnected(globalSettings))
+    return initialize({ provider })
+      .then(() => this.processAfterNetworkConnected())
       .catch(async (err: Error) => {
-        /**
-         * Offline mode
-         */
         if ((err as TrustbaseError).code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
-          /**
-           * We did have connected to a network and instantiated web3 but
-           * found no account. Just wait for a available account.
-           */
-          const web3 = getWeb3()
-          const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch((_err) => {
-            storeLogger.error(_err)
-            return undefined
-          })
-          let loadedResult: [InetworkSettings, Iuser[], IloadedUserData]
-          if (typeof currentNetworkId !== 'undefined') {
-            const userAddress: string = getNetworkLastUsedUserAddress(currentNetworkId)
-            loadedResult = await Promise.all([
-              // currentNetworkSettings
-              this.db.getNetworkSettings(currentNetworkId).catch((_err: Error) => {
-                storeLogger.error(_err)
-                return {networkId: currentNetworkId}
-              }),
-              // currentNetworkUsers
-              this.db.getUsers(currentNetworkId).catch((_err: Error) => {
-                storeLogger.error(_err)
-                return []
-              }),
-              // *userData
-              this.db.getUser(currentNetworkId, userAddress)
-                .catch((_err: Error) => {
-                  storeLogger.error(_err)
-                  return undefined
-                })
-                .then((currentUser) => this.loadUserData(currentUser))
-            ])
-          }
-
-          runInAction(() => {
-            this.globalSettings = globalSettings
-            if (typeof currentNetworkId !== 'undefined') {
-              this.currentEthereumNetwork = currentNetworkId
-              {[
-                this.currentNetworkSettings,
-                this.currentNetworkUsers,
-                [
-                  this.currentUser,
-                  [
-                    this.indexedDBStore,
-                    this.box
-                  ],
-                  this.currentUserContacts,
-                  this.currentUserlastFetchBlock,
-                  this.currentUserlastFetchBlockOfBroadcast,
-                  this.currentUserlastFetchBlockOfBoundSocials,
-                ]
-              ] = loadedResult}
-              if (typeof this.currentUser !== 'undefined') {
-                this.currentUserBoundSocials = this.currentUser.boundSocials
-                this.currentUserBindingSocials = this.currentUser.bindingSocials
-              }
-            }
-            const prevConnectStatus = this.connectStatus
-            this.connectStatus = NO_ACCOUNT
-            this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-          })
-
-          const waitForAccount = async () => {
-            const accounts: string[] = await web3.eth.getAccounts().catch((_err: Error) => {
-              storeLogger.error(_err)
-              return []
-            })
-            if (accounts.length > 0) {
-              return this.processAfterNetworkConnected().catch((_err: Error) => {
-                storeLogger.error(_err)
-                this.processError(_err, globalSettings)
-              })
-            }
-            return window.setTimeout(waitForAccount, 100)
-          }
-          window.setTimeout(waitForAccount, 100)
+          // MetaMask locked
+          this.processError(TRUSTBASE_CONNECT_ERROR.LOCKED)
+          this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
         } else {
-          /**
-           * In this case, we can't instantiate web3, user need to refresh the
-           * page to retry.
-           */
-          this.processError(err, globalSettings)
+          this.processError(TRUSTBASE_CONNECT_ERROR.UNKNOWN, err)
         }
       })
   }
@@ -548,7 +390,7 @@ export class Store {
       .on('error', async (err) => {
         storeLogger.error(err)
         // TODO: delete user
-        // const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(() => undefined)
+        // const createdUser = await this.db.getUser(currentNetworkId, userAddress)
         // if (createdUser) {
         //   this.db.deleteUser(createdUser)
         // }
@@ -573,13 +415,12 @@ export class Store {
         return
       }
       const receipt = await web3.eth.getTransactionReceipt(txHash)
-        .catch(() => null)
       if (receipt !== null) {
         if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           this.db.updateMessageStatus(message, MESSAGE_STATUS.DELIVERED)
             .then(async () => {
               if (this.currentSession !== undefined && message.sessionTag === this.currentSession.sessionTag) {
-                const _messages = await this.db.getMessages(message.sessionTag, message.userAddress).catch(() => [])
+                const _messages = await this.db.getMessages(message.sessionTag, message.userAddress)
                 if (_messages.length !== 0) {
                   runInAction(() => {
                     this.currentSessionMessages = _messages
@@ -647,20 +488,13 @@ export class Store {
       if (this.connectStatus !== SUCCESS) {
         return
       }
-      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash).catch((err: Error) => {
-        storeLogger.error(err)
-        return null
-      })
+      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash)
       if (receipt) {
         if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           const {
             blockNumber,
             publicKey: registeredIdentityFingerprint
           } = await this.identitiesContract.getIdentity(userAddress)
-            .catch((err: Error) => {
-              storeLogger.error(err)
-              return {publicKey: '', blockNumber: 0}
-            })
           // we have receipt but found no identity, retry
           if (!registeredIdentityFingerprint || Number(registeredIdentityFingerprint) === 0) {
             return window.setTimeout(waitForTransactionReceipt, 1000, counter)
@@ -758,10 +592,6 @@ export class Store {
       publicKey: identityFingerprint,
       blockNumber
     } = await this.identitiesContract.getIdentity(toUserAddress)
-      .catch((err) => {
-        sendingDidFail(err)
-        return {publicKey: undefined, blockNumber: 0}
-      })
 
     const blockHash = await web3.eth.getBlock(blockNumber).then((block) => block.hash).catch(() => '0x0')
     if (!identityFingerprint || blockHash === '0x0') {
@@ -798,10 +628,7 @@ export class Store {
       interval,
       lastPrekeyDate,
       preKeyPublicKeys
-    } = await this.getPreKeys(toUserAddress).catch((err) => {
-      storeLogger.error(err)
-      return new PreKeysPackage({}, 0, 0)
-    })
+    } = await this.getPreKeys(toUserAddress)
     if (Object.keys(preKeyPublicKeys).length === 0) {
       sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
       return
@@ -1029,7 +856,7 @@ export class Store {
             return
           }
 
-          const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress).catch(() => undefined)
+          const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress)
           if (messages === undefined) {
             return
           }
@@ -1050,10 +877,7 @@ export class Store {
               return
             }
 
-            const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress).catch(() => undefined)
-            if (messages === undefined) {
-              return
-            }
+            const messages = await this.db.getMessages(usingSessionTag, currentUser.userAddress)
             runInAction(() => {
               this.currentSessionMessages = messages
             })
@@ -1062,35 +886,34 @@ export class Store {
   }
 
   public useUser = async (user: Iuser, shouldRefreshSessions = false, redirect?: () => void) => {
-    const networkId = this.currentEthereumNetwork || this.offlineSelectedEthereumNetwork
-    if (!networkId) {
-      return
+    const networkId = user.networkId
+    const currentUser = await this.db.getUser(networkId, user.userAddress)
+    let box: Cryptobox | undefined
+    let indexedDBStore: IndexedDBStore | undefined
+    if (typeof currentUser !== 'undefined') {
+      indexedDBStore = new IndexedDBStore(`${networkId}@${currentUser.userAddress}`)
+      box = new Cryptobox(indexedDBStore as any, 0)
+      await box.load()
     }
-    const userData = await this.loadUserData(user)
-    const sessions = shouldRefreshSessions ? await this.db.getSessions(userData[0] as Iuser) : undefined
+    const sessions = shouldRefreshSessions ? await this.db.getSessions(currentUser as Iuser) : undefined
     runInAction(() => {
-      [
-        this.currentUser,
-        [
-          this.indexedDBStore,
-          this.box,
-        ],
-        this.currentUserContacts,
-        this.currentUserlastFetchBlock,
-        this.currentUserlastFetchBlockOfBoundSocials,
-        this.currentUserlastFetchBlockOfBroadcast,
-      ] = userData
+      setNetworkLastUsedUserAddress(networkId!, user.userAddress)
+      this.currentUser = currentUser
+      if (typeof currentUser !== 'undefined') {
+        this.currentUserBoundSocials = currentUser.boundSocials
+        this.currentUserBindingSocials = currentUser.bindingSocials
+        this.currentUserContacts = currentUser.contacts
+        this.currentUserlastFetchBlock = currentUser.lastFetchBlock
+        this.currentUserlastFetchBlockOfBoundSocials = currentUser.lastFetchBlockOfBoundSocials
+        this.currentUserlastFetchBlockOfBroadcast = currentUser.lastFetchBlockOfBroadcast
+        this.box = box
+        this.indexedDBStore = indexedDBStore
+      }
       if (sessions) {
         this.currentSession = undefined
         this.currentUserSessions = sessions
       }
       this.newMessageCount = 0
-      addUsedNetwork(networkId)
-      setLastUsedUser(networkId, user.userAddress)
-      if (typeof this.currentUser !== 'undefined') {
-        this.currentUserBoundSocials = this.currentUser.boundSocials
-        this.currentUserBindingSocials = this.currentUser.bindingSocials
-      }
       if (redirect) {
         redirect()
       }
@@ -1106,9 +929,9 @@ export class Store {
     const sessions = this.currentUserSessions
     const messages = await this.db.getUserMessages(user)
     dbs.keymail = [
-        { table: 'users', rows: [user], },
-        { table: 'sessions', rows: sessions},
-        { table: 'messages', rows: messages}
+      { table: 'users', rows: [user], },
+      { table: 'sessions', rows: sessions},
+      { table: 'messages', rows: messages}
     ]
     const cryptobox = await dumpCryptobox(user)
     dbs[cryptobox.dbname] = cryptobox.tables
@@ -1139,7 +962,7 @@ export class Store {
           )
           const newUser = users.find((user) => !userAddresses[user.userAddress])
           if (newUser && newUser.networkId === currentNetworkId) {
-            await this.useUser(newUser, shouldRefreshSessions)
+            await await this.useUser(newUser, shouldRefreshSessions)
             if (shouldRefreshSessions) {
               return this.startFetchMessages()
             }
@@ -1147,7 +970,7 @@ export class Store {
         } else {
           const newUser = users[0]
           if (newUser.networkId === currentNetworkId) {
-            await this.useUser(newUser, shouldRefreshSessions)
+            await await this.useUser(newUser, shouldRefreshSessions)
             if (shouldRefreshSessions) {
               return this.startFetchMessages()
             }
@@ -1155,55 +978,6 @@ export class Store {
         }
       }
     }
-  }
-
-  public selectOfflineNetwork = async (
-    networkId: NETWORKS,
-    shouldRefreshSessions = false,
-    isFirstConnect = false,
-    globalSettings = this.globalSettings,
-    err?: Error
-  ) => {
-    const [
-      currentNetworkSettings,
-      currentNetworkUsers,
-      loadedUserData
-    ] = await this.loadNetworkData(networkId)
-
-    const currentUser = loadedUserData[0]
-    const sessions = currentUser && shouldRefreshSessions ? await this.db.getSessions(currentUser) : undefined
-
-    runInAction(() => {
-      if (isFirstConnect) {
-        this.connectStatus = ERROR
-        this.connectError = err as Error
-        this.connectStatusDidChange(this.connectStatus, ERROR)
-      }
-      this.globalSettings = globalSettings as IglobalSettings
-      this.newMessageCount = 0
-      this.currentNetworkSettings = currentNetworkSettings
-      this.currentNetworkUsers = currentNetworkUsers
-      this.offlineSelectedEthereumNetwork = networkId
-      {[
-        this.currentUser,
-        , // [
-            // this.indexedDBStore
-            // this.box,
-          // ]
-        , // this.contacts,
-        , // this.lastFetchBlock
-      ] = loadedUserData}
-      if (this.currentUser) {
-        addUsedNetwork(networkId)
-        setLastUsedUser(networkId, this.currentUser.userAddress)
-        this.currentUserBoundSocials = this.currentUser.boundSocials
-        this.currentUserBindingSocials = this.currentUser.bindingSocials
-      }
-      if (sessions) {
-        this.currentSession = undefined
-        this.currentUserSessions = sessions
-      }
-    })
   }
 
   public publishBoradcastMessage = (
@@ -1215,19 +989,9 @@ export class Store {
       sendingDidFail = noop
     }: IsendingLifecycle = {},
   ) => {
-    //
     const user = this.currentUser
-    if (typeof user === 'undefined' || user.status !== USER_STATUS.OK) {
-      //      todo: deal with undeifned
-      return
-    }
 
-    if (typeof this.box === 'undefined') {
-      //      todo: deal with undeifned
-      return
-    }
-
-    const signature = sodium.to_hex(this.box.identity.secret_key.sign(message))
+    const signature = sodium.to_hex(this.box!.identity.secret_key.sign(message))
     const timestamp = Math.floor(Date.now() / 1000)
     const signedMessage: IsignedBroadcastMessage = {
         message,
@@ -1235,7 +999,7 @@ export class Store {
         timestamp,
     }
     const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
-    this.broadcastMessagesContract.publish(signedMessageHex, user.userAddress)
+    this.broadcastMessagesContract.publish(signedMessageHex, user!.userAddress)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
       })
@@ -1401,18 +1165,6 @@ export class Store {
     this.connectStatusListener = this.connectStatusListener.filter((_listener) => _listener !== listener)
   }
 
-  public loadRegisteringUser = async () => {
-    runInAction(() => {
-      this.registeringUsers = this.currentNetworkUsers.filter((user) => user.status !== USER_STATUS.OK)
-    })
-  }
-
-  public clearRegisteringUser = () => {
-    runInAction(() => {
-      this.registeringUsers = []
-    })
-  }
-
   public currentUserSign = (message: string) => {
     if (typeof this.box === 'undefined') {
       return ''
@@ -1564,176 +1316,68 @@ export class Store {
   }
 
   private listenForEthereumAccountChange = async () => {
+    window.clearTimeout(this.detectAccountChangeTimeout)
     const web3 = getWeb3()
-    const accounts: string[] = await web3.eth.getAccounts().catch((err: Error) => {
-      storeLogger.error(err)
-      return []
-    })
+    const accounts: string[] = await web3.eth.getAccounts()
 
     if (accounts.length > 0) {
       if (this.currentEthereumAccount !== accounts[0]) {
         runInAction(() => {
           this.currentEthereumAccount = web3.eth.defaultAccount = accounts[0]
-          const prevConnectStatus = this.connectStatus
-          const currentConnectStatus = this.connectStatus = this.connectError ? CONTRACT_ADDRESS_ERROR : SUCCESS
-          if (currentConnectStatus !== prevConnectStatus) {
-            this.connectStatusDidChange(prevConnectStatus, currentConnectStatus)
-          }
         })
       }
-    } else if (this.connectStatus !== NO_ACCOUNT) {
-      runInAction(() => {
-        this.currentEthereumAccount = ''
-        const prevConnectStatus = this.connectStatus
-        this.connectStatus = NO_ACCOUNT
-        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-      })
+      if (
+        this.connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
+        && this.connectErrorCode === TRUSTBASE_CONNECT_ERROR.LOCKED
+      ) {
+        return this.processAfterNetworkConnected()
+      }
+    } else if (this.connectStatus !== ERROR) {
+      this.processError(TRUSTBASE_CONNECT_ERROR.LOCKED)
     }
-    window.clearTimeout(this.detectAccountChangeTimeout)
     this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
 
   private listenForNetworkChange = async () => {
+    window.clearTimeout(this.detectAccountChangeTimeout)
     const web3 = getWeb3()
-    const currentNetworkId: NETWORKS | undefined = await web3.eth.net.getId().catch((err: Error) => {
-      storeLogger.error(err)
-      return undefined
-    })
+    const currentNetworkId: NETWORKS = await web3.eth.net.getId()
 
     if (this.currentEthereumNetwork !== currentNetworkId) {
-      window.clearTimeout(this.detectAccountChangeTimeout)
-      if (typeof currentNetworkId === 'undefined') {
-        runInAction(() => {
-          this.offlineSelectedEthereumNetwork = this.currentEthereumNetwork
-          this.currentEthereumNetwork = undefined
-          const prevConnectStatus = this.connectStatus
-          this.connectStatus = OFFLINE
-          this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-        })
-      } else {
-        return this.processAfterNetworkConnected().catch((err: Error) => {
-          storeLogger.error(err)
-          this.processError(err)
-        })
-      }
+      return this.processAfterNetworkConnected()
     }
-    window.clearTimeout(this.detectNetworkChangeTimeout)
     this.detectNetworkChangeTimeout = window.setTimeout(this.listenForNetworkChange, 100)
   }
 
-  private processAfterNetworkConnected = async (
-    globalSettings = this.globalSettings
-  ) => {
+  private processAfterNetworkConnected = async () => {
     const web3 = getWeb3()
     const networkId: NETWORKS = await web3.eth.net.getId()
-    const loadedData = await this.loadNetworkData(networkId)
+    const [currentNetworkUsers, currentUser] = await this.loadUsersData(networkId) as [Iuser[], Iuser | undefined]
+
+    if (typeof currentUser !== 'undefined') {
+      await this.useUser(currentUser)
+    }
 
     runInAction(() => {
-      this.globalSettings = globalSettings as IglobalSettings
-      {[
-        this.currentNetworkSettings,
-        this.currentNetworkUsers,
-        [
-          this.currentUser,
-          [
-            this.indexedDBStore,
-            this.box,
-          ],
-          this.currentUserContacts,
-          this.currentUserlastFetchBlock
-        ]
-      ] = loadedData}
-      this.newMessageCount = 0
-
-      if (this.currentUser) {
-        addUsedNetwork(networkId)
-        setLastUsedUser(networkId, this.currentUser.userAddress)
-        this.currentUserBoundSocials = this.currentUser.boundSocials
-        this.currentUserBindingSocials = this.currentUser.bindingSocials
-      }
-
-      this.currentEthereumAccount = web3.eth.defaultAccount
       this.currentEthereumNetwork = networkId
-      try {
-        const {
-          IdentitiesAddress,
-          MessagesAddress,
-          BroadcastMessagesAddress,
-          BoundSocialsAddress,
-        } = this.currentNetworkSettings
+      this.currentEthereumAccount = web3.eth.defaultAccount
+      this.identitiesContract = new Identities({ networkId })
+      this.messagesContract = new Messages({ networkId })
+      this.broadcastMessagesContract = new BroadcastMessages({ networkId })
+      this.boundSocialsContract = new BoundSocials({ networkId })
 
-        this.identitiesContract = new Identities(Object.assign({
-          address: IdentitiesAddress,
-          networkId
-        }))
+      this.currentNetworkUsers = currentNetworkUsers
 
-        this.messagesContract = new Messages(Object.assign({
-          address: MessagesAddress,
-          networkId
-        }))
+      const prevConnectStatus = this.connectStatus
+      this.connectStatus = SUCCESS
+      this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
 
-        this.broadcastMessagesContract = new BroadcastMessages(Object.assign({
-          address: BroadcastMessagesAddress,
-          currentNetworkId: networkId
-        }))
-
-        this.boundSocialsContract = new BoundSocials(Object.assign({
-          address: BoundSocialsAddress,
-          currentNetworkId: networkId
-        }))
-
-        const prevConnectStatus = this.connectStatus
-        this.connectStatus = SUCCESS
-        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-      } catch (err) {
-        // have trouble with contract instantiation.
-        const prevConnectStatus = this.connectStatus
-        this.connectStatus = CONTRACT_ADDRESS_ERROR
-        this.connectError = err
-        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-      }
       window.clearTimeout(this.detectAccountChangeTimeout)
       window.clearTimeout(this.detectNetworkChangeTimeout)
       this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
       this.detectNetworkChangeTimeout = window.setTimeout(this.listenForNetworkChange, 100)
     })
   }
-
-  private loadUserData = (
-    currentUser: Iuser | undefined
-  ): Promise<IloadedUserData> => Promise.all([
-    // currentUser
-    Promise.resolve(currentUser),
-    // box
-    (async () => {
-      if (!currentUser) {
-        throw null
-      }
-      const store = new IndexedDBStore(`${currentUser.networkId}@${currentUser.userAddress}`)
-      /**
-       * Looks like cryptobox constructure function has a wrong signature...
-       * Dont forget to set the second argument to 0 to disable cryptobox's
-       * pre-keys auto-refill
-       */
-      let box: Cryptobox | undefined = new Cryptobox(store as any, 0)
-      await box.load().catch((err: Error) => {
-        storeLogger.error(err)
-        box = undefined
-      })
-      return [store, box] as [IndexedDBStore, Cryptobox]
-    })()
-      .catch(() => {
-        return [undefined, undefined] as [IndexedDBStore | undefined, Cryptobox | undefined]
-      }),
-    // contacts
-    Promise.resolve(currentUser ? currentUser.contacts : []),
-    // lastFetchBlock
-    Promise.resolve(currentUser ? currentUser.lastFetchBlock : 0),
-    // lastFetchBlockOfBroadcast
-    Promise.resolve(currentUser ? currentUser.lastFetchBlockOfBroadcast : 0),
-    // lastFetchBlockOfBoundSocials
-    Promise.resolve(currentUser ? currentUser.lastFetchBlockOfBoundSocials : 0),
-    ])
 
   private getPreKeys = async (userAddress: string) => {
     const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + userAddress
@@ -1892,7 +1536,7 @@ export class Store {
                 }))
                   .then(() => this.db.getMessages(sessionTag, user.userAddress))
                   .then(async (_messages) => {
-                    const sessionInDB = await this.db.getSession(sessionTag, user.userAddress).catch(() => undefined)
+                    const sessionInDB = await this.db.getSession(sessionTag, user.userAddress)
                     runInAction(() => {
                       if (this.currentSession && this.currentSession.sessionTag === sessionTag) {
                         this.currentSessionMessages = _messages
@@ -2018,10 +1662,7 @@ export class Store {
       const {
         blockNumber,
         publicKey: expectedFingerprint
-      } = await this.identitiesContract.getIdentity(fromUserAddress).catch((err) => {
-        storeLogger.error(err)
-        return {blockNumber: 0, publicKey: ''}
-      })
+      } = await this.identitiesContract.getIdentity(fromUserAddress)
 
       const web3 = getWeb3()
       blockHash = await web3.eth.getBlock(blockNumber)
@@ -2068,68 +1709,33 @@ export class Store {
       .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
   }
 
-  private loadNetworkData = async (networkId: NETWORKS) => {
-    let userAddress: string = getNetworkLastUsedUserAddress(networkId)
+  private loadUsersData = async (networkId: NETWORKS) => {
     let currentNetworkUsers: Iuser[] = []
     let user: Iuser | undefined
+    let userAddress = getNetworkLastUsedUserAddress(networkId)
+    currentNetworkUsers = await this.db.getUsers(networkId)
 
-    if (userAddress) {
+    if (userAddress !== '') {
       user = await this.db.getUser(networkId, userAddress)
-      if (!user) {
-        userAddress = ''
-      }
     }
-    if (!userAddress) {
-      currentNetworkUsers = await this.db.getUsers(networkId)
-      user = currentNetworkUsers.length > 0 ? currentNetworkUsers[0] : undefined
+    if (typeof user === 'undefined' && currentNetworkUsers.length > 0) {
+      user = currentNetworkUsers[0]
     }
 
-    return Promise.all([
-      // currentNetworkSettings
-      this.db.getNetworkSettings(networkId),
-      // currentNetworkUsers
-      currentNetworkUsers.length > 0
-        ? Promise.resolve(currentNetworkUsers)
-        : this.db.getUsers(networkId),
-      // *userData
-      Promise.resolve(user).then((_currentUser) => this.loadUserData(_currentUser))
-    ])
+    return [currentNetworkUsers, user]
   }
 
-  private processError = (err: Error, globalSettings = this.globalSettings) => {
-    let {
-      networkId: lastUsedNetworkId
-    } = getLastUsedUser()
-    const usedNetworks: NETWORKS[] = getUsedNetworks()
-    if (!lastUsedNetworkId && usedNetworks.length > 0) {
-      lastUsedNetworkId = usedNetworks[0]
-    }
-    const changeStore = (reason: Error) => {
-      runInAction(() => {
-        this.globalSettings = globalSettings
-        this.offlineSelectedEthereumNetwork = lastUsedNetworkId
-        const prevConnectStatus = this.connectStatus
-        this.connectStatus = ERROR
-        this.connectError = reason
-        this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
-      })
-    }
-    if (typeof lastUsedNetworkId !== 'undefined') {
-      this.selectOfflineNetwork(lastUsedNetworkId, false, true, globalSettings, err).catch((_err: Error) => {
-        storeLogger.error(_err)
-        changeStore(_err)
-      })
-    } else {
-      changeStore(err)
-    }
+  @action
+  private processError(errCode: TRUSTBASE_CONNECT_ERROR, err?: Error) {
+    const prevConnectStatus = this.connectStatus
+    this.connectStatus = ERROR
+    this.connectErrorCode = errCode
+    this.connectError = err
+    this.connectStatusDidChange(prevConnectStatus, this.connectStatus)
   }
 }
 
 function generatePrekeys(start: number, interval: number, size: number) {
-  if (size === 0) {
-    return []
-  }
-
   return Array(size).fill(0)
     .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
 }
@@ -2199,26 +1805,6 @@ function makeSessionTag() {
   return `0x${sodium.to_hex(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))))}`
 }
 
-function setLastUsedUser(networkId: NETWORKS, userAddress: string) {
-  localStorage.setItem(
-    LOCAL_STORAGE_KEYS.LAST_USED_USER,
-    JSON.stringify({networkId, userAddress})
-  )
-  setNetworkLastUsedUserAddress(networkId, userAddress)
-}
-
-function getLastUsedUser(): {
-  networkId?: NETWORKS,
-  userAddress?: string
-} {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEYS.LAST_USED_USER) || '{}')
-  } catch (err) {
-    localStorage.setItem(LOCAL_STORAGE_KEYS.USED_NETWORKS, '{}')
-    return {}
-  }
-}
-
 function setNetworkLastUsedUserAddress(networkId: NETWORKS, userAddress: string) {
   localStorage.setItem(
     `${LOCAL_STORAGE_KEYS
@@ -2235,22 +1821,6 @@ function getNetworkLastUsedUserAddress(networkId: NETWORKS) {
         .NETWORK_LAST_USED_USER_ADDRESS[1]}`)
     || ''
   ).toString()
-}
-
-function addUsedNetwork(networkId: NETWORKS) {
-  const usedNetworks = getUsedNetworks()
-  if (!usedNetworks.includes(networkId)) {
-    localStorage.setItem(LOCAL_STORAGE_KEYS.USED_NETWORKS, JSON.stringify(usedNetworks.concat(networkId)))
-  }
-}
-
-function getUsedNetworks(): NETWORKS[] {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEYS.USED_NETWORKS) || '[]')
-  } catch (err) {
-    localStorage.setItem(LOCAL_STORAGE_KEYS.USED_NETWORKS, '[]')
-    return []
-  }
 }
 
 function getEmptyEnvelope() {

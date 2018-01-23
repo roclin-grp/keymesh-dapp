@@ -6,7 +6,16 @@
 }
 
 .common-header-page__warning,
+.common-header-page__error,
 .common-header-page__loading {
   font-size: 3rem;
   margin-bottom: 1rem;
+}
+
+.common-header-page__warning {
+  color: rgb(248, 181, 79);
+}
+
+.common-header-page__error {
+  color: rgb(248, 79, 79);
 }

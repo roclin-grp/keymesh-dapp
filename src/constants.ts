@@ -1,29 +1,27 @@
 export enum TRUSTBASE_CONNECT_STATUS {
   PENDING = 0,
-  OFFLINE = 100,
-  NO_ACCOUNT = 101,
   SUCCESS = 200,
-  CONTRACT_ADDRESS_ERROR = 400,
   ERROR = 401
+}
+
+export enum TRUSTBASE_CONNECT_ERROR {
+  NO_METAMASK = 0,
+  LOCKED,
+  NO_NETWORK,
+  UNKNOWN
 }
 
 export const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
   [TRUSTBASE_CONNECT_STATUS.PENDING]: 'pending',
-  [TRUSTBASE_CONNECT_STATUS.OFFLINE]: 'offline',
-  [TRUSTBASE_CONNECT_STATUS.NO_ACCOUNT]: 'no-account',
   [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'success',
-  [TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR]: 'contract-address-error',
   [TRUSTBASE_CONNECT_STATUS.ERROR]: 'error'
 }) as {
   [connectStatus: number]: string
 }
 
 export const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
-  [TRUSTBASE_CONNECT_STATUS.OFFLINE]: 'Offline',
-  [TRUSTBASE_CONNECT_STATUS.NO_ACCOUNT]: 'No Ethereum account (You may need to unlock MetaMask)',
   [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'Active',
-  [TRUSTBASE_CONNECT_STATUS.CONTRACT_ADDRESS_ERROR]: 'Contract addresses error, some function may not work',
-  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'Network error, refresh to retry'
+  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'Disconnected'
 }) as {
   [connectStatus: number]: string
 }
@@ -83,16 +81,12 @@ export const NETWORK_NAMES = Object.freeze({
 }
 
 export enum TABLES {
-  GLOBAL_SETTINGS = 'global-settings',
-  NETWORK_SETTINGS = 'network-settings',
   USERS = 'users',
   SESSIONS = 'sessions',
   MESSAGES = 'messages'
 }
 
 export const SCHEMA_V1 = Object.freeze({
-  [TABLES.GLOBAL_SETTINGS]: '',
-  [TABLES.NETWORK_SETTINGS]: 'networkId',
   [TABLES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
   [TABLES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
   [TABLES.MESSAGES]:
@@ -105,13 +99,8 @@ export enum MESSAGE_TYPE {
   CLOSE_SESSION = 2
 }
 
-export const GLOBAL_SETTINGS_PRIMARY_KEY = 'global'
-
 export const LOCAL_STORAGE_KEYS = Object.freeze({
-  LAST_USED_NETWORK_ID: 'keymail@last-used-network',
-  NETWORK_LAST_USED_USER_ADDRESS: Object.freeze(['keymail@', /* networdId */ '@last-used-user']),
-  LAST_USED_USER: 'keymail@last-used-user',
-  USED_NETWORKS: 'keymail@used-networks'
+  NETWORK_LAST_USED_USER_ADDRESS: Object.freeze(['keymail@', /* networdId */ '@last-used-user'])
 })
 
 export const FETCH_MESSAGES_INTERVAL = 10000

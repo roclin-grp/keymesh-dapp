@@ -15,9 +15,6 @@ import './index.css'
 
 const {
   PENDING,
-  OFFLINE,
-  NO_ACCOUNT,
-  CONTRACT_ADDRESS_ERROR,
   SUCCESS,
   ERROR
 } = TRUSTBASE_CONNECT_STATUS
@@ -97,9 +94,6 @@ class Home extends React.Component<{}, Istate> {
       case PENDING:
         return <CommonHeaderPage />
       case SUCCESS:
-      case OFFLINE:
-      case NO_ACCOUNT:
-      case CONTRACT_ADDRESS_ERROR:
       case ERROR:
         return <CommonHeaderPage shouldRefreshSessions={true}>
             {

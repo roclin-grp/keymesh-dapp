@@ -102,18 +102,15 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   }
   public componentWillUnmount() {
     const {
-      removeConnectStatusListener,
-      clearRegisteringUser
+      removeConnectStatusListener
     } = this.injectedProps.store
     this.unmounted = true
-    clearRegisteringUser()
     removeConnectStatusListener(this.connectStatusListener)
   }
   public render() {
     const {
       currentUser,
       connectStatus,
-      canConnectToIdentitesContract
     } = this.injectedProps.store
     const {
       done: isDone,
@@ -122,7 +119,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     const { getBEMClassNames } = this
 
     const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
-    if (!isPending && (!currentUser || (currentUser.status === USER_STATUS.OK || !canConnectToIdentitesContract))) {
+    if (!isPending && (!currentUser || (currentUser.status === USER_STATUS.OK))) {
       return <Redirect to="/" />
     }
 

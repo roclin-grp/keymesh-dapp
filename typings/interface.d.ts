@@ -11,7 +11,6 @@ import {
   SENDING_FAIL_CODE,
   NETWORKS,
   TABLES,
-  GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
   USER_STATUS,
   MESSAGE_STATUS,
@@ -69,18 +68,6 @@ export interface IenvelopeHeader {
   sessionTag: string
   isPreKeyMessage: boolean
   messageByteLength: number
-}
-
-export interface IglobalSettings {
-  provider?: string
-}
-
-export interface InetworkSettings {
-  networkId: NETWORKS
-  IdentitiesAddress?: string
-  MessagesAddress?: string
-  BroadcastMessagesAddress?: string
-  BoundSocialsAddress?: string
 }
 
 export interface IbroadcastMessage {
@@ -146,8 +133,6 @@ export interface Imessage extends IuserIdentityKeys {
   status: MESSAGE_STATUS
 }
 
-export type TableGlobalSettings = Dexie.Table<IglobalSettings, string>
-export type TableNetworkSettings = Dexie.Table<InetworkSettings, NETWORKS>
 export type TableUsers = Dexie.Table<Iuser, [NETWORKS, string]>
 export type TableSessions = Dexie.Table<Isession, [string, string]>
 export type TableMessages = Dexie.Table<Imessage, [string, string]>

@@ -56,17 +56,8 @@
 .header__network-indicator:not(:last-child) {
   margin-right: 0.625rem;
 }
-.header__network-indicator--offline {
-  background-color: grey;
-}
-.header__network-indicator--no-account {
-  background-color: orange;
-}
 .header__network-indicator--success {
   background-color: chartreuse;
-}
-.header__network-indicator--contract-address-error {
-  background-color: #BB6BD9;
 }
 .header__network-indicator--error {
   background-color: rgb(255, 58, 58);

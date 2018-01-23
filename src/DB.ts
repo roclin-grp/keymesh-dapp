@@ -1,13 +1,9 @@
 import Dexie from 'dexie'
 
 import {
-  TableGlobalSettings,
-  TableNetworkSettings,
   TableUsers,
   TableSessions,
   TableMessages,
-  IglobalSettings,
-  InetworkSettings,
   Iuser,
   Isession,
   Imessage,
@@ -20,7 +16,6 @@ import {
   NETWORKS,
   TABLES,
   SCHEMA_V1,
-  GLOBAL_SETTINGS_PRIMARY_KEY,
   MESSAGE_TYPE,
   SUMMARY_LENGTH,
   USER_STATUS,
@@ -91,12 +86,6 @@ export default class DB {
   }
 
   private readonly db: Dexie
-  private get tableGlobalSettings(): TableGlobalSettings {
-    return (this.db as any)[TABLES.GLOBAL_SETTINGS]
-  }
-  private get tableNetworkSettings(): TableNetworkSettings {
-    return (this.db as any)[TABLES.NETWORK_SETTINGS]
-  }
   private get tableUsers(): TableUsers {
     return (this.db as any)[TABLES.USERS]
   }
@@ -105,29 +94,6 @@ export default class DB {
   }
   private get tableMessages(): TableMessages {
     return (this.db as any)[TABLES.MESSAGES]
-  }
-
-  public saveGlobalSettings(settings: IglobalSettings) {
-    return this.tableGlobalSettings
-      .put(settings, GLOBAL_SETTINGS_PRIMARY_KEY)
-  }
-
-  public getGlobalSettings() {
-    return this.tableGlobalSettings
-      .get(GLOBAL_SETTINGS_PRIMARY_KEY)
-      .catch(() => undefined)
-      .then((settings) => settings || {}) as Dexie.Promise<IglobalSettings>
-  }
-
-  public saveNetworkSettings(settings: InetworkSettings) {
-    return this.tableNetworkSettings
-      .put(settings)
-  }
-
-  public getNetworkSettings(networkId: NETWORKS) {
-    return this.tableNetworkSettings
-      .get(networkId)
-      .then((settings) => settings || {networkId}) as Dexie.Promise<InetworkSettings>
   }
 
   public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {

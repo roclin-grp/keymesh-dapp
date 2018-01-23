@@ -15,7 +15,6 @@ import * as copy from 'copy-to-clipboard'
 const throttle = require('lodash.throttle')
 
 import {
-  storeLogger,
   downloadObjectAsJson,
   getBEMClassNamesMaker,
   IextendableClassNamesProps,
@@ -24,6 +23,7 @@ import {
 import {
   NETWORKS,
   TRUSTBASE_CONNECT_STATUS,
+  TRUSTBASE_CONNECT_ERROR,
   NETWORK_NAMES,
   CONNECT_STATUS_INDICATOR_MODIFIER,
   CONNECT_STATUS_INDICATOR_TEXTS,
@@ -39,7 +39,6 @@ import {
   message,
 } from 'antd'
 
-import SwitchNetworkOption from '../../components/SwitchNetworkOption'
 import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
 import { Iuser } from '../../../typings/interface'
@@ -126,19 +125,15 @@ class Header extends React.Component<Iprops, Istate> {
   public render() {
     const {
       connectStatus,
+      connectErrorCode,
       currentEthereumNetwork,
       currentUser,
       currentNetworkUsers,
-      offlineAvailableNetworks,
-      offlineSelectedEthereumNetwork,
-      canCreateOrImportUser
+      canCreateOrImportUser,
     } = this.injectedProps.store
     const {getBEMClassNames} = this
     const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
-    const hasMoreThanOneNetworks = offlineAvailableNetworks.length > 1
     const hasConnectError = connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
-    const isOffline = connectStatus === TRUSTBASE_CONNECT_STATUS.OFFLINE
-    const canSelectNetworks = isOffline && hasMoreThanOneNetworks
 
     const userAvatar = (() => {
       if (!currentUser) {
@@ -246,46 +241,14 @@ class Header extends React.Component<Iprops, Istate> {
         className={getBEMClassNames('network-text')}
         title="Current Ethereum network"
       >
-        {!offlineSelectedEthereumNetwork && (hasConnectError || isOffline)
-            ? 'No network'
-            : (
-              NETWORK_NAMES[currentEthereumNetwork as NETWORKS]
-              || NETWORK_NAMES[offlineSelectedEthereumNetwork as NETWORKS]
-              || `Custom(${currentEthereumNetwork})`
-            )
+        {hasConnectError && connectErrorCode !== TRUSTBASE_CONNECT_ERROR.LOCKED
+          ? 'No network'
+          : (
+            NETWORK_NAMES[currentEthereumNetwork as NETWORKS]
+            || `Custom(${currentEthereumNetwork})`
+          )
         }
       </span>
-    )
-
-    const networkOptions = (
-      <Menu>
-        {canSelectNetworks
-          ? (
-            <>
-            <Menu.SubMenu title={<span>Switch network</span>}>
-              {offlineAvailableNetworks
-                .filter((networkId) => networkId !== currentEthereumNetwork)
-                .map((networkId) => (
-                  <Menu.Item key={networkId}>
-                    <SwitchNetworkOption
-                      networkId={networkId}
-                      onSelect={this.handleSelectNetwork}
-                    />
-                  </Menu.Item>
-                ))
-              }
-            </Menu.SubMenu>
-            <Menu.Divider />
-            </>
-          )
-          : null
-        }
-        <Menu.Item>
-          <Link to="network-settings">
-            Settings
-          </Link>
-        </Menu.Item>
-      </Menu>
     )
 
     return (
@@ -319,20 +282,13 @@ class Header extends React.Component<Iprops, Istate> {
                     />
                   </span>
                 </Tooltip>
-                <Dropdown
-                  trigger={['click']}
-                  overlay={networkOptions}
-                  placement="bottomRight"
+                <span
+                  className={getBEMClassNames('network-options-button', {}, {'ant-dropdown-link': true})}
+                  // looks like antd does not support keyboard accessibility well
+                  // tabIndex={0}
                 >
-                  <a
-                    className={getBEMClassNames('network-options-button', {}, {'ant-dropdown-link': true})}
-                    // looks like antd does not support keyboard accessibility well
-                    // tabIndex={0}
-                  >
-                    {networkText}
-                    <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
-                  </a>
-                </Dropdown>
+                  {networkText}
+                </span>
                 {currentUser
                   ? (
                     <Dropdown
@@ -360,13 +316,6 @@ class Header extends React.Component<Iprops, Istate> {
         </div>
       </header>
     )
-  }
-
-  private handleSelectNetwork = (networkId: NETWORKS) => {
-    this.injectedProps.store.selectOfflineNetwork(networkId, this.props.shouldRefreshSessions).catch((err: Error) => {
-      storeLogger.error(err)
-      message.error('Something has gone wrong! please retry.')
-    })
   }
 
   private handleSelectUser = (user: Iuser) => {

@@ -357,7 +357,7 @@ class Profile extends React.Component<Iprops, Istate> {
         {this.socials()}
       </CommonHeaderPage>
     }
-    return <CommonHeaderPage> Connecting... </CommonHeaderPage>
+    return <CommonHeaderPage />
 
   }
   private socials() {

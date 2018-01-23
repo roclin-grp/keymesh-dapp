@@ -7,6 +7,7 @@ import { Store } from '../../store'
 
 import {
   TRUSTBASE_CONNECT_STATUS,
+  TRUSTBASE_CONNECT_ERROR,
   USER_STATUS
 } from '../../constants'
 
@@ -40,6 +41,54 @@ class CommonHeaderPage extends React.Component<Iprops> {
     </>
   )
 
+  private get errorContent() {
+    const {
+      connectErrorCode
+    } = this.injectedProps.store
+    switch (connectErrorCode) {
+      case TRUSTBASE_CONNECT_ERROR.NO_METAMASK: {
+        return (
+          <>
+            <Icon type="exclamation-circle-o" className={this.getBEMClassNames('warning')} />
+            <h1>
+              You need to install
+              <a target="_blank" href="https://metamask.io/">MetaMask</a>
+              before using this app.
+            </h1>
+          </>
+        )
+      }
+      case TRUSTBASE_CONNECT_ERROR.LOCKED: {
+        return (
+          <>
+            <Icon type="lock" className={this.getBEMClassNames('warning')} />
+            <h1>You need to unlock MetaMask.</h1>
+          </>
+        )
+      }
+      case TRUSTBASE_CONNECT_ERROR.NO_NETWORK: {
+        return (
+          <>
+            <Icon type="disconnect" className={this.getBEMClassNames('warning')} />
+            <h1>Your internet is broken. :(</h1>
+          </>
+        )
+      }
+      case TRUSTBASE_CONNECT_ERROR.UNKNOWN:
+      default: return (
+        <>
+          <Icon type="close-circle-o" className={this.getBEMClassNames('error')} />
+          <h1>Something went wrong!</h1>
+          <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
+          <details>
+            <summary>{(this.injectedProps.store.connectError as Error).message}</summary>
+            <pre>{(this.injectedProps.store.connectError as Error).stack}</pre>
+          </details>
+        </>
+      )
+    }
+  }
+
   public render() {
     const {
       children,
@@ -56,9 +105,12 @@ class CommonHeaderPage extends React.Component<Iprops> {
     } = this
 
     const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
+    const isError = connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
     const content = isPending
       ? this.pendingContent
-      : children
+      : isError
+        ? this.errorContent
+        : children
 
     const currentPathname = this.injectedProps.location.pathname
     if (
@@ -66,7 +118,6 @@ class CommonHeaderPage extends React.Component<Iprops> {
       && canCreateOrImportUser
       && currentPathname !== '/register'
       && !currentPathname.includes('profile')
-      && currentPathname !== '/network-settings'
     ) {
       return <Redirect to="/register" />
     }
