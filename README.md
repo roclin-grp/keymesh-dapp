@@ -1,8 +1,26 @@
-# Keymail 
+# Keymail
 
 *Under development.*
 
 Trusted communication web [DApp](https://ethereum.stackexchange.com/questions/383/what-is-a-dapp).
+
+# Running The Project
+
+Install dependencies:
+
+```
+yarn install
+```
+
+Run dev server:
+
+```
+yarn start
+```
+
+Then open http://localhost:3000/ in browser. The development version runs on the Rinkeby test network. You should install the [MetaMask Chrome extension](https://metamask.io/), and swtich the network to Rinkeby.
+
+For testing & developing this app, get free test tokens from https://faucet.rinkeby.io/.
 
 <details>
   <summary>Development progress</summary>
