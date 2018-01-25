@@ -10,7 +10,11 @@ import {
 } from '../typings/interface'
 import { IsignedGithubClaim, IgithubClaim } from '../typings/proof.interface'
 import { GithubResource } from './resources/github'
-import { GITHUB_GIST_FILENAME } from './constants'
+import {
+  GITHUB_GIST_FILENAME,
+  LOCAL_STORAGE_KEYS,
+  NETWORKS
+} from './constants'
 
 const CRYPTOBOX_TABLES = {
   LOCAL_IDENTITY: 'keys',
@@ -263,4 +267,29 @@ export async function getGithubClaimByRawURL(rawURL: string): Promise<IsignedGit
         signature: _signature,
       } as IsignedGithubClaim
     })
+}
+
+export function isHexZeroValue(hexString: string) {
+  return Number(hexString) === 0
+}
+
+export function setNetworkLastUsedUserAddress({
+  networkId,
+  userAddress
+}: Iuser) {
+  localStorage.setItem(
+    `${LOCAL_STORAGE_KEYS.NETWORK_LAST_USED_USER_ADDRESS[0]}${
+      networkId
+    }${LOCAL_STORAGE_KEYS.NETWORK_LAST_USED_USER_ADDRESS[1]}`,
+    userAddress
+  )
+}
+
+export function getNetworkLastUsedUserAddress(networkId: NETWORKS) {
+  return (localStorage.getItem(
+    `${LOCAL_STORAGE_KEYS.NETWORK_LAST_USED_USER_ADDRESS[0]}${
+      networkId
+    }${LOCAL_STORAGE_KEYS.NETWORK_LAST_USED_USER_ADDRESS[1]}`)
+    || ''
+  ).toString()
 }

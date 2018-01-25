@@ -9,7 +9,12 @@ import {
   inject,
   observer,
 } from 'mobx-react'
-import { Store } from '../../store'
+
+import {
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
 
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
@@ -27,7 +32,7 @@ import {
 } from '../../utils'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
+  ETHEREUM_CONNECT_STATUS,
   REGISTER_FAIL_CODE,
 } from '../../constants'
 
@@ -42,7 +47,8 @@ const {
 type Iprops = RouteComponentProps<{}>
 
 interface IinjectedProps extends Iprops {
-  store: Store
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }
 
 interface Istate {
@@ -51,7 +57,14 @@ interface Istate {
   isImporting: boolean
 }
 
-@inject('store') @observer
+@inject(({
+  ethereumStore,
+  usersStore
+}: Istores) => ({
+  ethereumStore,
+  usersStore
+}))
+@observer
 class Register extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'register'
 
@@ -72,17 +85,21 @@ class Register extends React.Component<Iprops, Istate> {
 
   public render() {
     const {
-      connectStatus,
-      currentEthereumAccount,
-      canCreateOrImportUser
-    } = this.injectedProps.store
+      ethereumStore: {
+        ethereumConnectStatus,
+        currentEthereumAccount
+      },
+      usersStore: {
+        canCreateOrImportUser
+      }
+    } = this.injectedProps
     const {
       getBEMClassNames,
       state: {
         registerButtonContent
       }
     } = this
-    const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
+    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
 
     if (!isPending && !canCreateOrImportUser) {
       return <Redirect to="/" />
@@ -135,9 +152,8 @@ class Register extends React.Component<Iprops, Istate> {
       registerButtonContent: 'Checking...'
     })
 
-    this.injectedProps.store.register({
+    this.injectedProps.usersStore.register({
       transactionWillCreate: this.transactionWillCreate,
-      userDidCreate: this.userDidCreate,
       registerDidFail: this.registerDidFail,
     })
       .catch(this.registerDidFail)
@@ -150,13 +166,6 @@ class Register extends React.Component<Iprops, Istate> {
     this.setState({
       registerButtonContent: 'Please confirm the transaction...'
     })
-  }
-
-  private userDidCreate = () => {
-    if (this.unmounted) {
-      return
-    }
-    this.injectedProps.history.replace('/check-register')
   }
 
   private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
@@ -174,7 +183,7 @@ class Register extends React.Component<Iprops, Istate> {
         // tslint:disable-next-line no-switch-case-fall-through
         default:
           storeLogger.error('Unexpected register error:', err as Error)
-          return 'Something has gone wrong, please retry.'
+          return 'Something went wrong, please retry.'
       }
     })())
     this.setState({
@@ -193,10 +202,10 @@ class Register extends React.Component<Iprops, Istate> {
     const file: File = files[0] as any
     const reader = new FileReader()
     reader.onload = async (oFREvent) => {
-      await this.injectedProps.store.restoreDumpedUser(
-        (oFREvent.target as any).result,
-        false
-      )
+      // await this.injectedProps.usersStore.restoreDumpedUser(
+      //   (oFREvent.target as any).result,
+      //   false
+      // )
       if (this.injectedProps.location.pathname === '/register') {
         this.injectedProps.history.push('/')
       }

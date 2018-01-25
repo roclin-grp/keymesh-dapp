@@ -3,11 +3,15 @@ import * as React from 'react'
 import { withRouter, Redirect, RouteComponentProps } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
+import {
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
-  TRUSTBASE_CONNECT_ERROR,
+  ETHEREUM_CONNECT_STATUS,
+  ETHEREUM_CONNECT_ERROR,
   USER_STATUS
 } from '../../constants'
 
@@ -23,10 +27,18 @@ interface Iprops extends IextendableClassNamesProps, RouteComponentProps<{}> {
 }
 
 interface IinjectedProps extends Iprops {
-  store: Store
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }
 
-@inject('store') @observer
+@inject(({
+  ethereumStore,
+  usersStore
+}: Istores) => ({
+  ethereumStore,
+  usersStore
+}))
+@observer
 class CommonHeaderPage extends React.Component<Iprops> {
   public static readonly blockName = 'common-header-page'
 
@@ -43,10 +55,10 @@ class CommonHeaderPage extends React.Component<Iprops> {
 
   private get errorContent() {
     const {
-      connectErrorCode
-    } = this.injectedProps.store
-    switch (connectErrorCode) {
-      case TRUSTBASE_CONNECT_ERROR.NO_METAMASK: {
+      ethereumConnectErrorCode
+    } = this.injectedProps.ethereumStore
+    switch (ethereumConnectErrorCode) {
+      case ETHEREUM_CONNECT_ERROR.NO_METAMASK: {
         return (
           <>
             <Icon type="exclamation-circle-o" className={this.getBEMClassNames('warning')} />
@@ -58,7 +70,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
           </>
         )
       }
-      case TRUSTBASE_CONNECT_ERROR.LOCKED: {
+      case ETHEREUM_CONNECT_ERROR.LOCKED: {
         return (
           <>
             <Icon type="lock" className={this.getBEMClassNames('warning')} />
@@ -66,26 +78,19 @@ class CommonHeaderPage extends React.Component<Iprops> {
           </>
         )
       }
-      case TRUSTBASE_CONNECT_ERROR.NO_NETWORK: {
+      case ETHEREUM_CONNECT_ERROR.UNKNOWN:
+      default:
         return (
           <>
-            <Icon type="disconnect" className={this.getBEMClassNames('warning')} />
-            <h1>Your internet is broken. :(</h1>
+            <Icon type="close-circle-o" className={this.getBEMClassNames('error')} />
+            <h1>Something went wrong!</h1>
+            <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
+            <details>
+              <summary>{this.injectedProps.ethereumStore.ethereumConnectError!.message}</summary>
+              <pre>{this.injectedProps.ethereumStore.ethereumConnectError!.stack}</pre>
+            </details>
           </>
         )
-      }
-      case TRUSTBASE_CONNECT_ERROR.UNKNOWN:
-      default: return (
-        <>
-          <Icon type="close-circle-o" className={this.getBEMClassNames('error')} />
-          <h1>Something went wrong!</h1>
-          <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
-          <details>
-            <summary>{(this.injectedProps.store.connectError as Error).message}</summary>
-            <pre>{(this.injectedProps.store.connectError as Error).stack}</pre>
-          </details>
-        </>
-      )
     }
   }
 
@@ -96,36 +101,48 @@ class CommonHeaderPage extends React.Component<Iprops> {
       prefixClass
     } = this.props
     const {
-      connectStatus,
-      currentUser,
-      canCreateOrImportUser
-    } = this.injectedProps.store
+      ethereumStore: {
+        ethereumConnectStatus
+      },
+      usersStore: {
+        canCreateOrImportUser,
+        currentUserStore,
+        hasUser
+      }
+    } = this.injectedProps
     const {
       getBEMClassNames
     } = this
 
-    const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
-    const isError = connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
-    const content = isPending
-      ? this.pendingContent
-      : isError
-        ? this.errorContent
-        : children
+    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
+    const isError = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
 
     const currentPathname = this.injectedProps.location.pathname
+
     if (
-      !currentUser
+      !hasUser
       && canCreateOrImportUser
       && currentPathname !== '/register'
       && !currentPathname.includes('profile')
     ) {
       return <Redirect to="/register" />
     }
-    if (currentUser && currentPathname !== '/register') {
-      if (currentUser.status !== USER_STATUS.OK && currentPathname !== '/check-register') {
+
+    if (hasUser && currentPathname !== '/register') {
+      if (
+        currentUserStore!.user.status !== USER_STATUS.OK
+        && currentPathname !== '/check-register'
+      ) {
         return <Redirect to="/check-register" />
       }
     }
+
+    const content = isPending
+    ? this.pendingContent
+    : isError
+      ? this.errorContent
+      : children
+
     return (
       <div className={getBEMClassNames()}>
         <Header prefixClass={prefixClass} shouldRefreshSessions={shouldRefreshSessions} />

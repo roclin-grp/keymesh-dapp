@@ -16,7 +16,11 @@ import {
   MESSAGE_STATUS,
   SOCIAL_MEDIA_PLATFORMS,
 } from '../src/constants'
-import { IboundSocials, IbindingSocials } from './proof.interface';
+
+import {
+  IboundSocials,
+  IbindingSocials,
+} from './proof.interface'
 
 export interface IpreKeyPublicKeys {
   [preKeyId: string]: string
@@ -40,7 +44,7 @@ export interface IcheckMessageStatusLifecycle {
   sendingDidFail?: () => void
 }
 
-export interface IcheckRegisterLifecycle {
+export interface IcheckIdentityUploadStatusLifecycle {
   checkRegisterWillStart?: (hash: string) => void
   identityDidUpload?: () => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
@@ -52,7 +56,6 @@ interface transactionLifecycle {
 }
 
 export interface IregisterLifecycle extends transactionLifecycle {
-  userDidCreate?: () => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
@@ -176,8 +179,8 @@ interface IDumpedDatabases {
 }
 
 interface Logdown {
-  log: (...str: string[]) => void
-  info: (...str: string[]) => void
-  warn: (...str: string[]) => void
-  error: (...reason: Array<string | Error>) => void
+  log: (...str: any[]) => void
+  info: (...str: any[]) => void
+  warn: (...str: any[]) => void
+  error: (...reason: any[]) => void
 }

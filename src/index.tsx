@@ -7,29 +7,27 @@ import { AppContainer } from 'react-hot-loader'
 
 import { Provider } from 'mobx-react'
 
-import { Store } from './store'
+import {
+  createStores,
+  Istores,
+} from './stores'
 import App from './routes'
-
-import { storeLogger } from './utils'
 
 const isDevelop = process.env.NODE_ENV === 'development'
 
 const load = (Component: typeof App) => {
-  const store = (() => {
+  const stores = (() => {
     if (isDevelop) {
-      const oldStore = (window as any).__STORE
-      if (oldStore) {
-        return oldStore as Store
+      const oldStores = (window as any).__STORE
+      if (oldStores) {
+        return oldStores as Istores
       }
     }
-    const newStore = new Store()
+    const newStores = createStores()
     if (isDevelop) {
-      (window as any).__STORE = newStore
+      (window as any).__STORE = newStores
     }
-    newStore.connect().catch((err: Error) => {
-      storeLogger.error(err)
-    })
-    return newStore
+    return newStores
   })()
 
   if (isDevelop) {
@@ -38,7 +36,7 @@ const load = (Component: typeof App) => {
 
   render(
     <AppContainer>
-      <Provider store={store}>
+      <Provider {...stores}>
         <Component />
       </Provider>
     </AppContainer>,

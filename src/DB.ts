@@ -113,6 +113,7 @@ export default class DB {
         },
         user
       ))
+      .then(primaryKeys => this.tableUsers.get(primaryKeys)) as Dexie.Promise<Iuser>
   }
 
   public getUser(networkId: NETWORKS, userAddress: string) {

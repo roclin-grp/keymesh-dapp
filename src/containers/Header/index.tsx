@@ -7,7 +7,6 @@ import {
 } from 'react-router-dom'
 
 import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
 
 import { sha3 } from 'trustbase'
 
@@ -15,15 +14,15 @@ import * as copy from 'copy-to-clipboard'
 const throttle = require('lodash.throttle')
 
 import {
-  downloadObjectAsJson,
+  // downloadObjectAsJson,
   getBEMClassNamesMaker,
   IextendableClassNamesProps,
 } from '../../utils'
 
 import {
   NETWORKS,
-  TRUSTBASE_CONNECT_STATUS,
-  TRUSTBASE_CONNECT_ERROR,
+  ETHEREUM_CONNECT_STATUS,
+  ETHEREUM_CONNECT_ERROR,
   NETWORK_NAMES,
   CONNECT_STATUS_INDICATOR_MODIFIER,
   CONNECT_STATUS_INDICATOR_TEXTS,
@@ -32,12 +31,17 @@ import {
 
 import {
   Tooltip,
-  Avatar,
   Icon,
   Dropdown,
   Menu,
   message,
 } from 'antd'
+
+import {
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
 
 import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
@@ -50,16 +54,23 @@ interface Iprops extends IextendableClassNamesProps, RouteComponentProps<{}> {
 }
 
 interface IinjectedProps extends Iprops {
-  store: Store
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }
 
 interface Istate {
-  isSwitchingUser: boolean
   hidden: boolean
   hasShadow: boolean
 }
 
-@inject('store') @observer
+@inject(({
+  ethereumStore,
+  usersStore
+}: Istores) => ({
+  ethereumStore,
+  usersStore
+}))
+@observer
 class Header extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'header'
 
@@ -70,7 +81,6 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   public readonly state = {
-    isSwitchingUser: false,
     hidden: false,
     hasShadow: false
   }
@@ -124,124 +134,27 @@ class Header extends React.Component<Iprops, Istate> {
 
   public render() {
     const {
-      connectStatus,
-      connectErrorCode,
-      currentEthereumNetwork,
-      currentUser,
-      currentNetworkUsers,
-      canCreateOrImportUser,
-    } = this.injectedProps.store
+      ethereumStore: {
+        ethereumConnectStatus,
+        ethereumConnectErrorCode,
+        currentEthereumNetwork,
+      },
+      usersStore: {
+        currentUserStore,
+        hasUser
+      },
+    } = this.injectedProps
     const {getBEMClassNames} = this
-    const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
-    const hasConnectError = connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
-
-    const userAvatar = (() => {
-      if (!currentUser) {
-        return null
-      }
-
-      const avatarShape = 'square'
-      const avatarSize = 'small'
-      const avatarClassName = getBEMClassNames('user-avatar')
-
-      if (this.state.isSwitchingUser) {
-        return (
-          <Avatar
-            className={avatarClassName}
-            icon="ellipsis"
-            shape={avatarShape}
-            size={avatarSize}
-          />
-        )
-      }
-
-      return (
-        <HashAvatar
-          className={avatarClassName}
-          shape={avatarShape}
-          size={avatarSize}
-          hash={currentUser.status !== USER_STATUS.PENDING
-            ? sha3(`${currentUser.userAddress}${currentUser.blockHash}`)
-            : ''
-          }
-        />
-      )
-    })()
-
-    const userOptions = currentUser
-      ? (
-        <Menu>
-          <Menu.Item
-            className={getBEMClassNames('current-user-address')}
-            disabled={true}
-          >
-            {`Using `}
-            <Tooltip
-              placement="topLeft"
-              title="Click to copy"
-            >
-              <span
-                title={currentUser.userAddress}
-                className={getBEMClassNames('user-address')}
-                onClick={this.handleCopyUserAddress}
-              >
-                {currentUser.userAddress.slice(0, 8)}...
-              </span>
-            </Tooltip>
-          </Menu.Item>
-          <Menu.Item>
-            <Link to="/broadcast">
-              Broadcast
-            </Link>
-          </Menu.Item>
-          <Menu.Item>
-            <Link to="/profile">
-              Profile
-            </Link>
-          </Menu.Item>
-          <Menu.Item>
-            <a onClick={this.handleExport}>
-              Export account
-            </a>
-          </Menu.Item>
-          <Menu.Divider />
-          {currentNetworkUsers.length > 1
-            ? (
-              <Menu.SubMenu title={<span>Switch user</span>}>
-                {
-                  currentNetworkUsers
-                    .filter((user) => user.userAddress !== currentUser.userAddress)
-                    .map((user) => (
-                      <Menu.Item key={`${user.userAddress}@${user.networkId}`}>
-                        <SwitchUserOption user={user} onSelect={this.handleSelectUser} />
-                      </Menu.Item>
-                    ))
-                }
-              </Menu.SubMenu>
-            )
-            : null
-          }
-          {
-            canCreateOrImportUser
-              ? (
-                <Menu.Item>
-                  <Link className={getBEMClassNames('register-new')} to="/register">
-                    Sign up/Import
-                  </Link>
-                </Menu.Item>
-              )
-              : null
-          }
-        </Menu>
-      )
-      : null
+    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
+    const hasConnectError = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
+    const user = hasUser ? currentUserStore!.user : undefined
 
     const networkText = (
       <span
         className={getBEMClassNames('network-text')}
         title="Current Ethereum network"
       >
-        {hasConnectError && connectErrorCode !== TRUSTBASE_CONNECT_ERROR.LOCKED
+        {hasConnectError && ethereumConnectErrorCode !== ETHEREUM_CONNECT_ERROR.LOCKED
           ? 'No network'
           : (
             NETWORK_NAMES[currentEthereumNetwork as NETWORKS]
@@ -270,14 +183,14 @@ class Header extends React.Component<Iprops, Istate> {
           {!isPending
             ? (
               <>
-                <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[connectStatus]}>
+                <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[ethereumConnectStatus]}>
                   <span
                     title="Network status"
                     className={getBEMClassNames('network-indicator-wrapper')}
                   >
                     <span
                       className={getBEMClassNames('network-indicator', {
-                        [CONNECT_STATUS_INDICATOR_MODIFIER[connectStatus]]: true
+                        [CONNECT_STATUS_INDICATOR_MODIFIER[ethereumConnectStatus]]: true
                       })}
                     />
                   </span>
@@ -289,20 +202,20 @@ class Header extends React.Component<Iprops, Istate> {
                 >
                   {networkText}
                 </span>
-                {currentUser
+                {hasUser
                   ? (
                     <Dropdown
                       trigger={['click']}
-                      overlay={userOptions}
+                      overlay={this.userOptions}
                       placement="bottomRight"
                     >
                       <a
-                        title={currentUser.userAddress}
+                        title={user!.userAddress}
                         className={getBEMClassNames('user-options-button', {}, {'ant-dropdown-link': true})}
                         // looks like antd does not support keyboard accessibility well
                         // tabIndex={0}
                       >
-                        {userAvatar}
+                        {this.userAvatar}
                         <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
                       </a>
                     </Dropdown>
@@ -318,46 +231,126 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private handleSelectUser = (user: Iuser) => {
-    this.setState({
-      isSwitchingUser: true
-    })
-    window.setTimeout(
-      () => this.injectedProps.store.useUser(user, this.props.shouldRefreshSessions, this.selectUserCallback),
-      50
+  private get userAvatar() {
+    const {user} = this.injectedProps.usersStore.currentUserStore!
+
+    const avatarShape = 'square'
+    const avatarSize = 'small'
+    const avatarClassName = this.getBEMClassNames('user-avatar')
+
+    return (
+      <HashAvatar
+        className={avatarClassName}
+        shape={avatarShape}
+        size={avatarSize}
+        hash={user.status !== USER_STATUS.PENDING
+          ? sha3(`${user.userAddress}${user.blockHash}`)
+          : ''
+        }
+      />
     )
   }
 
-  private selectUserCallback = () => {
-    if (this.isUnmounted) {
-      return
-    }
-    const pathname = this.injectedProps.location.pathname
-    this.setState({
-      isSwitchingUser: false
-    })
-    if (pathname === '/check-register' || pathname === '/upload-pre-keys') {
-      this.injectedProps.history.replace('/')
-    }
+  private get userOptions() {
+    const {
+      getBEMClassNames
+    } = this
+    const {
+      users,
+      canCreateOrImportUser
+    } = this.injectedProps.usersStore
+    const {user} = this.injectedProps.usersStore.currentUserStore!
+    return (
+      <Menu>
+        <Menu.Item
+          className={getBEMClassNames('current-user-address')}
+          disabled={true}
+        >
+          {`Using `}
+          <Tooltip
+            placement="topLeft"
+            title="Click to copy"
+          >
+            <span
+              title={user!.userAddress}
+              className={getBEMClassNames('user-address')}
+              onClick={this.handleCopyUserAddress}
+            >
+              {user!.userAddress.slice(0, 8)}...
+            </span>
+          </Tooltip>
+        </Menu.Item>
+        <Menu.Item>
+          <Link to="/broadcast">
+            Broadcast
+          </Link>
+        </Menu.Item>
+        <Menu.Item>
+          <Link to="/profile">
+            Profile
+          </Link>
+        </Menu.Item>
+        <Menu.Item>
+          <a onClick={this.handleExport}>
+            Export account
+          </a>
+        </Menu.Item>
+        <Menu.Divider />
+        {users.length > 1
+          ? (
+            <Menu.SubMenu title={<span>Switch user</span>}>
+              {
+                users
+                  .filter((_user) => _user.userAddress !== user!.userAddress)
+                  .map((_user) => (
+                    <Menu.Item key={`${_user.userAddress}@${_user.networkId}`}>
+                      <SwitchUserOption user={_user} onSelect={this.handleSelectUser} />
+                    </Menu.Item>
+                  ))
+              }
+            </Menu.SubMenu>
+          )
+          : null
+        }
+        {
+          canCreateOrImportUser
+            ? (
+              <Menu.Item>
+                <Link className={getBEMClassNames('register-new')} to="/register">
+                  Sign up/Import
+                </Link>
+              </Menu.Item>
+            )
+            : null
+        }
+      </Menu>
+    )
+  }
+
+  private handleSelectUser = (user: Iuser) => {
+    window.setTimeout(
+      () => this.injectedProps.usersStore.switchUser(user),
+      300
+    )
   }
 
   private handleExport = async () => {
-    const {
-      currentUser,
-      dumpCurrentUser
-    } = this.injectedProps.store
-    if (currentUser) {
-      const dumped = await dumpCurrentUser()
-      downloadObjectAsJson(dumped, `keymail@${currentUser.networkId}@${currentUser.userAddress}`)
-    }
+    // const {
+    //   currentUserStore,
+    //   dumpCurrentUser
+    // } = this.injectedProps.usersStore
+    // const {user} = currentUserStore!
+    // const dumped = await dumpCurrentUser()
+    // downloadObjectAsJson(dumped, `keymail@${user.networkId}@${user.userAddress}`)
   }
 
   private handleCopyUserAddress = () => {
-    const {currentUser} = this.injectedProps.store
-    if (currentUser) {
-      if (copy(currentUser.userAddress)) {
-        message.success('User address copied!', 1.3)
-      }
+    const {
+      currentUserStore,
+    } = this.injectedProps.usersStore
+    const {user} = currentUserStore!
+    if (copy(user.userAddress)) {
+      message.success('User address copied!', 1.3)
     }
   }
 }

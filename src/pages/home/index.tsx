@@ -1,15 +1,24 @@
 import * as React from 'react'
 
 import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
-  SENDING_FAIL_CODE
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
+
+import {
+  ETHEREUM_CONNECT_STATUS,
+  // SENDING_FAIL_CODE
 } from '../../constants'
 
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
-import Session from '../../containers/session'
+// import Session from '../../containers/session'
+
+import {
+  noop
+} from '../../utils'
 
 import './index.css'
 
@@ -17,10 +26,11 @@ const {
   PENDING,
   SUCCESS,
   ERROR
-} = TRUSTBASE_CONNECT_STATUS
+} = ETHEREUM_CONNECT_STATUS
 
 interface IinjectedProps {
-  store: Store
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }
 
 interface Istate {
@@ -29,7 +39,14 @@ interface Istate {
   showCompose: boolean
 }
 
-@inject('store') @observer
+@inject(({
+  ethereumStore,
+  usersStore
+}: Istores) => ({
+  ethereumStore,
+  usersStore
+}))
+@observer
 class Home extends React.Component<{}, Istate> {
   public readonly state = Object.freeze({
     isSending: false,
@@ -39,66 +56,75 @@ class Home extends React.Component<{}, Istate> {
 
   private readonly injectedProps=  this.props as Readonly<IinjectedProps>
 
-  private unmounted = false
+  // private unmounted = false
   private toInput: HTMLInputElement | null
   private subjectInput: HTMLInputElement | null
   private messageInput: HTMLTextAreaElement | null
+  private removeEthereumConnectStatusChangeListener = noop
   public componentDidMount(isFirstMount: boolean = true) {
     const {
-      connectStatus,
-      currentUser,
-      loadSessions,
-      isFetchingMessage,
-      isFetchingBoundEvents,
-      startFetchMessages,
-      startFetchBoundEvents,
-      listenForConnectStatusChange
-    } = this.injectedProps.store
-    if (currentUser) {
-      loadSessions()
-    }
-    if (connectStatus === SUCCESS && currentUser) {
-      if (!isFetchingMessage) {
-        startFetchMessages()
-      }
-      if (!isFetchingBoundEvents) {
-        startFetchBoundEvents()
-      }
-    }
+      ethereumStore: {
+        // ethereumConnectStatus,
+        listenForEthereumConnectStatusChange
+      },
+      usersStore: {
+        // currentUserStore
+      },
+      // loadSessions,
+      // isFetchingMessage,
+      // isFetchingBoundEvents,
+      // startFetchMessages,
+      // startFetchBoundEvents,
+    } = this.injectedProps
+    // if (currentUser) {
+    //   loadSessions()
+    // }
+    // if (ethereumConnectStatus === SUCCESS && currentUser) {
+    //   if (!isFetchingMessage) {
+    //     startFetchMessages()
+    //   }
+    //   if (!isFetchingBoundEvents) {
+    //     startFetchBoundEvents()
+    //   }
+    // }
     if (isFirstMount) {
-      listenForConnectStatusChange(this.connectStatusListener)
+      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
     }
   }
 
   public componentWillUnmount() {
     const {
-      stopFetchMessages,
-      removeConnectStatusListener
-    } = this.injectedProps.store
-    this.unmounted = true
-    stopFetchMessages()
-    removeConnectStatusListener(this.connectStatusListener)
+      // stopFetchMessages,
+    } = this.injectedProps
+    // this.unmounted = true
+    // stopFetchMessages()
+    this.removeEthereumConnectStatusChangeListener()
   }
 
   public render() {
     const {
-      connectStatus,
-      currentUser,
-      currentUserSessions,
-      newMessageCount
-    } = this.injectedProps.store
+      ethereumStore: {
+        ethereumConnectStatus
+      },
+      usersStore: {
+        // currentUserStore,
+        hasUser
+      }
+      // currentUserSessions,
+      // newMessageCount
+    } = this.injectedProps
     const {
       showCompose
     } = this.state
-    switch (connectStatus) {
+    switch (ethereumConnectStatus) {
       case PENDING:
         return <CommonHeaderPage />
       case SUCCESS:
       case ERROR:
         return <CommonHeaderPage shouldRefreshSessions={true}>
             {
-              connectStatus === SUCCESS
-              && currentUser
+              ethereumConnectStatus === SUCCESS
+              && hasUser
                 ? <div>
                   <button
                     style={{
@@ -143,8 +169,8 @@ class Home extends React.Component<{}, Istate> {
                 </div>
                 : null
             }
-            {
-              connectStatus === SUCCESS
+            {/* {
+              ethereumConnectStatus === SUCCESS
               && currentUser
               && newMessageCount > 0
               ? <div
@@ -154,8 +180,8 @@ class Home extends React.Component<{}, Istate> {
                 Received {newMessageCount} new message(s)
               </div>
               : null
-            }
-            {
+            } */}
+            {/* {
               currentUser
                 ? <ul className="session-list">{
                     currentUserSessions
@@ -165,34 +191,34 @@ class Home extends React.Component<{}, Istate> {
                       />)
                   }</ul>
                 : 'No account'
-            }
+            } */}
         </CommonHeaderPage>
       default:
         return null
     }
   }
-  private refreshSessions = () => {
-    const {
-      loadSessions
-    } = this.injectedProps.store
-    if (this.unmounted) {
-      return
-    }
-    loadSessions()
-  }
+  // private refreshSessions = () => {
+  //   const {
+  //     loadSessions
+  //   } = this.injectedProps.store
+  //   if (this.unmounted) {
+  //     return
+  //   }
+  //   loadSessions()
+  // }
 
-  private connectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => {
-    const {
-      stopFetchMessages
-    } = this.injectedProps.store
-    if (this.unmounted) {
-      return
-    }
-    if (prev !== SUCCESS) {
-      this.componentDidMount(false)
-    } else if (cur !== SUCCESS) {
-      stopFetchMessages()
-    }
+  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
+    // const {
+    //   stopFetchMessages
+    // } = this.injectedProps.store
+    // if (this.unmounted) {
+    //   return
+    // }
+    // if (prev !== SUCCESS) {
+    //   this.componentDidMount(false)
+    // } else if (cur !== SUCCESS) {
+    //   stopFetchMessages()
+    // }
   }
 
   private toggleCompose = () => {
@@ -203,94 +229,94 @@ class Home extends React.Component<{}, Istate> {
   }
 
   private handleSend = async () => {
-    if (
-      (!this.toInput || !this.toInput.value)
-      || (!this.messageInput || !this.messageInput.value)
-      || !this.subjectInput
-      || !this.injectedProps.store.currentUser
-    ) {
-      return
-    }
-    this.setState({
-      isSending: true
-    })
-    const {
-      send
-    } = this.injectedProps.store
+    // if (
+    //   (!this.toInput || !this.toInput.value)
+    //   || (!this.messageInput || !this.messageInput.value)
+    //   || !this.subjectInput
+    //   || !this.injectedProps.store.currentUser
+    // ) {
+    //   return
+    // }
+    // this.setState({
+    //   isSending: true
+    // })
+    // const {
+    //   send
+    // } = this.injectedProps.store
 
-    send(
-      this.toInput.value,
-      this.subjectInput.value,
-      this.messageInput.value,
-      {
-        transactionWillCreate: this.transactionWillCreate,
-        transactionDidCreate: this.txCreated,
-        sendingDidFail: this.sendingDidFail
-      }
-    ).catch(this.sendingDidFail)
-  }
-
-  private transactionWillCreate = () => {
-    if (this.unmounted) {
-      return
-    }
-    this.setState({
-      sendingProgress: `Sending...
-(You may need to confirm the transaction.)`
-    })
-  }
-  private emptyForm = () => {
-    if (this.toInput) {
-      this.toInput.value = ''
-    }
-    if (this.subjectInput) {
-      this.subjectInput.value = ''
-    }
-    if (this.messageInput) {
-      this.messageInput.value = ''
-    }
+    // send(
+    //   this.toInput.value,
+    //   this.subjectInput.value,
+    //   this.messageInput.value,
+    //   {
+    //     transactionWillCreate: this.transactionWillCreate,
+    //     transactionDidCreate: this.txCreated,
+    //     sendingDidFail: this.sendingDidFail
+    //   }
+    // ).catch(this.sendingDidFail)
   }
 
-  private txCreated = () => {
-    this.emptyForm()
-    this.setState(
-      {
-        sendingProgress: 'Sent.',
-        isSending: false
-      },
-      () => {
-        window.setTimeout(
-          () => {
-            if (!this.state.isSending) {
-              this.setState({
-                sendingProgress: ''
-              })
-            }
-          },
-          3000
-        )
-      }
-    )
-  }
+//   private transactionWillCreate = () => {
+//     if (this.unmounted) {
+//       return
+//     }
+//     this.setState({
+//       sendingProgress: `Sending...
+// (You may need to confirm the transaction.)`
+//     })
+//   }
+//   private emptyForm = () => {
+//     if (this.toInput) {
+//       this.toInput.value = ''
+//     }
+//     if (this.subjectInput) {
+//       this.subjectInput.value = ''
+//     }
+//     if (this.messageInput) {
+//       this.messageInput.value = ''
+//     }
+//   }
 
-  private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
-    if (this.unmounted) {
-      return
-    }
-    this.setState({
-      sendingProgress: (() => {
-        switch (code) {
-          case SENDING_FAIL_CODE.UNKNOWN:
-            return `${(err as Error).message} \n ${(err as Error).stack}`
-          case SENDING_FAIL_CODE.INVALID_MESSAGE:
-            return `Invalid message.`
-          default:
-            return 'other'
-        }
-      })(),
-      isSending: false
-    })
-  }
+//   private txCreated = () => {
+//     this.emptyForm()
+//     this.setState(
+//       {
+//         sendingProgress: 'Sent.',
+//         isSending: false
+//       },
+//       () => {
+//         window.setTimeout(
+//           () => {
+//             if (!this.state.isSending) {
+//               this.setState({
+//                 sendingProgress: ''
+//               })
+//             }
+//           },
+//           3000
+//         )
+//       }
+//     )
+//   }
+
+//   private sendingDidFail =  (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
+//     if (this.unmounted) {
+//       return
+//     }
+//     this.setState({
+//       sendingProgress: (() => {
+//         switch (code) {
+//           case SENDING_FAIL_CODE.UNKNOWN:
+//             return `${(err as Error).message} \n ${(err as Error).stack}`
+//           case SENDING_FAIL_CODE.INVALID_MESSAGE:
+//             return `Invalid message.`
+//           default:
+//             return 'other'
+//         }
+//       })(),
+//       isSending: false
+//     })
+//   }
 }
 
 export default Home

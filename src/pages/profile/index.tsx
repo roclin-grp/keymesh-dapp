@@ -24,7 +24,7 @@ import {
 
 import {
   SOCIAL_MEDIAS,
-  TRUSTBASE_CONNECT_STATUS,
+  ETHEREUM_CONNECT_STATUS,
   VERIFY_SOCIAL_STATUS,
 } from '../../constants'
 
@@ -301,7 +301,7 @@ class Profile extends React.Component<Iprops, Istate> {
       getIdentity,
       getBlockHash,
     } = this.props.store
-    if (connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS) {
+    if (connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS) {
       let userAddress = this.state.userAddress
       if (currentUser) {
         if ('' === this.state.userAddress) {
@@ -351,7 +351,7 @@ class Profile extends React.Component<Iprops, Istate> {
     const {
       connectStatus,
     } = this.props.store
-    if (connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS) {
+    if (connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS) {
       return <CommonHeaderPage>
         {this.userAvatar()}
         {this.socials()}
@@ -405,13 +405,13 @@ class Profile extends React.Component<Iprops, Istate> {
     )
   }
 
-  private connectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => {
+  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
     const {
       stopFetchBoundEvents
     } = this.props.store
-    if (prev !== TRUSTBASE_CONNECT_STATUS.SUCCESS) {
+    if (prev !== ETHEREUM_CONNECT_STATUS.SUCCESS) {
       this.componentDidMount(false)
-    } else if (cur !== TRUSTBASE_CONNECT_STATUS.SUCCESS) {
+    } else if (cur !== ETHEREUM_CONNECT_STATUS.SUCCESS) {
       stopFetchBoundEvents()
       this.stopFetchingUserProofs()
       this.stopVerifyingUserProofs()

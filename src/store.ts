@@ -39,7 +39,7 @@ import {
   Isession,
   IregisterLifecycle,
   IasyncProvider,
-  IcheckRegisterLifecycle,
+  IcheckIdentityUploadStatusLifecycle,
   IuploadPreKeysLifecycle,
   IsendingLifecycle,
   IenvelopeHeader,
@@ -57,8 +57,8 @@ import {
 } from '../typings/interface.d'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
-  TRUSTBASE_CONNECT_ERROR,
+  ETHEREUM_CONNECT_STATUS,
+  ETHEREUM_CONNECT_ERROR,
   REGISTER_FAIL_CODE,
   SENDING_FAIL_CODE,
   NETWORKS,
@@ -107,16 +107,15 @@ const {
   PENDING,
   SUCCESS,
   ERROR,
-} = TRUSTBASE_CONNECT_STATUS
+} = ETHEREUM_CONNECT_STATUS
 
 useStrict(true)
 
-type TypeConnectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => void
+type TypeConnectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => void
 
 export class Store {
-  @observable public connectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
-  @observable public lastConnectStatus: TRUSTBASE_CONNECT_STATUS = PENDING
-  @observable public connectErrorCode: TRUSTBASE_CONNECT_ERROR | undefined
+  @observable public connectStatus: ETHEREUM_CONNECT_STATUS = PENDING
+  @observable public connectErrorCode: ETHEREUM_CONNECT_ERROR | undefined
   @observable public connectError: Error | undefined
   @observable public currentEthereumNetwork: NETWORKS | undefined
   @observable public currentEthereumAccount = ''
@@ -127,7 +126,6 @@ export class Store {
   @observable public newMessageCount = 0
   @observable.ref public currentSession: Isession | undefined
   @observable.ref public currentSessionMessages: Imessage[] = []
-  @observable.ref public registeringUsers: Iuser[] = []
   @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
   @observable public isFetchingMessage = false
   @observable public isFetchingBroadcast = false
@@ -161,7 +159,7 @@ export class Store {
 
   @computed
   public get canCreateOrImportUser() {
-    return this.connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
+    return this.connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
       && (this.currentNetworkUsers.findIndex((user) => user.userAddress === this.currentEthereumAccount) === -1)
   }
 
@@ -170,7 +168,7 @@ export class Store {
     const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IasyncProvider : undefined
 
     if (typeof provider === 'undefined') {
-      this.processError(TRUSTBASE_CONNECT_ERROR.NO_METAMASK)
+      this.processError(ETHEREUM_CONNECT_ERROR.NO_METAMASK)
       return
     }
 
@@ -179,10 +177,10 @@ export class Store {
       .catch(async (err: Error) => {
         if ((err as TrustbaseError).code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
           // MetaMask locked
-          this.processError(TRUSTBASE_CONNECT_ERROR.LOCKED)
+          this.processError(ETHEREUM_CONNECT_ERROR.LOCKED)
           this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
         } else {
-          this.processError(TRUSTBASE_CONNECT_ERROR.UNKNOWN, err)
+          this.processError(ETHEREUM_CONNECT_ERROR.UNKNOWN, err)
         }
       })
   }
@@ -332,7 +330,6 @@ export class Store {
   public register = async ({
     transactionWillCreate = noop,
     transactionDidCreate = noop,
-    userDidCreate = noop,
     registerDidFail = noop
   }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
     const userAddress = this.currentEthereumAccount
@@ -378,7 +375,7 @@ export class Store {
           .then(async () => {
             const createdUser = await this.db.getUser(currentNetworkId, userAddress).catch(reject)
             if (createdUser) {
-              this.useUser(createdUser).then(userDidCreate)
+              this.useUser(createdUser)
               runInAction(() => {
                 this.currentNetworkUsers = this.currentNetworkUsers.concat(createdUser)
               })
@@ -463,7 +460,7 @@ export class Store {
       checkRegisterWillStart = noop,
       identityDidUpload = noop,
       registerDidFail = noop,
-    }: IcheckRegisterLifecycle = {}
+    }: IcheckIdentityUploadStatusLifecycle = {}
   ) => {
     if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
       return identityDidUpload()
@@ -1243,7 +1240,6 @@ export class Store {
         }
       }
     })
-    this.db.updateUserStatus(user, USER_STATUS.OK)
   }
 
   public deleteSession = async (session: Isession, user: Iuser) => {
@@ -1309,7 +1305,7 @@ export class Store {
     await this.updateLastFetchBlockOfBoundSocials(lastBlock, _user)
   }
 
-  private connectStatusDidChange(prevStatus: TRUSTBASE_CONNECT_STATUS, currentStatus: TRUSTBASE_CONNECT_STATUS) {
+  private connectStatusDidChange(prevStatus: ETHEREUM_CONNECT_STATUS, currentStatus: ETHEREUM_CONNECT_STATUS) {
     this.connectStatusListener.forEach((listener) => {
       listener(prevStatus, currentStatus)
     })
@@ -1327,13 +1323,13 @@ export class Store {
         })
       }
       if (
-        this.connectStatus === TRUSTBASE_CONNECT_STATUS.ERROR
-        && this.connectErrorCode === TRUSTBASE_CONNECT_ERROR.LOCKED
+        this.connectStatus === ETHEREUM_CONNECT_STATUS.ERROR
+        && this.connectErrorCode === ETHEREUM_CONNECT_ERROR.LOCKED
       ) {
         return this.processAfterNetworkConnected()
       }
     } else if (this.connectStatus !== ERROR) {
-      this.processError(TRUSTBASE_CONNECT_ERROR.LOCKED)
+      this.processError(ETHEREUM_CONNECT_ERROR.LOCKED)
     }
     this.detectAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
@@ -1393,7 +1389,7 @@ export class Store {
         throw (new Error('the data is broken'))
       }
 
-      if (!userPublicKey.verify(sodium.from_hex(signature), preKeysPackageSerializedStr)) {
+      if (!userPublicKey.verify(sodium.from_hex(signature.slice(2)), preKeysPackageSerializedStr)) {
         throw (new Error('the prekeys\'s signature is invalid.'))
       }
 
@@ -1726,7 +1722,7 @@ export class Store {
   }
 
   @action
-  private processError(errCode: TRUSTBASE_CONNECT_ERROR, err?: Error) {
+  private processError(errCode: ETHEREUM_CONNECT_ERROR, err?: Error) {
     const prevConnectStatus = this.connectStatus
     this.connectStatus = ERROR
     this.connectErrorCode = errCode

@@ -10,7 +10,12 @@ import {
   inject,
   observer,
 } from 'mobx-react'
-import { Store } from '../../store'
+
+import {
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
 
 import {
   Steps,
@@ -19,11 +24,12 @@ import {
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
 import {
-  getBEMClassNamesMaker
+  getBEMClassNamesMaker,
+  noop,
 } from '../../utils'
 
 import {
-  TRUSTBASE_CONNECT_STATUS,
+  ETHEREUM_CONNECT_STATUS,
   REGISTER_FAIL_CODE,
   USER_STATUS,
 } from '../../constants'
@@ -37,12 +43,14 @@ interface Iparams {
 type Iprops = RouteComponentProps<Iparams>
 
 interface IinjectedProps extends Iprops {
-  store: Store
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }
 
 interface Istate {
   done: boolean
   error: IregisterError | null
+  shouldPreventRedirect: boolean
 }
 
 enum REGISTER_PROGRESS {
@@ -65,72 +73,88 @@ enum REGISTER_ERROR_TYPE {
 
 const refreshThePage = <Link replace={true} to="/check-register">click here</Link>
 
-@inject('store') @observer
+@inject(({
+  ethereumStore,
+  usersStore
+}: Istores) => ({
+  ethereumStore,
+  usersStore
+}))
+@observer
 class CheckRegister extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'check-register'
 
   public readonly state = Object.freeze({
     done: false,
-    error: null as IregisterError | null
+    error: null as IregisterError | null,
+    shouldPreventRedirect: false
   })
 
   private readonly injectedProps=  this.props as Readonly<IinjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(CheckRegister.blockName, this.props)
 
+  private removeEthereumConnectStatusChangeListener = noop
   private unmounted = false
   public componentDidMount() {
     const {
-      store: {
-        connectStatus,
-        currentUser,
-        checkRegister,
-        listenForConnectStatusChange
-      }
+      ethereumStore: {
+        ethereumConnectStatus,
+        listenForEthereumConnectStatusChange
+      },
+      usersStore: {
+        currentUserStore,
+        hasUser,
+      },
     } = this.injectedProps
+    const user = hasUser ? currentUserStore!.user : undefined
     if (
-      connectStatus === TRUSTBASE_CONNECT_STATUS.SUCCESS
-      && currentUser
-      && currentUser.registerRecord
+      ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
+      && hasUser
+      && user!.registerRecord
     ) {
-      checkRegister(currentUser, {
+      currentUserStore!.checkIdentityUploadStatus({
         identityDidUpload: this.identityDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)
     }
-    listenForConnectStatusChange(this.connectStatusListener)
+    this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
   }
   public componentWillUnmount() {
-    const {
-      removeConnectStatusListener
-    } = this.injectedProps.store
     this.unmounted = true
-    removeConnectStatusListener(this.connectStatusListener)
+    this.removeEthereumConnectStatusChangeListener()
   }
   public render() {
     const {
-      currentUser,
-      connectStatus,
-    } = this.injectedProps.store
+      ethereumStore: {
+        ethereumConnectStatus,
+      },
+      usersStore: {
+        currentUserStore,
+        hasUser
+      },
+    } = this.injectedProps
+    const user = hasUser ? currentUserStore!.user : undefined
     const {
       done: isDone,
-      error
+      error,
+      shouldPreventRedirect
     } = this.state
     const { getBEMClassNames } = this
 
-    const isPending = connectStatus === TRUSTBASE_CONNECT_STATUS.PENDING
-    if (!isPending && (!currentUser || (currentUser.status === USER_STATUS.OK))) {
+    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
+    if (!shouldPreventRedirect && !isPending && (!hasUser || (user!.status === USER_STATUS.OK))) {
       return <Redirect to="/" />
     }
 
     const hasError = error !== null
 
-    const isIdentityUploaded = currentUser && currentUser.status === USER_STATUS.IDENTITY_UPLOADED
+    const isIdentityUploaded = hasUser && user!.status !== USER_STATUS.PENDING
 
     return (
       <CommonHeaderPage prefixClass={CheckRegister.blockName} className={getBEMClassNames()}>
         {
-          currentUser
+          hasUser
           ? (
             <>
               <h2 className={getBEMClassNames('title', {}, { title: true })}>
@@ -209,37 +233,36 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       return
     }
     const {
-      currentUser,
       uploadPreKeys
-    } = this.injectedProps.store
-    if (!currentUser) {
-      return
-    }
-    uploadPreKeys(currentUser, undefined, undefined, {
+    } = this.injectedProps.usersStore.currentUserStore!
+
+    uploadPreKeys({
       preKeysDidUpload: this.preKeysDidUpload,
       preKeysUploadDidFail: this.preKeysUploadDidFail
     }).catch(this.preKeysUploadDidFail)
   }
 
-  private preKeysDidUpload = () => {
+  private preKeysDidUpload = async () => {
     if (this.unmounted) {
       return
     }
+
     this.setState({
-      done: true
+      done: true,
+      shouldPreventRedirect: true
     })
-    const {
-      currentUser,
-      updateUserStatusToOk
-    } = this.injectedProps.store
-    if (!currentUser) {
-      return
-    }
+    await this.injectedProps.usersStore.currentUserStore!.updateUserStatusToOK()
     window.setTimeout(
       () => {
-        updateUserStatusToOk(currentUser)
+        if (this.unmounted) {
+          return
+        }
+
+        this.setState({
+          shouldPreventRedirect: false
+        })
       },
-      5000
+      3000
     )
   }
 
@@ -317,23 +340,23 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       }
     })
   }
-  private connectStatusListener = (prev: TRUSTBASE_CONNECT_STATUS, cur: TRUSTBASE_CONNECT_STATUS) => {
+  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
     const {
-      store: {
-        checkRegister,
-        currentUser
+      usersStore: {
+        currentUserStore,
+        hasUser
       },
     } = this.injectedProps
     if (this.unmounted) {
       return
     }
     if (
-      prev !== TRUSTBASE_CONNECT_STATUS.SUCCESS
-      && cur === TRUSTBASE_CONNECT_STATUS.SUCCESS
-      && currentUser
-      && currentUser.registerRecord
+      prev !== ETHEREUM_CONNECT_STATUS.SUCCESS
+      && cur === ETHEREUM_CONNECT_STATUS.SUCCESS
+      && hasUser
+      && currentUserStore!.user.registerRecord
     ) {
-      checkRegister(currentUser, {
+      currentUserStore!.checkIdentityUploadStatus({
         identityDidUpload: this.identityDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)

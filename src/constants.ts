@@ -1,27 +1,26 @@
-export enum TRUSTBASE_CONNECT_STATUS {
+export enum ETHEREUM_CONNECT_STATUS {
   PENDING = 0,
   SUCCESS = 200,
   ERROR = 401
 }
 
-export enum TRUSTBASE_CONNECT_ERROR {
+export enum ETHEREUM_CONNECT_ERROR {
   NO_METAMASK = 0,
   LOCKED,
-  NO_NETWORK,
   UNKNOWN
 }
 
 export const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
-  [TRUSTBASE_CONNECT_STATUS.PENDING]: 'pending',
-  [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'success',
-  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'error'
+  [ETHEREUM_CONNECT_STATUS.PENDING]: 'pending',
+  [ETHEREUM_CONNECT_STATUS.SUCCESS]: 'success',
+  [ETHEREUM_CONNECT_STATUS.ERROR]: 'error'
 }) as {
   [connectStatus: number]: string
 }
 
 export const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
-  [TRUSTBASE_CONNECT_STATUS.SUCCESS]: 'Active',
-  [TRUSTBASE_CONNECT_STATUS.ERROR]: 'Disconnected'
+  [ETHEREUM_CONNECT_STATUS.SUCCESS]: 'Active',
+  [ETHEREUM_CONNECT_STATUS.ERROR]: 'Disconnected'
 }) as {
   [connectStatus: number]: string
 }
