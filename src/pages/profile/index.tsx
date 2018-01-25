@@ -158,7 +158,7 @@ class Profile extends React.Component<Iprops, Istate> {
         } else {
           if (!userPublicKey.verify(
             sodium.from_hex(signedGithubClaim.signature.slice(2)),
-            JSON.stringify(signedGithubClaim.githubClaim))) {
+            JSON.stringify(signedGithubClaim.claim))) {
             this.setState({
               verifyStatus: Object.assign(this.state.verifyStatus, { github: VERIFY_SOCIAL_STATUS.INVALID })
             })
