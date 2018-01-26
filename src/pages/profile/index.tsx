@@ -19,14 +19,17 @@ import {
 } from '../../utils'
 
 import {
-  publicKeyFromHexStr
-} from '../../crypto.utils'
+  generatePublicKeyFromHexStr,
+} from '../../utils'
 
 import {
   SOCIAL_MEDIAS,
-  ETHEREUM_CONNECT_STATUS,
   VERIFY_SOCIAL_STATUS,
 } from '../../constants'
+
+import {
+  ETHEREUM_CONNECT_STATUS,
+} from '../../stores/EthereumStore'
 
 import {
   FacebookResource,
@@ -118,7 +121,7 @@ class Profile extends React.Component<Iprops, Istate> {
       return
     }
 
-    const userPublicKey = publicKeyFromHexStr(currentUserPublicKey.slice(2))
+    const userPublicKey = generatePublicKeyFromHexStr(currentUserPublicKey.slice(2))
 
     const socials = this.state.userBoundSocials
     const verifyFacebook = async () => {
@@ -243,7 +246,7 @@ class Profile extends React.Component<Iprops, Istate> {
       userLastFetchBlock: lastBlock,
     })
     if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(this.state.userBoundSocials)) {
-      const userPublicKey = publicKeyFromHexStr(currentUserPublicKey.slice(2))
+      const userPublicKey = generatePublicKeyFromHexStr(currentUserPublicKey.slice(2))
       if (!userPublicKey.verify(
         sodium.from_hex(_signedBoundSocial.signature.slice(2)),
         JSON.stringify(_signedBoundSocial.socialMedias)
@@ -297,11 +300,11 @@ class Profile extends React.Component<Iprops, Istate> {
       currentUser,
       isFetchingBoundEvents,
       startFetchBoundEvents,
-      listenForConnectStatusChange,
+      // listenForConnectStatusChange,
       getIdentity,
       getBlockHash,
     } = this.props.store
-    if (connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS) {
+    if (connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE) {
       let userAddress = this.state.userAddress
       if (currentUser) {
         if ('' === this.state.userAddress) {
@@ -332,35 +335,35 @@ class Profile extends React.Component<Iprops, Istate> {
     }
 
     if (isFirstMount) {
-      listenForConnectStatusChange(this.connectStatusListener)
+      // listenForConnectStatusChange(this.connectStatusListener)
     }
   }
 
   public componentWillUnmount() {
     const {
       stopFetchBoundEvents,
-      removeConnectStatusListener
+      // removeConnectStatusListener
     } = this.props.store
     stopFetchBoundEvents()
     this.stopFetchingUserProofs()
     this.stopVerifyingUserProofs()
-    removeConnectStatusListener(this.connectStatusListener)
+    // removeConnectStatusListener(this.connectStatusListener)
   }
 
   public render() {
     const {
       connectStatus,
     } = this.props.store
-    if (connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS) {
+    if (connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE) {
       return <CommonHeaderPage>
-        {this.userAvatar()}
-        {this.socials()}
+        {this.userAvatar}
+        {this.socials}
       </CommonHeaderPage>
     }
     return <CommonHeaderPage />
 
   }
-  private socials() {
+  private get socials() {
     const socialsElements = []
     for (let social of SOCIAL_MEDIAS) {
       const boundSocial = this.state.userBoundSocials[social.platform]
@@ -384,7 +387,7 @@ class Profile extends React.Component<Iprops, Istate> {
     return <ul>{socialsElements}</ul>
   }
 
-  private userAvatar() {
+  private get userAvatar() {
     const { getBEMClassNames } = this
     const avatarShape = 'square'
     const avatarSize = 'large'
@@ -405,18 +408,18 @@ class Profile extends React.Component<Iprops, Istate> {
     )
   }
 
-  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
-    const {
-      stopFetchBoundEvents
-    } = this.props.store
-    if (prev !== ETHEREUM_CONNECT_STATUS.SUCCESS) {
-      this.componentDidMount(false)
-    } else if (cur !== ETHEREUM_CONNECT_STATUS.SUCCESS) {
-      stopFetchBoundEvents()
-      this.stopFetchingUserProofs()
-      this.stopVerifyingUserProofs()
-    }
-  }
+  // private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
+  //   const {
+  //     stopFetchBoundEvents
+  //   } = this.props.store
+  //   if (prev !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
+  //     this.componentDidMount(false)
+  //   } else if (cur !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
+  //     stopFetchBoundEvents()
+  //     this.stopFetchingUserProofs()
+  //     this.stopVerifyingUserProofs()
+  //   }
+  // }
   private get isSelf() {
     const {
       currentUser,

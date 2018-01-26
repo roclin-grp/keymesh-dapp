@@ -1,11 +1,12 @@
+import {
+  useStrict,
+} from 'mobx'
+
 import { EthereumStore } from './EthereumStore'
 import { ContractStore } from './ContractStore'
 import { UsersStore } from './UsersStore'
 import { UserStore } from './UserStore'
-
-import {
-  storeLogger
-} from '../utils'
+import { SessionStore } from './SessionStore'
 
 import DB from '../DB'
 
@@ -14,10 +15,11 @@ export interface Istores {
   usersStore: UsersStore
 }
 
+useStrict(true)
+
 export function createStores(): Istores {
   const db = new DB()
   const ethereumStore = new EthereumStore()
-  ethereumStore.connect().catch(storeLogger.error)
   const contractStore = new ContractStore({
     ethereumStore
   })
@@ -26,6 +28,7 @@ export function createStores(): Istores {
     contractStore,
     db
   })
+  ethereumStore.connect()
 
   return {
     ethereumStore,
@@ -36,6 +39,7 @@ export function createStores(): Istores {
 export {
   EthereumStore,
   ContractStore,
-  UserStore,
   UsersStore,
+  UserStore,
+  SessionStore,
 }

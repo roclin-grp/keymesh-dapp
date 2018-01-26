@@ -1,33 +1,32 @@
 import * as React from 'react'
-
 import {
   Link,
   withRouter,
   RouteComponentProps,
 } from 'react-router-dom'
 
-import { inject, observer } from 'mobx-react'
-
-import { sha3 } from 'trustbase'
+import {
+  inject,
+  observer,
+} from 'mobx-react'
 
 import * as copy from 'copy-to-clipboard'
 const throttle = require('lodash.throttle')
 
 import {
-  // downloadObjectAsJson,
+  noop,
   getBEMClassNamesMaker,
   IextendableClassNamesProps,
+  storeLogger,
 } from '../../utils'
 
 import {
-  NETWORKS,
-  ETHEREUM_CONNECT_STATUS,
-  ETHEREUM_CONNECT_ERROR,
-  NETWORK_NAMES,
-  CONNECT_STATUS_INDICATOR_MODIFIER,
-  CONNECT_STATUS_INDICATOR_TEXTS,
-  USER_STATUS,
+  ETHEREUM_NETWORK_NAMES
 } from '../../constants'
+
+import {
+  ETHEREUM_CONNECT_STATUS,
+} from '../../stores/EthereumStore'
 
 import {
   Tooltip,
@@ -49,20 +48,6 @@ import { Iuser } from '../../../typings/interface'
 
 import './index.css'
 
-interface Iprops extends IextendableClassNamesProps, RouteComponentProps<{}> {
-  shouldRefreshSessions?: boolean
-}
-
-interface IinjectedProps extends Iprops {
-  ethereumStore: EthereumStore
-  usersStore: UsersStore
-}
-
-interface Istate {
-  hidden: boolean
-  hasShadow: boolean
-}
-
 @inject(({
   ethereumStore,
   usersStore
@@ -74,15 +59,10 @@ interface Istate {
 class Header extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'header'
 
-  public static defaultProps = {
-    shouldRefreshSessions: false,
-    className: '',
-    prefixClass: ''
-  }
-
   public readonly state = {
     hidden: false,
-    hasShadow: false
+    hasShadow: false,
+    isExporting: false,
   }
 
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
@@ -133,36 +113,7 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   public render() {
-    const {
-      ethereumStore: {
-        ethereumConnectStatus,
-        ethereumConnectErrorCode,
-        currentEthereumNetwork,
-      },
-      usersStore: {
-        currentUserStore,
-        hasUser
-      },
-    } = this.injectedProps
     const {getBEMClassNames} = this
-    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
-    const hasConnectError = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
-    const user = hasUser ? currentUserStore!.user : undefined
-
-    const networkText = (
-      <span
-        className={getBEMClassNames('network-text')}
-        title="Current Ethereum network"
-      >
-        {hasConnectError && ethereumConnectErrorCode !== ETHEREUM_CONNECT_ERROR.LOCKED
-          ? 'No network'
-          : (
-            NETWORK_NAMES[currentEthereumNetwork as NETWORKS]
-            || `Custom(${currentEthereumNetwork})`
-          )
-        }
-      </span>
-    )
 
     return (
       <header
@@ -180,86 +131,130 @@ class Header extends React.Component<Iprops, Istate> {
               Keymail
             </Link>
           </h1>
-          {!isPending
-            ? (
-              <>
-                <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[ethereumConnectStatus]}>
-                  <span
-                    title="Network status"
-                    className={getBEMClassNames('network-indicator-wrapper')}
-                  >
-                    <span
-                      className={getBEMClassNames('network-indicator', {
-                        [CONNECT_STATUS_INDICATOR_MODIFIER[ethereumConnectStatus]]: true
-                      })}
-                    />
-                  </span>
-                </Tooltip>
-                <span
-                  className={getBEMClassNames('network-options-button', {}, {'ant-dropdown-link': true})}
-                  // looks like antd does not support keyboard accessibility well
-                  // tabIndex={0}
-                >
-                  {networkText}
-                </span>
-                {hasUser
-                  ? (
-                    <Dropdown
-                      trigger={['click']}
-                      overlay={this.userOptions}
-                      placement="bottomRight"
-                    >
-                      <a
-                        title={user!.userAddress}
-                        className={getBEMClassNames('user-options-button', {}, {'ant-dropdown-link': true})}
-                        // looks like antd does not support keyboard accessibility well
-                        // tabIndex={0}
-                      >
-                        {this.userAvatar}
-                        <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
-                      </a>
-                    </Dropdown>
-                  )
-                  : null
-                }
-              </>
-            )
-            : null
-          }
+          {this.networkStatus}
+          {this.userMenu}
         </div>
       </header>
     )
   }
 
-  private get userAvatar() {
+  private get networkStatus() {
+    const {isPending} = this.injectedProps.ethereumStore
+    if (isPending) {
+      return null
+    }
+
+    const {getBEMClassNames} = this
+    const {ethereumConnectStatus} = this.injectedProps.ethereumStore
+
+    return (
+      <>
+        <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[ethereumConnectStatus]}>
+          <span
+            title="Network status"
+            className={getBEMClassNames('network-indicator-wrapper')}
+          >
+            <span
+              className={getBEMClassNames('network-indicator', {
+                [CONNECT_STATUS_INDICATOR_MODIFIER[ethereumConnectStatus]]: true
+              })}
+            />
+          </span>
+        </Tooltip>
+        <span
+          className={getBEMClassNames('network-options-button', {}, {'ant-dropdown-link': true})}
+          // looks like antd does not support keyboard accessibility well
+          // tabIndex={0}
+        >
+          {this.networkText}
+        </span>
+      </>
+    )
+  }
+
+  private get networkText() {
+    const {
+      hasError,
+      isMetaMaskLocked,
+      currentEthereumNetwork
+    } = this.injectedProps.ethereumStore
+
+    return (
+      <span
+        className={this.getBEMClassNames('network-text')}
+        title="Current Ethereum network"
+      >
+        {hasError && !isMetaMaskLocked
+          ? 'No network'
+          : (
+            ETHEREUM_NETWORK_NAMES[currentEthereumNetwork!]
+            || `Custom(${currentEthereumNetwork})`
+          )
+        }
+      </span>
+    )
+  }
+
+  private get userMenu() {
+    const {isPending} = this.injectedProps.ethereumStore
+    if (isPending) {
+      return null
+    }
+
+    const {hasUser} = this.injectedProps.usersStore
+    if (!hasUser) {
+      return null
+    }
+
+    const {getBEMClassNames} = this
     const {user} = this.injectedProps.usersStore.currentUserStore!
 
-    const avatarShape = 'square'
-    const avatarSize = 'small'
-    const avatarClassName = this.getBEMClassNames('user-avatar')
+    return (
+      <Dropdown
+        trigger={['click']}
+        overlay={this.userOptions}
+        placement="bottomRight"
+      >
+        <a
+          title={user.userAddress}
+          className={getBEMClassNames('user-options-button', {}, {'ant-dropdown-link': true})}
+          // looks like antd does not support keyboard accessibility well
+          // tabIndex={0}
+        >
+          {this.userAvatar}
+          <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
+        </a>
+      </Dropdown>
+    )
+  }
+
+  private get userAvatar() {
+    const {getBEMClassNames} = this
+    const {avatarHash} = this.injectedProps.usersStore.currentUserStore!
 
     return (
       <HashAvatar
-        className={avatarClassName}
-        shape={avatarShape}
-        size={avatarSize}
-        hash={user.status !== USER_STATUS.PENDING
-          ? sha3(`${user.userAddress}${user.blockHash}`)
-          : ''
-        }
+        className={getBEMClassNames('user-avatar')}
+        shape="square"
+        size="small"
+        hash={avatarHash}
       />
     )
   }
 
   private get userOptions() {
-    const {
-      getBEMClassNames
-    } = this
+    const {getBEMClassNames} = this
     const {
       users,
       canCreateOrImportUser
     } = this.injectedProps.usersStore
-    const {user} = this.injectedProps.usersStore.currentUserStore!
+    const {
+      user,
+      isDatabaseLoaded
+    } = this.injectedProps.usersStore.currentUserStore!
+
+    const canExportUser = isDatabaseLoaded && !this.state.isExporting
+
     return (
       <Menu>
         <Menu.Item
@@ -272,11 +267,11 @@ class Header extends React.Component<Iprops, Istate> {
             title="Click to copy"
           >
             <span
-              title={user!.userAddress}
+              title={user.userAddress}
               className={getBEMClassNames('user-address')}
               onClick={this.handleCopyUserAddress}
             >
-              {user!.userAddress.slice(0, 8)}...
+              {user.userAddress.slice(0, 8)}...
             </span>
           </Tooltip>
         </Menu.Item>
@@ -290,8 +285,10 @@ class Header extends React.Component<Iprops, Istate> {
             Profile
           </Link>
         </Menu.Item>
-        <Menu.Item>
-          <a onClick={this.handleExport}>
+        <Menu.Item
+          disabled={!canExportUser}
+        >
+          <a onClick={canExportUser ? this.handleExport : noop}>
             Export account
           </a>
         </Menu.Item>
@@ -301,7 +298,7 @@ class Header extends React.Component<Iprops, Istate> {
             <Menu.SubMenu title={<span>Switch user</span>}>
               {
                 users
-                  .filter((_user) => _user.userAddress !== user!.userAddress)
+                  .filter((_user) => _user.userAddress !== user.userAddress)
                   .map((_user) => (
                     <Menu.Item key={`${_user.userAddress}@${_user.networkId}`}>
                       <SwitchUserOption user={_user} onSelect={this.handleSelectUser} />
@@ -335,24 +332,64 @@ class Header extends React.Component<Iprops, Istate> {
   }
 
   private handleExport = async () => {
-    // const {
-    //   currentUserStore,
-    //   dumpCurrentUser
-    // } = this.injectedProps.usersStore
-    // const {user} = currentUserStore!
-    // const dumped = await dumpCurrentUser()
-    // downloadObjectAsJson(dumped, `keymail@${user.networkId}@${user.userAddress}`)
+    this.setState({
+      isExporting: true
+    })
+    try {
+      const {
+        exportUser
+      } = this.injectedProps.usersStore.currentUserStore!
+      await exportUser()
+    } catch (err) {
+      storeLogger.error('Unexpected export user error:', err)
+      if (!this.isUnmounted) {
+        message.error('Export user fail, please retry.')
+      }
+    } finally {
+      if (!this.isUnmounted) {
+        this.setState({
+          isExporting: false
+        })
+      }
+    }
   }
 
   private handleCopyUserAddress = () => {
     const {
-      currentUserStore,
-    } = this.injectedProps.usersStore
-    const {user} = currentUserStore!
+      user,
+    } = this.injectedProps.usersStore.currentUserStore!
     if (copy(user.userAddress)) {
       message.success('User address copied!', 1.3)
     }
   }
+}
+
+const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
+  [ETHEREUM_CONNECT_STATUS.PENDING]: 'pending',
+  [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'active',
+  [ETHEREUM_CONNECT_STATUS.ERROR]: 'error'
+}) as {
+  [connectStatus: number]: string
+}
+
+const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
+  [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'Active',
+  [ETHEREUM_CONNECT_STATUS.ERROR]: 'Error'
+}) as {
+  [connectStatus: number]: string
+}
+
+type Iprops = IextendableClassNamesProps & RouteComponentProps<{}>
+
+interface IinjectedProps extends Iprops {
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
+}
+
+interface Istate {
+  hidden: boolean
+  hasShadow: boolean
+  isExporting: boolean
 }
 
 export default withRouter(Header)

@@ -1,6 +1,5 @@
 import * as React from 'react'
 import {
-  withRouter,
   Redirect,
   Link,
   RouteComponentProps,
@@ -12,15 +11,10 @@ import {
 } from 'mobx-react'
 
 import {
-  EthereumStore,
-  UsersStore,
-  Istores,
-} from '../../stores'
-
-import {
   Steps,
   Icon,
 } from 'antd'
+
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
 import {
@@ -29,7 +23,16 @@ import {
 } from '../../utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
+  EthereumStore,
+  UsersStore,
+  Istores,
+} from '../../stores'
+
+import {
+  ETHEREUM_CONNECT_STATUS
+} from '../../stores/EthereumStore'
+
+import {
   REGISTER_FAIL_CODE,
   USER_STATUS,
 } from '../../constants'
@@ -90,7 +93,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     shouldPreventRedirect: false
   })
 
-  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(CheckRegister.blockName, this.props)
 
@@ -99,8 +102,8 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   public componentDidMount() {
     const {
       ethereumStore: {
-        ethereumConnectStatus,
-        listenForEthereumConnectStatusChange
+        isActive,
+        listenForEthereumConnectStatusChange,
       },
       usersStore: {
         currentUserStore,
@@ -109,7 +112,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     } = this.injectedProps
     const user = hasUser ? currentUserStore!.user : undefined
     if (
-      ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
+      isActive
       && hasUser
       && user!.registerRecord
     ) {
@@ -117,8 +120,9 @@ class CheckRegister extends React.Component<Iprops, Istate> {
         identityDidUpload: this.identityDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)
+    } else {
+      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
     }
-    this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
   }
   public componentWillUnmount() {
     this.unmounted = true
@@ -127,7 +131,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   public render() {
     const {
       ethereumStore: {
-        ethereumConnectStatus,
+        isPending,
       },
       usersStore: {
         currentUserStore,
@@ -142,7 +146,6 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     } = this.state
     const { getBEMClassNames } = this
 
-    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
     if (!shouldPreventRedirect && !isPending && (!hasUser || (user!.status === USER_STATUS.OK))) {
       return <Redirect to="/" />
     }
@@ -341,18 +344,20 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     })
   }
   private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
+    if (this.unmounted) {
+      return
+    }
+
     const {
       usersStore: {
         currentUserStore,
         hasUser
       },
     } = this.injectedProps
-    if (this.unmounted) {
-      return
-    }
+
     if (
-      prev !== ETHEREUM_CONNECT_STATUS.SUCCESS
-      && cur === ETHEREUM_CONNECT_STATUS.SUCCESS
+      prev !== ETHEREUM_CONNECT_STATUS.ACTIVE
+      && cur === ETHEREUM_CONNECT_STATUS.ACTIVE
       && hasUser
       && currentUserStore!.user.registerRecord
     ) {
@@ -364,4 +369,4 @@ class CheckRegister extends React.Component<Iprops, Istate> {
   }
 }
 
-export default withRouter(CheckRegister)
+export default CheckRegister

@@ -1,7 +1,13 @@
 import {
   observable,
+  computed,
+  reaction,
   runInAction,
 } from 'mobx'
+
+import {
+  sha3,
+} from 'trustbase'
 
 import {
   Cryptobox,
@@ -13,22 +19,29 @@ import {
 
 const sodium = require('libsodium-wrappers-sumo')
 
-import { EthereumStore } from './EthereumStore'
-import { ContractStore } from './ContractStore'
-import { SessionStore } from './SessionStore'
-import { UsersStore } from './UsersStore'
+import {
+  EthereumStore,
+  ContractStore,
+  SessionStore,
+  UsersStore,
+} from './'
+
+import {
+  REGISTER_FAIL_CODE
+} from './UsersStore'
 
 import {
   noop,
   isHexZeroValue,
-  setNetworkLastUsedUserAddress,
   unixToday,
   storeLogger,
+  dumpCryptobox,
+  IdumpedDatabases,
+  downloadObjectAsJson,
 } from '../utils'
 
 import {
   USER_STATUS,
-  REGISTER_FAIL_CODE,
 } from '../constants'
 
 import DB from '../DB'
@@ -52,7 +65,7 @@ export class UserStore {
   @observable public user: Iuser
   @observable.ref public sessions: Isession[] = []
   @observable.ref public currentSession: SessionStore | undefined
-  @observable public initialized = false
+  @observable public isDatabaseLoaded = false
 
   constructor(user: Iuser, {
     db,
@@ -65,14 +78,29 @@ export class UserStore {
     contractStore: ContractStore
     usersStore: UsersStore
   }) {
-    this.user = user
+    this.user = this.userRef = user
     this.db = db
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
-    setNetworkLastUsedUserAddress(user)
-    this.initialize()
+    this.loadDataFromLocal()
+
+    reaction(
+      () => ({
+        status: this.user.status,
+        blockHash: this.user.blockHash,
+        registerRecord: this.user.registerRecord,
+      }) as Iuser,
+      (observableUserData) => Object.assign(this.userRef, observableUserData))
   }
 
+  @computed
+  public get avatarHash() {
+    return this.user.status === USER_STATUS.PENDING
+      ? ''
+      : sha3(`${this.user.userAddress}${this.user.blockHash}`)
+  }
+
+  private userRef: Iuser
   private db: DB
   private ethereumStore: EthereumStore
   private contractStore: ContractStore
@@ -186,7 +214,6 @@ export class UserStore {
     const prekeysSignature = `0x${sodium.to_hex(this.box.identity.secret_key.sign(serializedPrekeys))}`
 
     const uploadPreKeysUrl = `${process.env.REACT_APP_KVASS_ENDPOINT}${this.user.userAddress}`
-
     const resp = await fetch(
       uploadPreKeysUrl,
       {
@@ -215,7 +242,22 @@ export class UserStore {
     })
   }
 
-  private async initialize() {
+  public exportUser = async () => {
+    const data: IdumpedDatabases = {}
+    const user = this.user
+    const sessions = this.sessions
+    const messages = await this.db.getUserMessages(user)
+    data.keymail = [
+      { table: 'users', rows: [user], },
+      { table: 'sessions', rows: sessions},
+      { table: 'messages', rows: messages}
+    ]
+    const cryptobox = await dumpCryptobox(user)
+    data[cryptobox.dbname] = cryptobox.tables
+    downloadObjectAsJson(data, `keymail@${user.networkId}@${user.userAddress}`)
+  }
+
+  private async loadDataFromLocal() {
     const {
       user: {
         networkId,
@@ -230,7 +272,7 @@ export class UserStore {
 
     const sessions = await db.getSessions(user)
     runInAction(() => {
-      this.initialized = true
+      this.isDatabaseLoaded = true
       delete this.currentSession
       this.sessions = sessions
       this.box = box

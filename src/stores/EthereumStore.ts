@@ -1,7 +1,7 @@
 import {
   observable,
+  computed,
   runInAction,
-  useStrict,
   action,
 } from 'mobx'
 
@@ -13,26 +13,22 @@ import {
 import { Web3 } from 'trustbase/typings/web3.d'
 
 import {
-  storeLogger
+  storeLogger,
 } from '../utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
-  NETWORKS,
-  ETHEREUM_CONNECT_ERROR,
+  ETHEREUM_NETWORKS,
 } from '../constants'
 
 import {
   IasyncProvider,
 } from '../../typings/interface'
 
-useStrict(true)
-
 export class EthereumStore {
   @observable public ethereumConnectStatus: ETHEREUM_CONNECT_STATUS = ETHEREUM_CONNECT_STATUS.PENDING
-  @observable public ethereumConnectErrorCode: ETHEREUM_CONNECT_ERROR
+  @observable public ethereumConnectErrorCode: ETHEREUM_CONNECT_ERROR_CODE
   @observable public ethereumConnectError: Error | undefined
-  @observable public currentEthereumNetwork: NETWORKS | undefined
+  @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
 
   public web3: Web3
@@ -40,28 +36,48 @@ export class EthereumStore {
   private detectEthereumAccountChangeTimeout: number
   private detectEthereumNetworkChangeTimeout: number
 
+  @computed
+  public get isPending() {
+    return this.ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
+  }
+
+  @computed
+  public get isActive() {
+    return this.ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE
+  }
+
+  @computed
+  public get hasError() {
+    return this.ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
+  }
+
+  @computed
+  public get isMetaMaskLocked() {
+    return this.hasError && this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR_CODE.LOCKED
+  }
+
   public connect = () => {
     const metaMasksWeb3 = (window as any).web3
     const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IasyncProvider : undefined
 
     if (typeof provider === 'undefined') {
-      this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR.NO_METAMASK)
+      this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.NO_METAMASK)
       return Promise.resolve()
     }
 
     return initialize({ provider })
       .then(async () => {
         const web3 = this.web3 = getWeb3()
-        const currentNetworkId: NETWORKS = await web3.eth.net.getId()
+        const currentNetworkId: ETHEREUM_NETWORKS = await web3.eth.net.getId()
         this.processEthereumConnect(currentNetworkId)
       })
       .catch((err: Error) => {
         if ((err as TrustbaseError).code === TrustbaseError.CODE.FOUND_NO_ACCOUNT) {
           // MetaMask locked
-          this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR.LOCKED)
+          this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.LOCKED)
           this.detectEthereumAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
         } else {
-          this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR.UNKNOWN, err)
+          this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.UNKNOWN, err)
         }
       })
   }
@@ -99,12 +115,12 @@ export class EthereumStore {
       }
       if (
         this.ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
-        && this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR.LOCKED
+        && this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR_CODE.LOCKED
       ) {
         return this.processEthereumConnect(this.currentEthereumNetwork!)
       }
     } else if (this.ethereumConnectStatus !== ETHEREUM_CONNECT_STATUS.ERROR) {
-      return this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR.LOCKED)
+      return this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.LOCKED)
     }
     this.detectEthereumAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
@@ -112,7 +128,7 @@ export class EthereumStore {
   private listenForEthereumNetworkChange = async () => {
     window.clearTimeout(this.detectEthereumNetworkChangeTimeout)
     const { web3 } = this
-    const currentNetworkId: NETWORKS = await web3.eth.net.getId()
+    const currentNetworkId: ETHEREUM_NETWORKS = await web3.eth.net.getId()
 
     if (this.currentEthereumNetwork !== currentNetworkId) {
       window.clearTimeout(this.detectEthereumAccountChangeTimeout)
@@ -122,7 +138,7 @@ export class EthereumStore {
   }
 
   @action
-  private processEthereumConnect = (networkId: NETWORKS) => {
+  private processEthereumConnect = (networkId: ETHEREUM_NETWORKS) => {
     delete this.ethereumConnectErrorCode
     delete this.ethereumConnectError
 
@@ -130,7 +146,7 @@ export class EthereumStore {
     this.currentEthereumAccount = this.web3.eth.defaultAccount
 
     const prevConnectStatus = this.ethereumConnectStatus
-    this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.SUCCESS
+    this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.ACTIVE
     this.ethereumConnectStatusDidChange(prevConnectStatus, this.ethereumConnectStatus)
 
     window.clearTimeout(this.detectEthereumAccountChangeTimeout)
@@ -141,10 +157,10 @@ export class EthereumStore {
 
   @action
   private processEthereumConnectError = (
-    errCode: ETHEREUM_CONNECT_ERROR,
+    errCode: ETHEREUM_CONNECT_ERROR_CODE,
     err?: Error
   ) => {
-    if (errCode !== ETHEREUM_CONNECT_ERROR.LOCKED) {
+    if (errCode !== ETHEREUM_CONNECT_ERROR_CODE.LOCKED) {
       delete this.currentEthereumNetwork
     }
     delete this.currentEthereumAccount
@@ -165,3 +181,15 @@ export class EthereumStore {
 }
 
 type TypeConnectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => void
+
+export enum ETHEREUM_CONNECT_STATUS {
+  PENDING = 0,
+  ACTIVE,
+  ERROR
+}
+
+export enum ETHEREUM_CONNECT_ERROR_CODE {
+  NO_METAMASK = 0,
+  LOCKED,
+  UNKNOWN
+}

@@ -9,12 +9,11 @@ import {
 import {
   REGISTER_FAIL_CODE,
   SENDING_FAIL_CODE,
-  NETWORKS,
-  TABLES,
   MESSAGE_TYPE,
   USER_STATUS,
   MESSAGE_STATUS,
   SOCIAL_MEDIA_PLATFORMS,
+  ETHEREUM_NETWORKS,
 } from '../src/constants'
 
 import {
@@ -89,7 +88,7 @@ export interface IreceviedBroadcastMessage extends IsignedBroadcastMessage {
 }
 
 interface IuserIdentityKeys {
-  networkId: NETWORKS,
+  networkId: ETHEREUM_NETWORKS,
   userAddress: string,
 }
 
@@ -135,11 +134,6 @@ export interface Imessage extends IuserIdentityKeys {
   transactionHash?: string
   status: MESSAGE_STATUS
 }
-
-export type TableUsers = Dexie.Table<Iuser, [NETWORKS, string]>
-export type TableSessions = Dexie.Table<Isession, [string, string]>
-export type TableMessages = Dexie.Table<Imessage, [string, string]>
-
 export type web3BlockType = web3.BlockType
 
 interface ItrustbaseRawMessage {
@@ -176,11 +170,4 @@ interface IDumpedTable {
 
 interface IDumpedDatabases {
   [dbname: string]: IDumpedTable[]
-}
-
-interface Logdown {
-  log: (...str: any[]) => void
-  info: (...str: any[]) => void
-  warn: (...str: any[]) => void
-  error: (...reason: any[]) => void
 }

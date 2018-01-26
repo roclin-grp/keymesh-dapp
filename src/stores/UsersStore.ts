@@ -10,22 +10,20 @@ import {
   keys,
 } from 'wire-webapp-proteus'
 
-import { EthereumStore } from './EthereumStore'
-import { ContractStore } from './ContractStore'
-import { UserStore } from './UserStore'
+import {
+  EthereumStore,
+  ContractStore,
+  UserStore,
+} from './'
 
 import {
   noop,
   storeLogger,
   isHexZeroValue,
-  setNetworkLastUsedUserAddress,
-  getNetworkLastUsedUserAddress,
 } from '../utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
-  NETWORKS,
-  REGISTER_FAIL_CODE,
+  ETHEREUM_NETWORKS,
 } from '../constants'
 
 import DB from '../DB'
@@ -66,22 +64,21 @@ export class UsersStore {
     this.contractStore = contractStore
     reaction(
       () => ({
-        connectStatus: this.ethereumStore.ethereumConnectStatus,
+        isActive: this.ethereumStore.isActive,
         networkId: this.ethereumStore.currentEthereumNetwork
       }),
       async ({
         networkId,
-        connectStatus
+        isActive
       }) => {
         if (
-          connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
-          && typeof networkId !== 'undefined'
+          isActive
           && this.lastNetworkId !== networkId
         ) {
           this.isLoadingData = true
-          const users = await db.getUsers(networkId)
+          const users = await db.getUsers(networkId!)
 
-          let userAddress = getNetworkLastUsedUserAddress(networkId)
+          let userAddress = getNetworkLastUsedUserAddress(networkId!)
           let user: Iuser | undefined
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
@@ -99,9 +96,9 @@ export class UsersStore {
                 this.switchUser(user)
               }
             }
+            this.isLoadingData = false
           })
           this.lastNetworkId = networkId
-          this.isLoadingData = false
         }
       }
     )
@@ -110,16 +107,16 @@ export class UsersStore {
   private db: DB
   private ethereumStore: EthereumStore
   private contractStore: ContractStore
-  private lastNetworkId: NETWORKS | undefined
-  private isLoadingData = false
+  private lastNetworkId: ETHEREUM_NETWORKS | undefined
+  @observable private isLoadingData = false
 
   @computed
   public get canCreateOrImportUser() {
     const {
-      ethereumConnectStatus,
+      isActive,
       currentEthereumAccount,
     } = this.ethereumStore
-    return ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
+    return isActive
       && !this.isLoadingData
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
@@ -189,7 +186,7 @@ export class UsersStore {
       })
   }).catch(registerDidFail)
 
-  public deleteUser = async (networkId: NETWORKS, userAddress: string) => {
+  public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
     const user = await this.db.getUser(networkId, userAddress)
     if (typeof user !== 'undefined') {
       await this.db.deleteUser(user)
@@ -211,6 +208,45 @@ export class UsersStore {
     window.location.reload()
   }
 
+  public importUser = async (data: string, shouldRefreshSessions: boolean) => {
+    await this.db.restoreUserFromExportedData(data)
+    // todo
+    // const oldUsers = this.currentNetworkUsers
+    // if (users.length > 0) {
+    //   runInAction(() => {
+    //     this.currentNetworkUsers = users
+    //   })
+    //   if (oldUsers.length > 0) {
+    //     const userAddresses = oldUsers.reduce(
+    //       (result, user) => {
+    //         result[user.userAddress] = true
+    //         return result
+    //       },
+    //       {} as {[userAddress: string]: boolean}
+    //     )
+    //     const newUser = users.find((user) => !userAddresses[user.userAddress])
+    //     if (newUser && newUser.networkId === currentNetworkId) {
+    //       // await this.useUser(newUser, shouldRefreshSessions)
+    //       if (shouldRefreshSessions) {
+    //         return this.startFetchMessages()
+    //       }
+    //     }
+    //   } else {
+    //     const newUser = users[0]
+    //     if (newUser.networkId === currentNetworkId) {
+    //       // await this.useUser(newUser, shouldRefreshSessions)
+    //       if (shouldRefreshSessions) {
+    //         return this.startFetchMessages()
+    //       }
+    //     }
+    //   }
+    // }
+  }
+
+  public getAvatarHashByUserAddress = async (userAddress: string) => {
+    //
+  }
+
   @action
   private useUser = (user: Iuser) => {
     this.currentUserStore = new UserStore(user, {
@@ -219,6 +255,7 @@ export class UsersStore {
       contractStore: this.contractStore,
       usersStore: this
     })
+    setNetworkLastUsedUserAddress(user)
   }
 
   @action
@@ -252,4 +289,21 @@ export class UsersStore {
   private unsetUser = () => {
     delete this.currentUserStore
   }
+}
+
+function setNetworkLastUsedUserAddress({
+  networkId,
+  userAddress
+}: Iuser) {
+  localStorage.setItem(`keymail@'${networkId}@last-used-user`, userAddress)
+}
+
+function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
+  return (localStorage.getItem(`keymail@'${networkId}@last-used-user`) || '').toString()
+}
+
+export enum REGISTER_FAIL_CODE {
+  UNKNOWN = 0,
+  OCCUPIED = 400,
+  TIMEOUT = 500,
 }

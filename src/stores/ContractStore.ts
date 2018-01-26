@@ -9,11 +9,7 @@ import {
   BoundSocials
 } from 'trustbase'
 
-import { EthereumStore } from './EthereumStore'
-
-import {
-  ETHEREUM_CONNECT_STATUS,
-} from '../constants'
+import { EthereumStore } from './'
 
 export class ContractStore {
   public identitiesContract: Identities
@@ -29,17 +25,14 @@ export class ContractStore {
     this.ethereumStore = ethereumStore
     reaction(
       () => ({
-        connectStatus: this.ethereumStore.ethereumConnectStatus,
+        isActive: this.ethereumStore.isActive,
         networkId: this.ethereumStore.currentEthereumNetwork
       }),
       ({
         networkId,
-        connectStatus
+        isActive
       }) => {
-        if (
-          connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
-          && typeof networkId !== 'undefined'
-        ) {
+        if (isActive) {
           this.identitiesContract = new Identities({ networkId })
           this.messagesContract = new Messages({ networkId })
           this.broadcastMessagesContract = new BroadcastMessages({ networkId })

@@ -9,7 +9,6 @@ import {
 } from '../../stores'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
   // SENDING_FAIL_CODE
 } from '../../constants'
 
@@ -21,12 +20,6 @@ import {
 } from '../../utils'
 
 import './index.css'
-
-const {
-  PENDING,
-  SUCCESS,
-  ERROR
-} = ETHEREUM_CONNECT_STATUS
 
 interface IinjectedProps {
   ethereumStore: EthereumStore
@@ -65,7 +58,7 @@ class Home extends React.Component<{}, Istate> {
     const {
       ethereumStore: {
         // ethereumConnectStatus,
-        listenForEthereumConnectStatusChange
+        // listenForEthereumConnectStatusChange
       },
       usersStore: {
         // currentUserStore
@@ -87,9 +80,10 @@ class Home extends React.Component<{}, Istate> {
     //     startFetchBoundEvents()
     //   }
     // }
-    if (isFirstMount) {
-      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
-    }
+    // if (isFirstMount) {
+    //   this.removeEthereumConnectStatusChangeListener =
+    //     listenForEthereumConnectStatusChange(this.connectStatusListener)
+    // }
   }
 
   public componentWillUnmount() {
@@ -104,7 +98,7 @@ class Home extends React.Component<{}, Istate> {
   public render() {
     const {
       ethereumStore: {
-        ethereumConnectStatus
+        isActive,
       },
       usersStore: {
         // currentUserStore,
@@ -116,86 +110,79 @@ class Home extends React.Component<{}, Istate> {
     const {
       showCompose
     } = this.state
-    switch (ethereumConnectStatus) {
-      case PENDING:
-        return <CommonHeaderPage />
-      case SUCCESS:
-      case ERROR:
-        return <CommonHeaderPage shouldRefreshSessions={true}>
-            {
-              ethereumConnectStatus === SUCCESS
-              && hasUser
-                ? <div>
-                  <button
-                    style={{
-                      margin: '0 auto 20px',
-                      width: 200,
-                      display: 'block',
-                      padding: '10px 20px',
-                      borderRadius: '4px',
-                      textDecoration: 'none',
-                      background: showCompose ? 'red' : 'aquamarine',
-                      outline: 'none',
-                      border: 0,
-                      color: 'white',
-                    }}
-                    onClick={this.toggleCompose}
-                  >
-                    {showCompose ? 'Cancel' : 'Compose'}
-                  </button>
-                  {showCompose
-                    ? <div>
-                        {/* FIXME: Dirty uncontrolled components */}
-                        <div>
-                          <label>To:</label><input ref={(input) => this.toInput = input}/>
-                        </div>
-                        <div>
-                          <label>Subject:</label><input ref={(input) => this.subjectInput = input}/>
-                        </div>
-                        <div>
-                          <label>Message:</label><textarea ref={(input) => this.messageInput = input}/>
-                        </div>
-                        <div>
-                          <button
-                            disabled={this.state.isSending}
-                            onClick={this.handleSend}
-                          >
-                            Send
-                          </button>
-                        </div>
-                      <pre>{this.state.sendingProgress}</pre>
-                    </div>
-                    : null}
-                </div>
-                : null
-            }
-            {/* {
-              ethereumConnectStatus === SUCCESS
-              && currentUser
-              && newMessageCount > 0
-              ? <div
-                className="new-messages-prompt"
-                onClick={this.refreshSessions}
+    return (
+      <CommonHeaderPage shouldRefreshSessions={true}>
+        {
+          isActive && hasUser
+            ? <div>
+              <button
+                style={{
+                  margin: '0 auto 20px',
+                  width: 200,
+                  display: 'block',
+                  padding: '10px 20px',
+                  borderRadius: '4px',
+                  textDecoration: 'none',
+                  background: showCompose ? 'red' : 'aquamarine',
+                  outline: 'none',
+                  border: 0,
+                  color: 'white',
+                }}
+                onClick={this.toggleCompose}
               >
-                Received {newMessageCount} new message(s)
-              </div>
-              : null
-            } */}
-            {/* {
-              currentUser
-                ? <ul className="session-list">{
-                    currentUserSessions
-                      .map((session) => <Session
-                        key={session.sessionTag}
-                        session={session}
-                      />)
-                  }</ul>
-                : 'No account'
-            } */}
-        </CommonHeaderPage>
-      default:
-        return null
-    }
+                {showCompose ? 'Cancel' : 'Compose'}
+              </button>
+              {showCompose
+                ? <div>
+                    {/* FIXME: Dirty uncontrolled components */}
+                    <div>
+                      <label>To:</label><input ref={(input) => this.toInput = input}/>
+                    </div>
+                    <div>
+                      <label>Subject:</label><input ref={(input) => this.subjectInput = input}/>
+                    </div>
+                    <div>
+                      <label>Message:</label><textarea ref={(input) => this.messageInput = input}/>
+                    </div>
+                    <div>
+                      <button
+                        disabled={this.state.isSending}
+                        onClick={this.handleSend}
+                      >
+                        Send
+                      </button>
+                    </div>
+                  <pre>{this.state.sendingProgress}</pre>
+                </div>
+                : null}
+            </div>
+            : null
+        }
+        {/* {
+          ethereumConnectStatus === SUCCESS
+          && currentUser
+          && newMessageCount > 0
+          ? <div
+            className="new-messages-prompt"
+            onClick={this.refreshSessions}
+          >
+            Received {newMessageCount} new message(s)
+          </div>
+          : null
+        } */}
+        {/* {
+          currentUser
+            ? <ul className="session-list">{
+                currentUserSessions
+                  .map((session) => <Session
+                    key={session.sessionTag}
+                    session={session}
+                  />)
+              }</ul>
+            : 'No account'
+        } */}
+      </CommonHeaderPage>
+    )
   }
   // private refreshSessions = () => {
   //   const {
@@ -207,19 +194,19 @@ class Home extends React.Component<{}, Istate> {
   //   loadSessions()
   // }
 
-  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
-    // const {
-    //   stopFetchMessages
-    // } = this.injectedProps.store
-    // if (this.unmounted) {
-    //   return
-    // }
-    // if (prev !== SUCCESS) {
-    //   this.componentDidMount(false)
-    // } else if (cur !== SUCCESS) {
-    //   stopFetchMessages()
-    // }
-  }
+  // private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
+  //   const {
+  //     stopFetchMessages
+  //   } = this.injectedProps.store
+  //   if (this.unmounted) {
+  //     return
+  //   }
+  //   if (prev !== SUCCESS) {
+  //     this.componentDidMount(false)
+  //   } else if (cur !== SUCCESS) {
+  //     stopFetchMessages()
+  //   }
+  // }
 
   private toggleCompose = () => {
     this.setState({

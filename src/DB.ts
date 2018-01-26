@@ -1,9 +1,10 @@
 import Dexie from 'dexie'
 
 import {
-  TableUsers,
-  TableSessions,
-  TableMessages,
+  ETHEREUM_NETWORKS,
+} from './constants'
+
+import {
   Iuser,
   Isession,
   Imessage,
@@ -13,9 +14,6 @@ import {
 } from '../typings/interface.d'
 
 import {
-  NETWORKS,
-  TABLES,
-  SCHEMA_V1,
   MESSAGE_TYPE,
   SUMMARY_LENGTH,
   USER_STATUS,
@@ -24,56 +22,18 @@ import {
 import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
 import { IboundSocials, IbindingSocials } from '../typings/proof.interface'
 
-interface IcreateUserArgs {
-  networkId: NETWORKS
-  userAddress: string
+enum TABLE_NAMES {
+  USERS = 'users',
+  SESSIONS = 'sessions',
+  MESSAGES = 'messages'
 }
 
-interface IcreateSessionArgs {
-  user: Iuser
-  messageId: string
-  contact: Icontact
-  subject: string
-  sessionTag: string
-  messageType: MESSAGE_TYPE
-  timestamp: number
-  summary: string
-  plainText?: string
-  isFromYourself?: boolean
-  transactionHash?: string
-  status: MESSAGE_STATUS
-}
-
-interface IgetSessionsOptions {
-  contact?: Icontact
-  offset?: number
-  limit?: number
-}
-
-interface IdeleteSessionsOptions {
-  lastUpdateBefore?: number
-  contact?: string
-}
-
-interface IcreateMessageArgs {
-  user: Iuser
-  messageId: string
-  messageType: MESSAGE_TYPE
-  sessionTag: string
-  timestamp: number
-  plainText: string
-  isFromYourself?: boolean
-  shouldAddUnread?: boolean
-  transactionHash?: string
-  status: MESSAGE_STATUS
-}
-
-interface IgetMessagesOptions {
-  timestampAfter?: number
-  timestampBefore?: number
-  offset?: number
-  limit?: number
-}
+export const SCHEMA_V1 = Object.freeze({
+  [TABLE_NAMES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
+  [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
+  [TABLE_NAMES.MESSAGES]:
+    '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
+})
 
 export default class DB {
   public constructor() {
@@ -87,13 +47,13 @@ export default class DB {
 
   private readonly db: Dexie
   private get tableUsers(): TableUsers {
-    return (this.db as any)[TABLES.USERS]
+    return (this.db as any)[TABLE_NAMES.USERS]
   }
   private get tableSessions(): TableSessions {
-    return (this.db as any)[TABLES.SESSIONS]
+    return (this.db as any)[TABLE_NAMES.SESSIONS]
   }
   private get tableMessages(): TableMessages {
-    return (this.db as any)[TABLES.MESSAGES]
+    return (this.db as any)[TABLE_NAMES.MESSAGES]
   }
 
   public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {
@@ -116,12 +76,12 @@ export default class DB {
       .then(primaryKeys => this.tableUsers.get(primaryKeys)) as Dexie.Promise<Iuser>
   }
 
-  public getUser(networkId: NETWORKS, userAddress: string) {
+  public getUser(networkId: ETHEREUM_NETWORKS, userAddress: string) {
     return this.tableUsers
       .get([networkId, userAddress])
   }
 
-  public getUsers(networkId: NETWORKS, status?: USER_STATUS) {
+  public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.tableUsers
       .where(Object.assign({networkId}, status === undefined ? null : {status}))
       .toArray()
@@ -145,7 +105,7 @@ export default class DB {
     })
   }
 
-  public deleteUsers(networkId: NETWORKS) {
+  public deleteUsers(networkId: ETHEREUM_NETWORKS) {
     return this.db.transaction('rw', this.tableUsers, this.tableSessions, this.tableMessages, () => {
       this.tableUsers
         .where({networkId})
@@ -558,7 +518,7 @@ export default class DB {
 
     const keymailDB = await dumpDB(this.db)
 
-    const users = keymailDB.find((table) => table.table === TABLES.USERS)
+    const users = keymailDB.find((table) => table.table === TABLE_NAMES.USERS)
     if (users === undefined) {
       return
     }
@@ -575,13 +535,13 @@ export default class DB {
     return dbs
   }
 
-  public async restoreDumpedUser(_data: string) {
+  public async restoreUserFromExportedData(_data: string) {
     const data: IDumpedDatabases = JSON.parse(_data)
     await restoreDB(this.db, data.keymail, (): string[]|undefined => {
       return undefined
     })
 
-    return Promise.all(
+    await Promise.all(
       Object.keys(data)
         .filter((dbname) => dbname !== 'keymail')
         .map((dbname) => restoreCryptobox(dbname, data[dbname]))
@@ -604,3 +564,58 @@ export default class DB {
     )
   }
 }
+
+interface IcreateUserArgs {
+  networkId: ETHEREUM_NETWORKS
+  userAddress: string
+}
+
+interface IcreateSessionArgs {
+  user: Iuser
+  messageId: string
+  contact: Icontact
+  subject: string
+  sessionTag: string
+  messageType: MESSAGE_TYPE
+  timestamp: number
+  summary: string
+  plainText?: string
+  isFromYourself?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
+}
+
+interface IgetSessionsOptions {
+  contact?: Icontact
+  offset?: number
+  limit?: number
+}
+
+interface IdeleteSessionsOptions {
+  lastUpdateBefore?: number
+  contact?: string
+}
+
+interface IcreateMessageArgs {
+  user: Iuser
+  messageId: string
+  messageType: MESSAGE_TYPE
+  sessionTag: string
+  timestamp: number
+  plainText: string
+  isFromYourself?: boolean
+  shouldAddUnread?: boolean
+  transactionHash?: string
+  status: MESSAGE_STATUS
+}
+
+interface IgetMessagesOptions {
+  timestampAfter?: number
+  timestampBefore?: number
+  offset?: number
+  limit?: number
+}
+
+type TableUsers = Dexie.Table<Iuser, [ETHEREUM_NETWORKS, string]>
+type TableSessions = Dexie.Table<Isession, [string, string]>
+type TableMessages = Dexie.Table<Imessage, [string, string]>

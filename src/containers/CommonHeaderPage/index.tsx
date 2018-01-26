@@ -10,8 +10,10 @@ import {
 } from '../../stores'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
-  ETHEREUM_CONNECT_ERROR,
+  ETHEREUM_CONNECT_ERROR_CODE
+} from '../../stores/EthereumStore'
+
+import {
   USER_STATUS
 } from '../../constants'
 
@@ -58,7 +60,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
       ethereumConnectErrorCode
     } = this.injectedProps.ethereumStore
     switch (ethereumConnectErrorCode) {
-      case ETHEREUM_CONNECT_ERROR.NO_METAMASK: {
+      case ETHEREUM_CONNECT_ERROR_CODE.NO_METAMASK: {
         return (
           <>
             <Icon type="exclamation-circle-o" className={this.getBEMClassNames('warning')} />
@@ -70,7 +72,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
           </>
         )
       }
-      case ETHEREUM_CONNECT_ERROR.LOCKED: {
+      case ETHEREUM_CONNECT_ERROR_CODE.LOCKED: {
         return (
           <>
             <Icon type="lock" className={this.getBEMClassNames('warning')} />
@@ -78,7 +80,7 @@ class CommonHeaderPage extends React.Component<Iprops> {
           </>
         )
       }
-      case ETHEREUM_CONNECT_ERROR.UNKNOWN:
+      case ETHEREUM_CONNECT_ERROR_CODE.UNKNOWN:
       default:
         return (
           <>
@@ -97,12 +99,12 @@ class CommonHeaderPage extends React.Component<Iprops> {
   public render() {
     const {
       children,
-      shouldRefreshSessions,
       prefixClass
     } = this.props
     const {
       ethereumStore: {
-        ethereumConnectStatus
+        isPending,
+        hasError,
       },
       usersStore: {
         canCreateOrImportUser,
@@ -114,38 +116,35 @@ class CommonHeaderPage extends React.Component<Iprops> {
       getBEMClassNames
     } = this
 
-    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
-    const isError = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.ERROR
-
     const currentPathname = this.injectedProps.location.pathname
 
-    if (
-      !hasUser
-      && canCreateOrImportUser
+    if (hasUser) {
+      if (
+        currentPathname !== '/register'
+        && currentPathname !== '/check-register'
+        && currentUserStore!.user.status !== USER_STATUS.OK
+      ) {
+        return <Redirect to="/check-register" />
+      }
+    } else if (
+      canCreateOrImportUser
       && currentPathname !== '/register'
       && !currentPathname.includes('profile')
     ) {
       return <Redirect to="/register" />
     }
 
-    if (hasUser && currentPathname !== '/register') {
-      if (
-        currentUserStore!.user.status !== USER_STATUS.OK
-        && currentPathname !== '/check-register'
-      ) {
-        return <Redirect to="/check-register" />
-      }
-    }
-
     const content = isPending
-    ? this.pendingContent
-    : isError
-      ? this.errorContent
-      : children
+      ? this.pendingContent
+      : (
+        hasError
+          ? this.errorContent
+          : children
+      )
 
     return (
       <div className={getBEMClassNames()}>
-        <Header prefixClass={prefixClass} shouldRefreshSessions={shouldRefreshSessions} />
+        <Header prefixClass={prefixClass} />
         <div className={getBEMClassNames('content')}>
           {content}
         </div>

@@ -56,7 +56,7 @@
 .header__network-indicator:not(:last-child) {
   margin-right: 0.625rem;
 }
-.header__network-indicator--success {
+.header__network-indicator--active {
   background-color: chartreuse;
 }
 .header__network-indicator--error {
@@ -99,8 +99,4 @@
 
 .header__user-avatar-down-icon {
   font-size: 0.5rem !important;
-}
-
-.header__broadcast:not(:last-child) {
-  margin-right: 1.25rem;
 }

@@ -32,7 +32,6 @@ import {
 } from '../../utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
   REGISTER_FAIL_CODE,
 } from '../../constants'
 
@@ -86,7 +85,7 @@ class Register extends React.Component<Iprops, Istate> {
   public render() {
     const {
       ethereumStore: {
-        ethereumConnectStatus,
+        isPending,
         currentEthereumAccount
       },
       usersStore: {
@@ -99,7 +98,6 @@ class Register extends React.Component<Iprops, Istate> {
         registerButtonContent
       }
     } = this
-    const isPending = ethereumConnectStatus === ETHEREUM_CONNECT_STATUS.PENDING
 
     if (!isPending && !canCreateOrImportUser) {
       return <Redirect to="/" />

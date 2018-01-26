@@ -10,10 +10,13 @@ import { sha3 } from 'trustbase'
 
 import {
   SENDING_FAIL_CODE,
-  ETHEREUM_CONNECT_STATUS,
   SUBJECT_LENGTH,
   MESSAGE_STATUS
 } from '../../constants'
+
+import {
+  ETHEREUM_CONNECT_STATUS
+} from '../../stores/EthereumStore'
 
 import {
   Isession
@@ -123,7 +126,7 @@ class Session extends React.Component<Iprops, Istate> {
           : null
         }
         {
-          connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
+          connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE
           && !isClosed
             ? <div className="send-new-msg">
                 <input className="new-msg-input" ref={(input) => this.input = input}/>
@@ -208,7 +211,7 @@ class Session extends React.Component<Iprops, Istate> {
       (!this.input || !this.input.value)
       || session.isClosed
       || !currentUser
-      || connectStatus !== ETHEREUM_CONNECT_STATUS.SUCCESS
+      || connectStatus !== ETHEREUM_CONNECT_STATUS.ACTIVE
     ) {
       return
     }
@@ -247,7 +250,7 @@ class Session extends React.Component<Iprops, Istate> {
       return
     }
 
-    const isOnline = connectStatus === ETHEREUM_CONNECT_STATUS.SUCCESS
+    const isOnline = connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE
     if (window.confirm(`You will not receive any message from this session after delete, are you sure to delete?`)) {
       if (isOnline && !session.isClosed) {
         if (window.confirm('Send notification to him/her? (You may need to confirm transaction)')) {
