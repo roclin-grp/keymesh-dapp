@@ -26,7 +26,7 @@ export async function getGithubClaimByRawURL(rawURL: string): Promise<IsignedGit
       const _claim: IgithubClaim = JSON.parse(matches[1])
       const _signature = matches[2]
       return {
-        githubClaim: _claim,
+        claim: _claim,
         signature: _signature,
       } as IsignedGithubClaim
     })
