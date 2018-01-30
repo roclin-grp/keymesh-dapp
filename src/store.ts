@@ -13,6 +13,10 @@ import {
 } from 'trustbase'
 
 import {
+  BlockType
+} from 'trustbase/typings/web3.d'
+
+import {
   keys,
   message as proteusMessage,
 } from 'wire-webapp-proteus'
@@ -25,61 +29,80 @@ const sodium = require('libsodium-wrappers-sumo')
 
 import DB from './DB'
 import IndexedDBStore from './IndexedDBStore'
-import PreKeysPackage from './PreKeysPackage'
+import {
+  PreKeysPackage,
+  IpreKeyPublicKeys,
+} from './PreKeysPackage'
 import PreKeyBundle from './PreKeyBundle'
-import Envelope from './Envelope'
+import {
+  Envelope,
+  IenvelopeHeader,
+} from './Envelope'
 
 import {
-  web3BlockType,
-  IpreKeyPublicKeys,
-  Isession,
-  IsendingLifecycle,
-  IenvelopeHeader,
-  Iuser,
-  ItrustbaseRawMessage,
-  IdecryptedTrustbaseMessage,
-  IrawUnppaddedMessage,
-  IreceivedMessage,
-  Imessage,
-  Icontact,
-  IcheckMessageStatusLifecycle,
   IsignedBroadcastMessage,
   IreceviedBroadcastMessage,
 } from '../typings/interface.d'
 
 import {
+  Isession,
+  IsendingLifecycle,
+  ItrustbaseRawMessage,
+  IdecryptedTrustbaseMessage,
+  IrawUnppaddedMessage,
+  IreceivedMessage,
+  Imessage,
+  IcheckMessageStatusLifecycle,
   SENDING_FAIL_CODE,
+  MESSAGE_STATUS,
   MESSAGE_TYPE,
+} from './stores/SessionStore'
+
+import {
+  Iuser,
+  Icontact,
+} from './stores/UserStore'
+
+import {
   FETCH_MESSAGES_INTERVAL,
   FETCH_BROADCAST_MESSAGES_INTERVAL,
   PRE_KEY_ID_BYTES_LENGTH,
-  SUMMARY_LENGTH,
-  MESSAGE_STATUS,
   FETCH_BOUND_EVENTS_INTERVAL,
   SOCIAL_MEDIA_PLATFORMS,
   BINDING_SOCIAL_STATUS,
 } from './constants'
 
 import {
-  utf8ToHex,
-  hexToUtf8,
   noop,
-  storeLogger,
-  unixToday,
 } from './utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
-  ETHEREUM_CONNECT_ERROR_CODE,
-} from './stores/EthereumStore'
+  utf8ToHex,
+  hexToUtf8,
+} from './utils/hex'
+
+import {
+  storeLogger,
+} from './utils/loggers'
+
+import {
+  unixToday,
+} from './utils/time'
 
 import {
   ETHEREUM_NETWORKS,
-} from './constants'
+  ETHEREUM_CONNECT_ERROR_CODE,
+} from './stores/EthereumStore'
+
+enum ETHEREUM_CONNECT_STATUS {
+  PENDING = 0,
+  ACTIVE,
+  ERROR
+}
 
 import {
-  generatePublicKeyFromHexStr
-} from './utils'
+  generatePublicKeyFromHexStr,
+} from './utils/proteus'
 
 import {
   IboundSocials,
@@ -126,9 +149,9 @@ export class Store {
     process.env.REACT_APP_TWITTER_SECRET_KEY!
   )
 
-  private currentUserlastFetchBlock: web3BlockType = 0
-  private currentUserlastFetchBlockOfBroadcast: web3BlockType = 0
-  private currentUserlastFetchBlockOfBoundSocials: web3BlockType = 0
+  private currentUserlastFetchBlock: BlockType = 0
+  private currentUserlastFetchBlockOfBroadcast: BlockType = 0
+  private currentUserlastFetchBlockOfBoundSocials: BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
@@ -682,44 +705,6 @@ export class Store {
     return this.db.dumpDB()
   }
 
-  public restoreDumpedUser = async (data: string, shouldRefreshSessions: boolean) => {
-    await this.db.restoreUserFromExportedData(data)
-    const currentNetworkId = this.currentEthereumNetwork
-    if (currentNetworkId) {
-      const oldUsers = this.currentNetworkUsers
-      const users = await this.db.getUsers(currentNetworkId)
-      if (users.length > 0) {
-        runInAction(() => {
-          this.currentNetworkUsers = users
-        })
-        if (oldUsers.length > 0) {
-          const userAddresses = oldUsers.reduce(
-            (result, user) => {
-              result[user.userAddress] = true
-              return result
-            },
-            {} as {[userAddress: string]: boolean}
-          )
-          const newUser = users.find((user) => !userAddresses[user.userAddress])
-          if (newUser && newUser.networkId === currentNetworkId) {
-            // await this.useUser(newUser, shouldRefreshSessions)
-            if (shouldRefreshSessions) {
-              return this.startFetchMessages()
-            }
-          }
-        } else {
-          const newUser = users[0]
-          if (newUser.networkId === currentNetworkId) {
-            // await this.useUser(newUser, shouldRefreshSessions)
-            if (shouldRefreshSessions) {
-              return this.startFetchMessages()
-            }
-          }
-        }
-      }
-    }
-  }
-
   public publishBoradcastMessage = (
     message: string,
     {
@@ -919,7 +904,7 @@ export class Store {
   }
 
   public getBoundEvents = async (
-    lastFetchBlock: web3BlockType,
+    lastFetchBlock: BlockType,
     userAddress: string,
   ) => {
     return await this.boundSocialsContract.getBindEvents({
@@ -1372,3 +1357,5 @@ function getEmptyEnvelope() {
   emptyEnvelope.version = 1
   return emptyEnvelope
 }
+
+const SUMMARY_LENGTH = 32

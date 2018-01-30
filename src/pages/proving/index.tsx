@@ -21,8 +21,12 @@ import {
 } from '../../constants'
 
 import {
-  storeLogger, getGithubClaimByRawURL
+  getGithubClaimByRawURL
 } from '../../utils'
+
+import {
+  storeLogger
+} from '../../utils/loggers'
 
 import {
   IgithubClaim,

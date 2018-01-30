@@ -7,13 +7,9 @@ import * as CBOR from 'wire-webapp-cbor'
 
 const sodium = require('libsodium-wrappers-sumo')
 
-import {
-  IenvelopeHeader
-} from '../typings/interface.d'
-
 import { Buffer } from 'buffer'
 
-class Envelope {
+export class Envelope {
   public static decode(d: CBOR.Decoder) {
     const header = {}
     let cipherMessage
@@ -153,4 +149,11 @@ class Envelope {
   }
 }
 
-export default Envelope
+export interface IenvelopeHeader {
+  senderIdentity: keys.IdentityKey
+  mac: Uint8Array
+  baseKey: keys.PublicKey
+  sessionTag: string
+  isPreKeyMessage: boolean
+  messageByteLength: number
+}

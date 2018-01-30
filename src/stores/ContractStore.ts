@@ -9,7 +9,9 @@ import {
   BoundSocials
 } from 'trustbase'
 
-import { EthereumStore } from './'
+import {
+  EthereumStore,
+} from './EthereumStore'
 
 export class ContractStore {
   public identitiesContract: Identities
@@ -48,4 +50,9 @@ export class ContractStore {
   }
 
   private ethereumStore: EthereumStore
+}
+
+export interface ItransactionLifecycle {
+  transactionWillCreate?: () => void
+  transactionDidCreate?: (transactionHash: string) => void
 }

@@ -4,68 +4,86 @@ import {
   reaction,
   runInAction,
 } from 'mobx'
+import {
+  EthereumStore,
+  ETHEREUM_NETWORKS,
+} from './EthereumStore'
+import {
+  ContractStore,
+} from './ContractStore'
+import {
+  UsersStore,
+  REGISTER_FAIL_CODE,
+} from './UsersStore'
+import {
+  SessionsStore,
+} from './SessionsStore'
 
 import {
   sha3,
 } from 'trustbase'
+import {
+  BlockType,
+} from 'trustbase/typings/web3.d'
 
+const sodium = require('libsodium-wrappers-sumo')
 import {
   Cryptobox,
 } from 'wire-webapp-cryptobox'
-
 import {
   keys,
 } from 'wire-webapp-proteus'
-
-const sodium = require('libsodium-wrappers-sumo')
-
-import {
-  EthereumStore,
-  ContractStore,
-  SessionStore,
-  UsersStore,
-} from './'
-
-import {
-  REGISTER_FAIL_CODE
-} from './UsersStore'
-
-import {
-  noop,
-  isHexZeroValue,
-  unixToday,
-  storeLogger,
-  dumpCryptobox,
-  IdumpedDatabases,
-  downloadObjectAsJson,
-} from '../utils'
-
-import {
-  USER_STATUS,
-} from '../constants'
-
-import DB from '../DB'
-import IndexedDBStore from '../IndexedDBStore'
-import PreKeysPackage from '../PreKeysPackage'
-
-import {
-  Iuser,
-  Isession,
-  IcheckIdentityUploadStatusLifecycle,
-  IuploadPreKeysLifecycle,
-  IpreKeyPublicKeys,
-} from '../../typings/interface'
-
 const {
-  IdentityKeyPair,
   PreKey,
 } = keys
 
+import {
+  noop,
+} from '../utils'
+import {
+  isHexZeroValue,
+} from '../utils/hex'
+import {
+  unixToday,
+} from '../utils/time'
+import {
+  storeLogger,
+} from '../utils/loggers'
+import {
+  dumpCryptobox,
+  IdumpedDatabases,
+  downloadObjectAsJson,
+} from '../utils/data'
+
+import DB from '../DB'
+import IndexedDBStore from '../IndexedDBStore'
+import {
+  PreKeysPackage,
+  IpreKeyPublicKeys,
+} from '../PreKeysPackage'
+
+import {
+  IboundSocials,
+  IbindingSocials,
+} from '../../typings/proof.interface.d'
+
 export class UserStore {
+  // FIXME consider @observable.ref
   @observable public user: Iuser
-  @observable.ref public sessions: Isession[] = []
-  @observable.ref public currentSession: SessionStore | undefined
-  @observable public isDatabaseLoaded = false
+  @observable.ref public sessionsStore: SessionsStore
+  @observable public isCryptoboxReady = false
+
+  @computed
+  public get avatarHash() {
+    return this.user.status === USER_STATUS.PENDING
+      ? ''
+      : sha3(`${this.user.userAddress}${this.user.blockHash}`)
+  }
+
+  @computed
+  public get isRegisterCompleted() {
+    return this.user.status === USER_STATUS.OK
+  }
 
   constructor(user: Iuser, {
     db,
@@ -82,22 +100,18 @@ export class UserStore {
     this.db = db
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
+    this.sessionsStore = new SessionsStore({
+      db,
+      userStore: this,
+    })
     this.loadDataFromLocal()
 
     reaction(
       () => ({
         status: this.user.status,
         blockHash: this.user.blockHash,
-        registerRecord: this.user.registerRecord,
       }) as Iuser,
       (observableUserData) => Object.assign(this.userRef, observableUserData))
-  }
-
-  @computed
-  public get avatarHash() {
-    return this.user.status === USER_STATUS.PENDING
-      ? ''
-      : sha3(`${this.user.userAddress}${this.user.blockHash}`)
   }
 
   private userRef: Iuser
@@ -120,10 +134,6 @@ export class UserStore {
       return identityDidUpload()
     }
 
-    if (!user.registerRecord) {
-      throw new Error('Register record not found')
-    }
-
     const {
       web3,
       getBlockHash,
@@ -132,12 +142,9 @@ export class UserStore {
     const {
       networkId,
       userAddress,
-      registerRecord: {
-        identityTransactionHash,
-        identity: keyPairHexString
-      }
+      identityTransactionHash,
     } = user
-    const identityKeyPair = IdentityKeyPair.deserialise(sodium.from_hex(keyPairHexString).buffer)
+    const identityKeyPair = this.isCryptoboxReady ? this.box.identity : await this.indexedDBStore.load_identity()
 
     checkRegisterWillStart(identityTransactionHash)
     const waitForTransactionReceipt = async (counter = 0) => {
@@ -209,9 +216,10 @@ export class UserStore {
     const lastPreKey = preKeys[preKeys.length - 1]
     lastResortPrekey.key_pair = lastPreKey.key_pair
 
+    const identity = this.isCryptoboxReady ? this.box.identity : await this.indexedDBStore.load_identity()
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
     const serializedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    const prekeysSignature = `0x${sodium.to_hex(this.box.identity.secret_key.sign(serializedPrekeys))}`
+    const prekeysSignature = `0x${sodium.to_hex(identity.secret_key.sign(serializedPrekeys))}`
 
     const uploadPreKeysUrl = `${process.env.REACT_APP_KVASS_ENDPOINT}${this.user.userAddress}`
     const resp = await fetch(
@@ -227,7 +235,9 @@ export class UserStore {
       const store = this.indexedDBStore
       // enhancement: remove all local prekeys before save
       await store.save_prekeys(preKeys.concat(lastResortPrekey))
-      await this.box.load()
+      if (this.isCryptoboxReady) {
+        await this.box.load()
+      }
       preKeysDidUpload()
     } else {
       storeLogger.error(resp.toString())
@@ -238,19 +248,16 @@ export class UserStore {
     await this.db.updateUserStatus(this.user, USER_STATUS.OK)
     runInAction(() => {
       this.user.status = USER_STATUS.OK
-      delete this.user.registerRecord
     })
   }
 
   public exportUser = async () => {
     const data: IdumpedDatabases = {}
     const user = this.user
-    const sessions = this.sessions
-    const messages = await this.db.getUserMessages(user)
     data.keymail = [
       { table: 'users', rows: [user], },
-      { table: 'sessions', rows: sessions},
-      { table: 'messages', rows: messages}
+      { table: 'sessions', rows: await this.db.getSessions(user)},
+      { table: 'messages', rows: await this.db.getUserMessages(user)}
     ]
     const cryptobox = await dumpCryptobox(user)
     data[cryptobox.dbname] = cryptobox.tables
@@ -262,21 +269,14 @@ export class UserStore {
       user: {
         networkId,
         userAddress,
-      },
-      user,
-      db
+      }
     } = this
     const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${networkId}@${userAddress}`)
     const box = this.box = new Cryptobox(indexedDBStore as any, 0)
-    await box.load()
 
-    const sessions = await db.getSessions(user)
+    await box.load()
     runInAction(() => {
-      this.isDatabaseLoaded = true
-      delete this.currentSession
-      this.sessions = sessions
-      this.box = box
-      this.indexedDBStore = indexedDBStore
+      this.isCryptoboxReady = true
     })
   }
 }
@@ -284,4 +284,45 @@ export class UserStore {
 function generatePreKeys(start: number, interval: number, size: number) {
   return Array(size).fill(0)
     .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
+}
+
+interface IcheckIdentityUploadStatusLifecycle {
+  checkRegisterWillStart?: (hash: string) => void
+  identityDidUpload?: () => void
+  registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
+}
+
+interface IuploadPreKeysLifecycle {
+  preKeysDidUpload?: () => void
+  preKeysUploadDidFail?: (err: Error) => void
+}
+
+export interface IuserIdentityKeys {
+  networkId: ETHEREUM_NETWORKS,
+  userAddress: string,
+}
+
+export interface Iuser extends IuserIdentityKeys {
+  status: USER_STATUS
+  blockHash: string
+  identityTransactionHash: string
+  contacts: Icontact[]
+
+  lastFetchBlock: BlockType
+  lastFetchBlockOfBroadcast: BlockType
+  lastFetchBlockOfBoundSocials: BlockType
+
+  boundSocials: IboundSocials
+  bindingSocials: IbindingSocials
+}
+
+export enum USER_STATUS {
+  PENDING = 0,
+  IDENTITY_UPLOADED = 1,
+  OK = 2
+}
+
+export interface Icontact {
+  userAddress: string
+  blockHash: string
 }

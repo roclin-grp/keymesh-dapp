@@ -10,19 +10,15 @@ import {
   getWeb3,
   TrustbaseError,
 } from 'trustbase'
-import { Web3 } from 'trustbase/typings/web3.d'
+import {
+  Web3,
+  JsonRPCRequest,
+  JsonRPCResponse,
+} from 'trustbase/typings/web3.d'
 
 import {
   storeLogger,
-} from '../utils'
-
-import {
-  ETHEREUM_NETWORKS,
-} from '../constants'
-
-import {
-  IasyncProvider,
-} from '../../typings/interface'
+} from '../utils/loggers'
 
 export class EthereumStore {
   @observable public ethereumConnectStatus: ETHEREUM_CONNECT_STATUS = ETHEREUM_CONNECT_STATUS.PENDING
@@ -30,11 +26,6 @@ export class EthereumStore {
   @observable public ethereumConnectError: Error | undefined
   @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
-
-  public web3: Web3
-  private connectStatusListeners: TypeConnectStatusListener[] = []
-  private detectEthereumAccountChangeTimeout: number
-  private detectEthereumNetworkChangeTimeout: number
 
   @computed
   public get isPending() {
@@ -53,8 +44,19 @@ export class EthereumStore {
 
   @computed
   public get isMetaMaskLocked() {
-    return this.hasError && this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR_CODE.LOCKED
+    return this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR_CODE.LOCKED
   }
+
+  @computed
+  public get hasNotMetaMask() {
+    return this.ethereumConnectErrorCode === ETHEREUM_CONNECT_ERROR_CODE.NO_METAMASK
+  }
+
+  public web3: Web3
+
+  private connectStatusListeners: TypeConnectStatusListener[] = []
+  private detectEthereumAccountChangeTimeout: number
+  private detectEthereumNetworkChangeTimeout: number
 
   public connect = () => {
     const metaMasksWeb3 = (window as any).web3
@@ -89,10 +91,10 @@ export class EthereumStore {
     }
   }
 
-  public getBlockHash = async (blockNumber: number): Promise<string> => {
-    return await getWeb3().eth.getBlock(blockNumber)
+  public getBlockHash = (blockNumber: number) => {
+    return this.web3.eth.getBlock(blockNumber)
       .then((block) => block.hash)
-      .catch((err: Error) => {
+      .catch((err) => {
         storeLogger.error(err)
         return '0x0'
       })
@@ -145,9 +147,7 @@ export class EthereumStore {
     this.currentEthereumNetwork = networkId
     this.currentEthereumAccount = this.web3.eth.defaultAccount
 
-    const prevConnectStatus = this.ethereumConnectStatus
     this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.ACTIVE
-    this.ethereumConnectStatusDidChange(prevConnectStatus, this.ethereumConnectStatus)
 
     window.clearTimeout(this.detectEthereumAccountChangeTimeout)
     window.clearTimeout(this.detectEthereumNetworkChangeTimeout)
@@ -165,22 +165,17 @@ export class EthereumStore {
     }
     delete this.currentEthereumAccount
 
-    const prevConnectStatus = this.ethereumConnectStatus
     this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.ERROR
     this.ethereumConnectErrorCode = errCode
     this.ethereumConnectError = err
-    this.ethereumConnectStatusDidChange(prevConnectStatus, this.ethereumConnectStatus)
   }
-
-  private ethereumConnectStatusDidChange = (
-    prevStatus: ETHEREUM_CONNECT_STATUS,
-    currentStatus: ETHEREUM_CONNECT_STATUS
-  ) => this.connectStatusListeners.forEach((listener) => {
-    listener(prevStatus, currentStatus)
-  })
 }
 
 type TypeConnectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => void
+
+interface IasyncProvider {
+  sendAsync(payload: JsonRPCRequest, callback: (e: Error, val: JsonRPCResponse) => void): void
+}
 
 export enum ETHEREUM_CONNECT_STATUS {
   PENDING = 0,
@@ -192,4 +187,24 @@ export enum ETHEREUM_CONNECT_ERROR_CODE {
   NO_METAMASK = 0,
   LOCKED,
   UNKNOWN
+}
+
+export enum ETHEREUM_NETWORKS {
+  OLYMPIC = 0,
+  MAINNET = 1,
+  MORDEN = 2,
+  ROPSTEN = 3,
+  RINKEBY = 4,
+  KOVAN = 42
+}
+
+export const ETHEREUM_NETWORK_NAMES = Object.freeze({
+  [ETHEREUM_NETWORKS.OLYMPIC]: 'Olympic',
+  [ETHEREUM_NETWORKS.MAINNET]: 'Mainnet',
+  [ETHEREUM_NETWORKS.MORDEN]: 'Morden',
+  [ETHEREUM_NETWORKS.ROPSTEN]: 'Ropsten',
+  [ETHEREUM_NETWORKS.RINKEBY]: 'Rinkeby',
+  [ETHEREUM_NETWORKS.KOVAN]: 'Kovan'
+}) as {
+  [networkID: number]: string
 }

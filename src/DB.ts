@@ -2,38 +2,33 @@ import Dexie from 'dexie'
 
 import {
   ETHEREUM_NETWORKS,
-} from './constants'
+} from './stores/EthereumStore'
 
 import {
   Iuser,
-  Isession,
-  Imessage,
   Icontact,
-  IregisterRecord,
-  IDumpedDatabases,
-} from '../typings/interface.d'
+  USER_STATUS
+} from './stores/UserStore'
 
 import {
-  MESSAGE_TYPE,
-  SUMMARY_LENGTH,
-  USER_STATUS,
-  MESSAGE_STATUS
-} from './constants'
-import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
-import { IboundSocials, IbindingSocials } from '../typings/proof.interface'
+  Isession,
+  Imessage,
+  MESSAGE_STATUS,
+  MESSAGE_TYPE
+} from './stores/SessionStore'
 
-enum TABLE_NAMES {
-  USERS = 'users',
-  SESSIONS = 'sessions',
-  MESSAGES = 'messages'
-}
+import {
+  dumpDB,
+  dumpCryptobox,
+  restoreDB,
+  restoreCryptobox,
+  IdumpedDatabases,
+} from './utils/data'
 
-export const SCHEMA_V1 = Object.freeze({
-  [TABLE_NAMES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
-  [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
-  [TABLE_NAMES.MESSAGES]:
-    '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
-})
+import {
+  IboundSocials,
+  IbindingSocials,
+} from '../typings/proof.interface'
 
 export default class DB {
   public constructor() {
@@ -56,18 +51,17 @@ export default class DB {
     return (this.db as any)[TABLE_NAMES.MESSAGES]
   }
 
-  public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {
+  public createUser(user: IcreateUserArgs) {
     return this.tableUsers
       .add(Object.assign(
         {},
         {
+          status: USER_STATUS.PENDING,
+          blockHash: '0x0',
           lastFetchBlock: 0,
           lastFetchBlockOfBroadcast: 0,
           lastFetchBlockOfBoundSocials: 0,
           contacts: [],
-          status: USER_STATUS.PENDING,
-          registerRecord,
-          blockHash: '0x0',
           boundSocials: {},
           bindingSocials: {},
         },
@@ -514,18 +508,18 @@ export default class DB {
   }
 
   public async dumpDB() {
-    const dbs: IDumpedDatabases = {}
+    const dbs: IdumpedDatabases = {}
 
     const keymailDB = await dumpDB(this.db)
 
-    const users = keymailDB.find((table) => table.table === TABLE_NAMES.USERS)
-    if (users === undefined) {
-      return
+    const usersTable = keymailDB.find((table) => table.table === TABLE_NAMES.USERS)
+    if (typeof usersTable === 'undefined') {
+      return dbs
     }
 
     dbs.keymail = keymailDB
 
-    await Promise.all((users.rows as Iuser[])
+    await Promise.all((usersTable.rows as Iuser[])
       .map(async (row) => {
         const db = await dumpCryptobox(row)
         dbs[db.dbname] = db.tables
@@ -535,25 +529,33 @@ export default class DB {
     return dbs
   }
 
-  public async restoreUserFromExportedData(_data: string) {
-    const data: IDumpedDatabases = JSON.parse(_data)
-    await restoreDB(this.db, data.keymail, (): string[]|undefined => {
-      return undefined
+  public async restoreUserFromExportedData(networkId: ETHEREUM_NETWORKS, data: IdumpedDatabases) {
+    const user = await this.db.transaction('rw', this.db.tables, async () => {
+      const oldUsers = await this.getUsers(networkId)
+      await restoreDB(this.db, data.keymail, () => undefined)
+      const users = await this.getUsers(networkId)
+      const oldUserAddress = oldUsers.reduce(
+        (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
+        {} as {[userAddress: string]: boolean}
+      )
+      const newUser = users.find((_user) => !oldUserAddress[_user.userAddress])
+      if (!newUser) {
+        throw new Error('Network not match')
+      }
+      return newUser
     })
+    delete data.keymail
 
     await Promise.all(
       Object.keys(data)
-        .filter((dbname) => dbname !== 'keymail')
         .map((dbname) => restoreCryptobox(dbname, data[dbname]))
     )
+
+    return user
   }
 
-  public async restoreDB(_data: string) {
-    const data: IDumpedDatabases = JSON.parse(_data)
+  public async restoreDB(data: IdumpedDatabases) {
     await restoreDB(this.db, data.keymail, (tablename: string): string[]|undefined => {
-      if (tablename === 'global-settings') {
-        return []
-      }
       return undefined
     })
 
@@ -565,9 +567,25 @@ export default class DB {
   }
 }
 
+const SUMMARY_LENGTH = 32
+
+enum TABLE_NAMES {
+  USERS = 'users',
+  SESSIONS = 'sessions',
+  MESSAGES = 'messages'
+}
+
+const SCHEMA_V1 = Object.freeze({
+  [TABLE_NAMES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
+  [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
+  [TABLE_NAMES.MESSAGES]:
+    '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
+})
+
 interface IcreateUserArgs {
   networkId: ETHEREUM_NETWORKS
   userAddress: string
+  identityTransactionHash: string
 }
 
 interface IcreateSessionArgs {

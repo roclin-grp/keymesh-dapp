@@ -1,13 +1,15 @@
 import * as React from 'react'
 
+import './index.css'
+
 import {
   MESSAGE_TYPE,
   MESSAGE_STATUS,
   MESSAGE_STATUS_STR,
-} from '../../constants'
-
-import './index.css'
-import { Icontact } from '../../../typings/interface'
+} from '../../stores/SessionStore'
+import {
+  Icontact,
+} from '../../stores/UserStore'
 
 interface Iprops {
   messageType: MESSAGE_TYPE

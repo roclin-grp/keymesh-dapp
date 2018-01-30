@@ -5,29 +5,7 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-
-import * as copy from 'copy-to-clipboard'
-const throttle = require('lodash.throttle')
-
-import {
-  noop,
-  getBEMClassNamesMaker,
-  IextendableClassNamesProps,
-  storeLogger,
-} from '../../utils'
-
-import {
-  ETHEREUM_NETWORK_NAMES
-} from '../../constants'
-
-import {
-  ETHEREUM_CONNECT_STATUS,
-} from '../../stores/EthereumStore'
-
+// component
 import {
   Tooltip,
   Icon,
@@ -35,18 +13,43 @@ import {
   Menu,
   message,
 } from 'antd'
-
-import {
-  EthereumStore,
-  UsersStore,
-  Istores,
-} from '../../stores'
-
 import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
-import { Iuser } from '../../../typings/interface'
 
+// style
 import './index.css'
+
+// state management
+import {
+  inject,
+  observer,
+} from 'mobx-react'
+import {
+  Istores,
+} from '../../stores'
+import {
+  EthereumStore,
+  ETHEREUM_NETWORK_NAMES,
+  ETHEREUM_CONNECT_STATUS,
+} from '../../stores/EthereumStore'
+import {
+  UsersStore
+} from '../../stores/UsersStore'
+import {
+  Iuser
+} from '../../stores/UserStore'
+
+// helper
+import * as copy from 'copy-to-clipboard'
+const throttle = require('lodash.throttle')
+import {
+  noop,
+} from '../../utils'
+import {
+  getBEMClassNamesMaker,
+  IextendableClassNamesProps
+} from '../../utils/classNames'
+import { storeLogger } from '../../utils/loggers'
 
 @inject(({
   ethereumStore,
@@ -59,11 +62,11 @@ import './index.css'
 class Header extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'header'
 
-  public readonly state = {
+  public readonly state = Object.freeze({
     hidden: false,
     hasShadow: false,
     isExporting: false,
-  }
+  })
 
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
@@ -250,10 +253,9 @@ class Header extends React.Component<Iprops, Istate> {
     } = this.injectedProps.usersStore
     const {
       user,
-      isDatabaseLoaded
     } = this.injectedProps.usersStore.currentUserStore!
 
-    const canExportUser = isDatabaseLoaded && !this.state.isExporting
+    const canExportUser = !this.state.isExporting
 
     return (
       <Menu>
@@ -364,6 +366,7 @@ class Header extends React.Component<Iprops, Istate> {
   }
 }
 
+// constant
 const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
   [ETHEREUM_CONNECT_STATUS.PENDING]: 'pending',
   [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'active',
@@ -379,6 +382,7 @@ const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [connectStatus: number]: string
 }
 
+// typing
 type Iprops = IextendableClassNamesProps & RouteComponentProps<{}>
 
 interface IinjectedProps extends Iprops {

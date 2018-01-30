@@ -12,15 +12,24 @@ import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
 import { Store } from '../../store'
 import {
-  getBEMClassNamesMaker,
-  hexToUtf8,
-  storeLogger,
   getGithubClaimByProofURL,
 } from '../../utils'
 
 import {
+  hexToUtf8,
+} from '../../utils/hex'
+
+import {
+  storeLogger,
+} from '../../utils/loggers'
+
+import {
+  getBEMClassNamesMaker,
+} from '../../utils/classNames'
+
+import {
   generatePublicKeyFromHexStr,
-} from '../../utils'
+} from '../../utils/proteus'
 
 import {
   SOCIAL_MEDIAS,

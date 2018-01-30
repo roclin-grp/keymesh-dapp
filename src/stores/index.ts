@@ -2,18 +2,17 @@ import {
   useStrict,
 } from 'mobx'
 
-import { EthereumStore } from './EthereumStore'
-import { ContractStore } from './ContractStore'
-import { UsersStore } from './UsersStore'
-import { UserStore } from './UserStore'
-import { SessionStore } from './SessionStore'
+import {
+  EthereumStore,
+} from './EthereumStore'
+import {
+  ContractStore,
+} from './ContractStore'
+import {
+  UsersStore,
+} from './UsersStore'
 
 import DB from '../DB'
-
-export interface Istores {
-  ethereumStore: EthereumStore
-  usersStore: UsersStore
-}
 
 useStrict(true)
 
@@ -32,14 +31,11 @@ export function createStores(): Istores {
 
   return {
     ethereumStore,
-    usersStore
+    usersStore,
   }
 }
 
-export {
-  EthereumStore,
-  ContractStore,
-  UsersStore,
-  UserStore,
-  SessionStore,
+export interface Istores {
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
 }

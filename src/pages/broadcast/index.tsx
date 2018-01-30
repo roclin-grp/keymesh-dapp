@@ -4,7 +4,7 @@ import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
-import { storeLogger } from '../../utils'
+import { storeLogger } from '../../utils/loggers'
 
 interface Iprops {
   store: Store

@@ -1,26 +1,26 @@
 import * as React from 'react'
 
-import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
-
-import { formatSessionTimestamp } from '../../utils'
-import Message from '../../components/message'
-import HashAvatar from '../../components/HashAvatar'
 import { sha3 } from 'trustbase'
 
 import {
-  SENDING_FAIL_CODE,
-  SUBJECT_LENGTH,
-  MESSAGE_STATUS
-} from '../../constants'
+  inject,
+  observer,
+} from 'mobx-react'
+import { Store } from '../../store'
 
 import {
-  ETHEREUM_CONNECT_STATUS
+  ETHEREUM_CONNECT_STATUS,
 } from '../../stores/EthereumStore'
-
 import {
-  Isession
-} from '../../../typings/interface.d'
+  Isession,
+  MESSAGE_STATUS,
+  SENDING_FAIL_CODE,
+} from '../../stores/SessionStore'
+
+import { formatSessionTimestamp } from '../../utils/time'
+
+import Message from '../../components/message'
+import HashAvatar from '../../components/HashAvatar'
 
 import './index.css'
 
@@ -301,5 +301,7 @@ class Session extends React.Component<Iprops, Istate> {
     })
   }
 }
+
+const SUBJECT_LENGTH = 32
 
 export default Session

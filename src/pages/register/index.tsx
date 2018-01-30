@@ -1,23 +1,9 @@
 import * as React from 'react'
 import {
-  withRouter,
   RouteComponentProps,
-  Redirect,
 } from 'react-router-dom'
 
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-
-import {
-  EthereumStore,
-  UsersStore,
-  Istores,
-} from '../../stores'
-
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
-
+// component
 import {
   Divider,
   Button,
@@ -25,36 +11,40 @@ import {
   Upload,
   message,
 } from 'antd'
-
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import {
-  storeLogger,
-  getBEMClassNamesMaker
-} from '../../utils'
-
-import {
-  REGISTER_FAIL_CODE,
-} from '../../constants'
-
-import { UploadFile } from 'antd/lib/upload/interface.d'
-
-import './index.css'
-
+  UploadFile,
+} from 'antd/lib/upload/interface.d'
 const {
   Dragger
 } = Upload
 
-type Iprops = RouteComponentProps<{}>
+// style
+import './index.css'
 
-interface IinjectedProps extends Iprops {
-  ethereumStore: EthereumStore
-  usersStore: UsersStore
-}
+// state management
+import {
+  inject,
+  observer,
+} from 'mobx-react'
+import {
+  Istores,
+} from '../../stores'
+import {
+  EthereumStore,
+} from '../../stores/EthereumStore'
+import {
+  REGISTER_FAIL_CODE,
+  UsersStore,
+} from '../../stores/UsersStore'
 
-interface Istate {
-  registerButtonContent: string
-  isRegistering: boolean
-  isImporting: boolean
-}
+// helper
+import {
+  storeLogger,
+} from '../../utils/loggers'
+import {
+  getBEMClassNamesMaker,
+} from '../../utils/classNames'
 
 @inject(({
   ethereumStore,
@@ -73,7 +63,7 @@ class Register extends React.Component<Iprops, Istate> {
     isImporting: false
   })
 
-  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Register.blockName, this.props)
 
@@ -85,12 +75,8 @@ class Register extends React.Component<Iprops, Istate> {
   public render() {
     const {
       ethereumStore: {
-        isPending,
         currentEthereumAccount
       },
-      usersStore: {
-        canCreateOrImportUser
-      }
     } = this.injectedProps
     const {
       getBEMClassNames,
@@ -98,10 +84,6 @@ class Register extends React.Component<Iprops, Istate> {
         registerButtonContent
       }
     } = this
-
-    if (!isPending && !canCreateOrImportUser) {
-      return <Redirect to="/" />
-    }
 
     return (
       <CommonHeaderPage prefixClass={Register.blockName} className={getBEMClassNames()}>
@@ -175,11 +157,10 @@ class Register extends React.Component<Iprops, Istate> {
         case REGISTER_FAIL_CODE.OCCUPIED:
           return `User address already registered.`
         case REGISTER_FAIL_CODE.UNKNOWN:
+        default:
           if ((err as Error).message.includes('User denied transaction signature')) {
             return 'Register fail, you reject the transaction.'
           }
-        // tslint:disable-next-line no-switch-case-fall-through
-        default:
           storeLogger.error('Unexpected register error:', err as Error)
           return 'Something went wrong, please retry.'
       }
@@ -200,12 +181,32 @@ class Register extends React.Component<Iprops, Istate> {
     const file: File = files[0] as any
     const reader = new FileReader()
     reader.onload = async (oFREvent) => {
-      // await this.injectedProps.usersStore.restoreDumpedUser(
-      //   (oFREvent.target as any).result,
-      //   false
-      // )
-      if (this.injectedProps.location.pathname === '/register') {
-        this.injectedProps.history.push('/')
+      try {
+        await this.injectedProps.usersStore.importUser((oFREvent.target as any).result)
+        if (!this.unmounted) {
+          message.success('Account imported!')
+        }
+      } catch (err) {
+        if (this.unmounted) {
+          return
+        }
+        if ((err as Error).message === 'Network not match') {
+          message.error('You were trying to import an account not belongs to current network!')
+          return
+        }
+        if ((err as Error).message.includes('Key already exists in the object store')) {
+          message.info('You already have this account!')
+          return
+        }
+        storeLogger.error(err)
+        message.error('Something went wrong! Please retry.')
+      } finally {
+        if (this.unmounted) {
+          return
+        }
+        this.setState({
+          isImporting: false
+        })
       }
     }
     reader.readAsText(file)
@@ -213,4 +214,18 @@ class Register extends React.Component<Iprops, Istate> {
   }
 }
 
-export default withRouter(Register)
+// typing
+type Iprops = {}
+
+interface IinjectedProps extends RouteComponentProps<{}> {
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
+}
+
+interface Istate {
+  registerButtonContent: string
+  isRegistering: boolean
+  isImporting: boolean
+}
+
+export default Register
