@@ -20,6 +20,7 @@ import {
   noop,
   storeLogger,
   isHexZeroValue,
+  generatePublicKeyFromHexStr,
 } from '../utils'
 
 import {
@@ -121,6 +122,25 @@ export class UsersStore {
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
 
+  public async getUserPublicKey(userAddress: string) {
+    if (userAddress === '') {
+      return undefined
+    }
+
+    const {
+      publicKey: identityFingerprint
+    } = await this.getIdentity(userAddress)
+    if (Number(identityFingerprint) === 0) {
+      return undefined
+    }
+
+    return generatePublicKeyFromHexStr(identityFingerprint.slice(2))
+  }
+
+  public getIdentity(userAddress: string) {
+    return this.contractStore.identitiesContract.getIdentity(userAddress)
+  }
+
   public register = async ({
     transactionWillCreate = noop,
     transactionDidCreate = noop,
@@ -139,7 +159,7 @@ export class UsersStore {
     // check if registered, avoid unnecessary transaction
     const {
       publicKey
-    } = await identitiesContract.getIdentity(ethereumAddress)
+    } = await this.getIdentity(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }

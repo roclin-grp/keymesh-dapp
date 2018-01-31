@@ -7,12 +7,14 @@ import { ContractStore } from './ContractStore'
 import { UsersStore } from './UsersStore'
 import { UserStore } from './UserStore'
 import { SessionStore } from './SessionStore'
+import { BoundSocialsStore } from './BoundSocialsStore'
 
 import DB from '../DB'
 
 export interface Istores {
   ethereumStore: EthereumStore
   usersStore: UsersStore
+  contractStore: ContractStore
 }
 
 useStrict(true)
@@ -32,7 +34,8 @@ export function createStores(): Istores {
 
   return {
     ethereumStore,
-    usersStore
+    usersStore,
+    contractStore,
   }
 }
 
@@ -42,4 +45,5 @@ export {
   UsersStore,
   UserStore,
   SessionStore,
+  BoundSocialsStore,
 }

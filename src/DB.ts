@@ -21,11 +21,13 @@ import {
 } from './constants'
 import { dumpDB, dumpCryptobox, restoreDB, restoreCryptobox } from './utils'
 import { IboundSocials, IbindingSocials } from '../typings/proof.interface'
+import { IsocialMedials } from './stores/BoundSocialsStore'
 
 enum TABLE_NAMES {
   USERS = 'users',
   SESSIONS = 'sessions',
-  MESSAGES = 'messages'
+  MESSAGES = 'messages',
+  SOCIAL_MEDIAS = 'social_medias',
 }
 
 export const SCHEMA_V1 = Object.freeze({
@@ -33,6 +35,7 @@ export const SCHEMA_V1 = Object.freeze({
   [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
   [TABLE_NAMES.MESSAGES]:
     '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
+  [TABLE_NAMES.SOCIAL_MEDIAS]: '[networkId+userAddress], bindingSocials, boundSocials, lastFetchBlock',
 })
 
 export default class DB {
@@ -54,6 +57,9 @@ export default class DB {
   }
   private get tableMessages(): TableMessages {
     return (this.db as any)[TABLE_NAMES.MESSAGES]
+  }
+  public get tableSocialMedias(): TableSocialMedias {
+    return (this.db as any)[TABLE_NAMES.SOCIAL_MEDIAS]
   }
 
   public createUser(user: IcreateUserArgs, registerRecord?: IregisterRecord) {
@@ -619,3 +625,4 @@ interface IgetMessagesOptions {
 type TableUsers = Dexie.Table<Iuser, [ETHEREUM_NETWORKS, string]>
 type TableSessions = Dexie.Table<Isession, [string, string]>
 type TableMessages = Dexie.Table<Imessage, [string, string]>
+export type TableSocialMedias = Dexie.Table<IsocialMedials, [ETHEREUM_NETWORKS, string]>

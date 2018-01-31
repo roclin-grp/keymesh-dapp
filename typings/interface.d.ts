@@ -100,13 +100,10 @@ export interface IregisterRecord {
 export interface Iuser extends IuserIdentityKeys {
   lastFetchBlock: web3.BlockType
   lastFetchBlockOfBroadcast: web3.BlockType
-  lastFetchBlockOfBoundSocials: web3.BlockType
   contacts: Icontact[]
   status: USER_STATUS
   registerRecord?: IregisterRecord
   blockHash: string
-  boundSocials: IboundSocials
-  bindingSocials: IbindingSocials
 }
 
 interface Icontact {

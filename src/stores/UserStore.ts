@@ -55,6 +55,7 @@ import {
   IuploadPreKeysLifecycle,
   IpreKeyPublicKeys,
 } from '../../typings/interface'
+import { BoundSocialsStore } from './BoundSocialsStore'
 
 const {
   IdentityKeyPair,
@@ -66,6 +67,7 @@ export class UserStore {
   @observable.ref public sessions: Isession[] = []
   @observable.ref public currentSession: SessionStore | undefined
   @observable public isDatabaseLoaded = false
+  @observable public boundSocialsStore: BoundSocialsStore
 
   constructor(user: Iuser, {
     db,
@@ -188,6 +190,14 @@ export class UserStore {
     return waitForTransactionReceipt()
   }
 
+  public sign = (message: string) => {
+    if (typeof this.box === 'undefined') {
+      return '0x0'
+    }
+
+    return '0x' + sodium.to_hex(this.box.identity.secret_key.sign(message))
+  }
+
   public uploadPreKeys = async (
     {
       preKeysDidUpload = noop,
@@ -211,7 +221,7 @@ export class UserStore {
 
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
     const serializedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    const prekeysSignature = `0x${sodium.to_hex(this.box.identity.secret_key.sign(serializedPrekeys))}`
+    const prekeysSignature = this.sign(serializedPrekeys)
 
     const uploadPreKeysUrl = `${process.env.REACT_APP_KVASS_ENDPOINT}${this.user.userAddress}`
     const resp = await fetch(
@@ -277,6 +287,11 @@ export class UserStore {
       this.sessions = sessions
       this.box = box
       this.indexedDBStore = indexedDBStore
+      this.boundSocialsStore = new BoundSocialsStore({
+        db: this.db,
+        userStore: this,
+        boundSocialsContract: this.contractStore.boundSocialsContract,
+      })
     })
   }
 }
