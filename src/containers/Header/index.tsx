@@ -12,6 +12,7 @@ import {
   Dropdown,
   Menu,
   message,
+  Button,
 } from 'antd'
 import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
@@ -41,7 +42,6 @@ import {
 
 // helper
 import * as copy from 'copy-to-clipboard'
-const throttle = require('lodash.throttle')
 import {
   noop,
 } from '../../utils'
@@ -72,47 +72,10 @@ class Header extends React.Component<Iprops, Istate> {
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Header.blockName, this.props)
 
-  private throttledScrollCallback = throttle(
-    (() => {
-      let scrollBefore = 0
-      return () => {
-        if (this.isUnmounted) {
-          return
-        }
-        const scrollCurrent = window.pageYOffset
-        const scrollDiff = scrollBefore - scrollCurrent
-        const isTop = scrollCurrent === 0
-        const DELTA = 7
-        const isHidden = this.state.hidden
-        if (scrollDiff < -DELTA) {
-          if (!isHidden) {
-            this.setState({
-              hidden: true
-            })
-          }
-        } else if (isTop || scrollDiff > DELTA) {
-          if (isHidden || (isTop && this.state.hasShadow)) {
-            this.setState({
-              hidden: false,
-              hasShadow: !isTop
-            })
-          }
-        }
-        scrollBefore = scrollCurrent
-      }
-    })(),
-    300
-  )
-
   private isUnmounted = false
-
-  public componentDidMount() {
-    document.addEventListener('scroll', this.throttledScrollCallback)
-  }
 
   public componentWillUnmount() {
     this.isUnmounted = true
-    document.removeEventListener('scroll', this.throttledScrollCallback)
   }
 
   public render() {
@@ -134,14 +97,14 @@ class Header extends React.Component<Iprops, Istate> {
               Keymail
             </Link>
           </h1>
-          {this.networkStatus}
-          {this.userMenu}
+          {this.getNetworkStatus()}
+          {this.getUserMenu()}
         </div>
       </header>
     )
   }
 
-  private get networkStatus() {
+  private getNetworkStatus() {
     const {isPending} = this.injectedProps.ethereumStore
     if (isPending) {
       return null
@@ -169,13 +132,13 @@ class Header extends React.Component<Iprops, Istate> {
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
-          {this.networkText}
+          {this.getNetworkText()}
         </span>
       </>
     )
   }
 
-  private get networkText() {
+  private getNetworkText() {
     const {
       hasError,
       isMetaMaskLocked,
@@ -198,13 +161,33 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private get userMenu() {
-    const {isPending} = this.injectedProps.ethereumStore
+  private getUserMenu() {
+    const {
+      isPending,
+      hasError,
+    } = this.injectedProps.ethereumStore
     if (isPending) {
       return null
     }
 
-    const {hasUser} = this.injectedProps.usersStore
+    const {
+      usableUsers,
+      isLoadingUsers,
+      hasUser,
+    } = this.injectedProps.usersStore
+
+    if (!hasError && !isLoadingUsers && usableUsers.length === 0) {
+      return (
+        <Link to="/accounts">
+          <Button
+            size="large"
+            type="primary"
+          >
+            Create account
+          </Button>
+        </Link>
+      )
+    }
     if (!hasUser) {
       return null
     }
@@ -215,7 +198,7 @@ class Header extends React.Component<Iprops, Istate> {
     return (
       <Dropdown
         trigger={['click']}
-        overlay={this.userOptions}
+        overlay={this.getUserOptions()}
         placement="bottomRight"
       >
         <a
@@ -224,14 +207,14 @@ class Header extends React.Component<Iprops, Istate> {
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
-          {this.userAvatar}
+          {this.getUserAvatar()}
           <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
         </a>
       </Dropdown>
     )
   }
 
-  private get userAvatar() {
+  private getUserAvatar() {
     const {getBEMClassNames} = this
     const {avatarHash} = this.injectedProps.usersStore.currentUserStore!
 
@@ -245,11 +228,10 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private get userOptions() {
+  private getUserOptions() {
     const {getBEMClassNames} = this
     const {
-      users,
-      canCreateOrImportUser
+      usableUsers,
     } = this.injectedProps.usersStore
     const {
       user,
@@ -295,11 +277,11 @@ class Header extends React.Component<Iprops, Istate> {
           </a>
         </Menu.Item>
         <Menu.Divider />
-        {users.length > 1
+        {usableUsers.length > 1
           ? (
             <Menu.SubMenu title={<span>Switch user</span>}>
               {
-                users
+                usableUsers
                   .filter((_user) => _user.userAddress !== user.userAddress)
                   .map((_user) => (
                     <Menu.Item key={`${_user.userAddress}@${_user.networkId}`}>
@@ -311,17 +293,11 @@ class Header extends React.Component<Iprops, Istate> {
           )
           : null
         }
-        {
-          canCreateOrImportUser
-            ? (
-              <Menu.Item>
-                <Link className={getBEMClassNames('register-new')} to="/register">
-                  Sign up/Import
-                </Link>
-              </Menu.Item>
-            )
-            : null
-        }
+        <Menu.Item>
+          <Link className={getBEMClassNames('manage-accounts')} to="/accounts">
+            Manage accounts
+          </Link>
+        </Menu.Item>
       </Menu>
     )
   }

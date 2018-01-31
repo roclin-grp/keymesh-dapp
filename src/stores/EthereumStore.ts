@@ -122,7 +122,7 @@ export class EthereumStore {
         return this.processEthereumConnect(this.currentEthereumNetwork!)
       }
     } else if (this.ethereumConnectStatus !== ETHEREUM_CONNECT_STATUS.ERROR) {
-      return this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.LOCKED)
+      this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.LOCKED)
     }
     this.detectEthereumAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
   }
@@ -205,6 +205,17 @@ export const ETHEREUM_NETWORK_NAMES = Object.freeze({
   [ETHEREUM_NETWORKS.ROPSTEN]: 'Ropsten',
   [ETHEREUM_NETWORKS.RINKEBY]: 'Rinkeby',
   [ETHEREUM_NETWORKS.KOVAN]: 'Kovan'
+}) as {
+  [networkID: number]: string
+}
+
+export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
+  [ETHEREUM_NETWORKS.OLYMPIC]: '',
+  [ETHEREUM_NETWORKS.MORDEN]: '',
+  [ETHEREUM_NETWORKS.MAINNET]: 'https://etherscan.io/tx/',
+  [ETHEREUM_NETWORKS.ROPSTEN]: 'https://ropsten.etherscan.io/tx/',
+  [ETHEREUM_NETWORKS.RINKEBY]: 'https://rinkeby.etherscan.io/tx/',
+  [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/'
 }) as {
   [networkID: number]: string
 }

@@ -18,7 +18,6 @@ import {
   // SENDING_FAIL_CODE
 } from '../../constants'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 // import Session from '../../containers/session'
 
 import {
@@ -117,7 +116,7 @@ class Home extends React.Component<{}, Istate> {
       showCompose
     } = this.state
     return (
-      <CommonHeaderPage>
+      <>
         {
           isActive && hasUser
             ? <div>
@@ -187,7 +186,7 @@ class Home extends React.Component<{}, Istate> {
               }</ul>
             : 'No account'
         } */}
-      </CommonHeaderPage>
+      </>
     )
   }
   // private refreshSessions = () => {

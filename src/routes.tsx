@@ -7,11 +7,11 @@ import {
   RouteProps,
 } from 'react-router-dom'
 
-import Home from './pages/home'
-import Register from './pages/register'
-import CheckRegister from './pages/check-register'
+// import Home from './pages/home'
+import Accounts from './pages/accounts'
+import Header from './containers/Header'
 import Broadcast from './pages/broadcast'
-import Profile from './pages/profile'
+// import Profile from './pages/profile'
 import Proving from './pages/proving'
 import Loading from './pages/loading'
 import ErrorPage from './pages/error'
@@ -42,86 +42,81 @@ class App extends React.Component<Iprops> {
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
   public render() {
-    return (
-      <Router>
-        {this.content}
-      </Router>
-    )
-  }
-
-  private get content() {
     const {
       ethereumStore: {
         isPending,
-        hasError,
+        // hasError,
       },
       usersStore: {
-        isUsersLoading
+        hasUser,
+        isLoadingUsers,
       }
     } = this.injectedProps
-    const { CheckUserRoute } = this
-    const isLoading = isPending || isUsersLoading
 
-    if (hasError) {
-      return <Route component={ErrorPage} />
+    const isLoading = isPending || isLoadingUsers
+
+    if (this.injectedProps.ethereumStore.hasError) {
+      return (
+        <Router>
+          <>
+            <Header />
+            <div className="page-content">
+              <ErrorPage />
+            </div>
+          </>
+        </Router>
+      )
     }
 
     if (isLoading) {
-      return <Route component={Loading} />
+      return (
+        <Router>
+          <>
+            <Header />
+            <div className="page-content">
+              <Loading />
+            </div>
+          </>
+        </Router>
+      )
     }
 
     return (
-      <Switch>
-        <CheckUserRoute exact={true} path="/" component={Home} />
-        <Route path="/register" render={this.renderRegister} />
-        <CheckUserRoute path="/check-register" component={CheckRegister} />
-        <CheckUserRoute path="/broadcast" component={Broadcast} />
-        <CheckUserRoute exact={true} path="/profile" component={Profile} />
-        <Route path="/profile/:userAddress" component={Profile} />
-        <CheckUserRoute path="/proving/:platform" component={Proving} />
-        <Redirect to="/" />
-      </Switch>
+      <Router>
+        <>
+          <Header />
+          <div className="page-content">
+            <Switch>
+              <Redirect from="/" exact={true} to="/discover" />
+              <Route path="/discover" component={Discover} />
+              <Route path="/accounts" component={Accounts} />
+              <Route path="/profile/:userAddress" component={Profile} />
+              {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
+              <ConditionalRoute
+                path="/broadcast"
+                component={Broadcast}
+                predicate={hasUser}
+                redirectTo="/accounts"
+              />
+              <ConditionalRoute
+                path="/profile"
+                exact={true}
+                component={Profile}
+                predicate={hasUser}
+                redirectTo="/accounts"
+              />
+              <ConditionalRoute
+                path="/proving/:platform"
+                component={Proving}
+                predicate={hasUser}
+                redirectTo="/accounts"
+              />
+              <Route component={NotFound} />
+            </Switch>
+          </div>
+        </>
+      </Router>
     )
-  }
-
-  private CheckUserRoute = (
-    { component: Component, ...rest }: { component: React.ComponentClass } & RouteProps
-  ) => {
-    const {
-      usersStore: {
-        hasUser,
-        currentUserStore,
-        canCreateOrImportUser
-      }
-    } = this.injectedProps
-
-    return (
-      <Route
-        {...rest as RouteProps}
-        render={props => {
-          if (hasUser) {
-            if (
-              !currentUserStore!.isRegisterCompleted
-              && props.location.pathname !== '/check-register'
-            ) {
-              return <Redirect to="/check-register" />
-            }
-          } else if (canCreateOrImportUser) {
-            return <Redirect to="/register" />
-          }
-          return <Component {...props} />
-        }}
-      />
-    )
-  }
-
-  private renderRegister = (props: RouteProps) => {
-    const {
-      usersStore: {
-        canCreateOrImportUser
-      }
-    } = this.injectedProps
-    return canCreateOrImportUser ? <Register {...props} /> : <Redirect to="/" />
   }
 }
 
@@ -130,6 +125,41 @@ type Iprops = {}
 interface IinjectedProps extends Iprops {
   ethereumStore: EthereumStore
   usersStore: UsersStore
+}
+
+function Profile() {
+  return <pre>/profile</pre>
+}
+
+function Discover() {
+  return <pre>/discover</pre>
+}
+
+function NotFound() {
+  return <pre>not found</pre>
+}
+
+const ConditionalRoute = ({
+  predicate,
+  component,
+  elseComponent,
+  redirectTo,
+  ...rest
+}: {
+  predicate: boolean
+  elseComponent?: typeof component
+  redirectTo?: string
+} & RouteProps) => {
+  let returnComponent: typeof component
+  if (predicate) {
+    returnComponent = component
+  } else if (typeof elseComponent === 'undefined') {
+    return <Redirect to={redirectTo!} />
+  } else {
+    returnComponent = elseComponent
+  }
+
+  return <Route component={returnComponent} {...rest} />
 }
 
 export default App

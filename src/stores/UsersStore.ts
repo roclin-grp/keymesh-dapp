@@ -15,7 +15,8 @@ import {
 } from './ContractStore'
 import {
   UserStore,
-  Iuser
+  Iuser,
+  USER_STATUS,
 } from './UserStore'
 
 import {
@@ -42,7 +43,13 @@ import IndexedDBStore from '../IndexedDBStore'
 export class UsersStore {
   @observable.ref public users: Iuser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
-  @observable public isUsersLoading = true
+  @observable public isLoadingUsers = true
+  @observable public hasNoRegisterRecordOnChain = false
+
+  @computed
+  public get usableUsers() {
+    return this.users.filter((user) => user.status === USER_STATUS.OK)
+  }
 
   @computed
   public get hasUser() {
@@ -50,7 +57,15 @@ export class UsersStore {
   }
 
   @computed
-  public get canCreateOrImportUser() {
+  public get hasCorrespondingUsableUser() {
+    const {
+      currentEthereumAccount
+    } = this.ethereumStore
+    return typeof this.usableUsers.find((user) => user.userAddress === currentEthereumAccount) !== 'undefined'
+  }
+
+  @computed
+  public get hasNoRegisterRecordOnLocal() {
     const {
       isActive,
       currentEthereumAccount,
@@ -71,6 +86,12 @@ export class UsersStore {
     this.db = db
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
+
+    reaction(
+      () => this.ethereumStore.currentEthereumAccount,
+      this.checkChainRegisterRecordByUserAddress
+    )
+
     reaction(
       () => ({
         isActive: this.ethereumStore.isActive,
@@ -84,7 +105,7 @@ export class UsersStore {
           isActive
           && this.lastNetworkId !== networkId
         ) {
-          this.isUsersLoading = true
+          this.isLoadingUsers = true
           const users = await db.getUsers(networkId!)
 
           let userAddress = getNetworkLastUsedUserAddress(networkId!)
@@ -92,8 +113,8 @@ export class UsersStore {
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
           }
-          if (typeof user === 'undefined' && users.length > 0) {
-            user = users[0]
+          if (typeof user === 'undefined' && this.usableUsers.length > 0) {
+            user = this.usableUsers[0]
           }
 
           runInAction(() => {
@@ -105,7 +126,7 @@ export class UsersStore {
                 this.switchUser(user)
               }
             }
-            this.isUsersLoading = false
+            this.isLoadingUsers = false
           })
           this.lastNetworkId = networkId
         }
@@ -123,7 +144,7 @@ export class UsersStore {
     transactionDidCreate = noop,
     registerDidFail = noop
   }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
-    if (!this.canCreateOrImportUser) {
+    if (!this.hasNoRegisterRecordOnLocal) {
       storeLogger.error(new Error('BUG: Trying to invoke `register` when it should not be invoked'))
       return
     }
@@ -138,6 +159,11 @@ export class UsersStore {
       publicKey
     } = await identitiesContract.getIdentity(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
+      if (ethereumAddress === this.ethereumStore.currentEthereumAccount) {
+        runInAction(() => {
+          this.hasNoRegisterRecordOnChain = false
+        })
+      }
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
 
@@ -164,7 +190,6 @@ export class UsersStore {
 
           runInAction(() => {
             this.addUser(user)
-            this.useUser(user)
           })
           resolve()
         } catch (err) {
@@ -210,8 +235,21 @@ export class UsersStore {
     //
   }
 
+  public createUserStore = (user: Iuser) => {
+    return new UserStore(user, {
+      db: this.db,
+      ethereumStore: this.ethereumStore,
+      contractStore: this.contractStore,
+      usersStore: this
+    })
+  }
+
+  public isCurrentUser = (user: Iuser) => {
+    return this.hasUser && this.currentUserStore!.user.userAddress === user.userAddress
+  }
+
   @action
-  private useUser = (user: Iuser) => {
+  public useUser = (user: Iuser) => {
     this.currentUserStore = new UserStore(user, {
       db: this.db,
       ethereumStore: this.ethereumStore,
@@ -219,6 +257,18 @@ export class UsersStore {
       usersStore: this
     })
     setNetworkLastUsedUserAddress(user)
+  }
+
+  private checkChainRegisterRecordByUserAddress = async (userAddress: string) => {
+    if (typeof userAddress !== 'undefined') {
+      const {
+        publicKey
+      } = await this.contractStore.identitiesContract.getIdentity(userAddress)
+
+      runInAction(() => {
+        this.hasNoRegisterRecordOnChain = isHexZeroValue(publicKey)
+      })
+    }
   }
 
   @action
@@ -234,16 +284,17 @@ export class UsersStore {
 
   @action
   private removeUser = (user: Iuser) => {
-    const remainUsers = this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
+    // const remainUsers =
+    this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
 
     if (
       this.hasUser
       && this.currentUserStore!.user.userAddress === user.userAddress
     ) {
       this.unsetUser()
-      if (remainUsers.length > 0) {
-        this.useUser(remainUsers[0])
-      }
+      // if (remainUsers.length > 0) {
+      //   this.useUser(remainUsers[0])
+      // }
     }
   }
 

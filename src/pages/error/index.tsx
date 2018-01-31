@@ -2,9 +2,8 @@ import * as React from 'react'
 
 // component
 import {
-  Icon
+  Icon,
 } from 'antd'
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
 // style
 import './index.css'
@@ -44,7 +43,7 @@ class ErrorPage extends React.Component {
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(ErrorPage.blockName, this.props)
 
-  private get content() {
+  public render() {
     const {
       hasNotMetaMask,
       isMetaMaskLocked,
@@ -83,14 +82,6 @@ class ErrorPage extends React.Component {
           </>
         )
     }
-  }
-
-  public render() {
-    return (
-      <CommonHeaderPage>
-        {this.content}
-      </CommonHeaderPage>
-    )
   }
 }
 

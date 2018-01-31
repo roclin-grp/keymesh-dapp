@@ -9,7 +9,6 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { Store } from '../../store'
 
 import { Icon } from 'antd'
@@ -123,17 +122,17 @@ class Proving extends React.Component<Iprops, Istate> {
       currentUser,
     } = this.props.store
     if (typeof currentUser === 'undefined') {
-      return <CommonHeaderPage>
+      return <>
         <Link to="/">Back to index</Link>
-      </CommonHeaderPage>
+      </>
     }
 
     const platform = this.platform
     if (!Object.values(SOCIAL_MEDIA_PLATFORMS).includes(platform)) {
-      return <CommonHeaderPage>
+      return <>
         <p>Invalid platform: {platform}</p>
         <Link to="/profile">Back to profile</Link>
-      </CommonHeaderPage>
+      </>
     }
 
     let socialMedia: any = {}
@@ -280,12 +279,12 @@ class Proving extends React.Component<Iprops, Istate> {
     if (this.state.successful) {
       return <Redirect to="/profile" />
     }
-    return <CommonHeaderPage>
+    return <>
       <div style={{marginBottom: '8px'}}>
         <Icon type={platform} style={{fontSize: 60}}/>
         {steps}
       </div>
-    </CommonHeaderPage>
+    </>
   }
 
   private uploadProof = async () => {

@@ -10,7 +10,6 @@ import {
   Steps,
   Icon,
 } from 'antd'
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
 // style
 import './index.css'
@@ -99,7 +98,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
     const isIdentityUploaded = user.status !== USER_STATUS.PENDING
 
     return (
-      <CommonHeaderPage prefixClass={CheckRegister.blockName} className={getBEMClassNames()}>
+      <>
         <h2 className={getBEMClassNames('title', {}, { title: true })}>
           Register progress
         </h2>
@@ -163,7 +162,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
             )
             : null
         }
-      </CommonHeaderPage>
+      </>
     )
   }
 
@@ -190,7 +189,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       done: true,
       shouldPreventRedirect: true
     })
-    await this.injectedProps.usersStore.currentUserStore!.updateUserStatusToOK()
+    // await this.injectedProps.usersStore.currentUserStore!.updateUserStatusToOK()
     window.setTimeout(
       () => {
         if (this.unmounted) {

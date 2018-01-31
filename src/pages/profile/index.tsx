@@ -8,7 +8,6 @@ import {
 } from 'react-router-dom'
 
 const sodium = require('libsodium-wrappers-sumo')
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
 import { Store } from '../../store'
 import {
@@ -364,15 +363,15 @@ class Profile extends React.Component<Iprops, Istate> {
       connectStatus,
     } = this.props.store
     if (connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE) {
-      return <CommonHeaderPage>
-        {this.userAvatar}
-        {this.socials}
-      </CommonHeaderPage>
+      return <>
+        {this.getUserAvatar()}
+        {this.getSocials()}
+      </>
     }
-    return <CommonHeaderPage />
+    return null
 
   }
-  private get socials() {
+  private getSocials() {
     const socialsElements = []
     for (let social of SOCIAL_MEDIAS) {
       const boundSocial = this.state.userBoundSocials[social.platform]
@@ -396,7 +395,7 @@ class Profile extends React.Component<Iprops, Istate> {
     return <ul>{socialsElements}</ul>
   }
 
-  private get userAvatar() {
+  private getUserAvatar() {
     const { getBEMClassNames } = this
     const avatarShape = 'square'
     const avatarSize = 'large'

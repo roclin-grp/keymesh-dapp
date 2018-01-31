@@ -85,6 +85,11 @@ export class UserStore {
     return this.user.status === USER_STATUS.OK
   }
 
+  @computed
+  public get isCorrespondingEthereumAddressAccount() {
+    return this.user.userAddress === this.ethereumStore.currentEthereumAccount
+  }
+
   constructor(user: Iuser, {
     db,
     ethereumStore,
@@ -100,6 +105,7 @@ export class UserStore {
     this.db = db
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
+    this.usersStore = usersStore
     this.sessionsStore = new SessionsStore({
       db,
       userStore: this,
@@ -111,7 +117,13 @@ export class UserStore {
         status: this.user.status,
         blockHash: this.user.blockHash,
       }) as Iuser,
-      (observableUserData) => Object.assign(this.userRef, observableUserData))
+      (observableUserData) => {
+        if (observableUserData.status === USER_STATUS.OK) {
+          // refresh usableUsers
+          this.usersStore.users = this.usersStore.users.slice()
+        }
+        Object.assign(this.userRef, observableUserData)
+      })
   }
 
   private userRef: Iuser
@@ -198,8 +210,9 @@ export class UserStore {
   public uploadPreKeys = async (
     {
       preKeysDidUpload = noop,
-      preKeysUploadDidFail = noop
-    }: IuploadPreKeysLifecycle = {}
+      preKeysUploadDidFail = noop,
+      isRegister = false
+    }: IuploadPreKeysOptions = {}
   ) => {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
@@ -239,16 +252,15 @@ export class UserStore {
         await this.box.load()
       }
       preKeysDidUpload()
+      if (isRegister) {
+        await this.db.updateUserStatus(this.user, USER_STATUS.OK)
+        runInAction(() => {
+          this.user.status = USER_STATUS.OK
+        })
+      }
     } else {
       storeLogger.error(resp.toString())
     }
-  }
-
-  public updateUserStatusToOK = async () => {
-    await this.db.updateUserStatus(this.user, USER_STATUS.OK)
-    runInAction(() => {
-      this.user.status = USER_STATUS.OK
-    })
   }
 
   public exportUser = async () => {
@@ -292,7 +304,8 @@ interface IcheckIdentityUploadStatusLifecycle {
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
-interface IuploadPreKeysLifecycle {
+interface IuploadPreKeysOptions {
+  isRegister?: boolean
   preKeysDidUpload?: () => void
   preKeysUploadDidFail?: (err: Error) => void
 }
