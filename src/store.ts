@@ -9,7 +9,6 @@ import {
   Identities,
   Messages,
   BroadcastMessages,
-  BoundSocials,
 } from 'trustbase'
 
 import {
@@ -67,9 +66,6 @@ import {
   FETCH_MESSAGES_INTERVAL,
   FETCH_BROADCAST_MESSAGES_INTERVAL,
   PRE_KEY_ID_BYTES_LENGTH,
-  FETCH_BOUND_EVENTS_INTERVAL,
-  SOCIAL_MEDIA_PLATFORMS,
-  BINDING_SOCIAL_STATUS,
 } from './constants'
 
 import {
@@ -104,16 +100,6 @@ import {
   generatePublicKeyFromHexStr,
 } from './utils/proteus'
 
-import {
-  IboundSocials,
-  IsignedBoundSocials,
-  IbindingSocial,
-  IbindingSocials,
-} from '../typings/proof.interface'
-import {
-  TwitterResource,
-} from './resources/twitter'
-
 const {
   PENDING,
   ACTIVE,
@@ -139,148 +125,18 @@ export class Store {
   @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
   @observable public isFetchingMessage = false
   @observable public isFetchingBroadcast = false
-  @observable public isFetchingBoundEvents = false
-
-  @observable.ref public currentUserBoundSocials: IboundSocials = {}
-  @observable public currentUserBindingSocials: IbindingSocials = {}
-
-  public readonly twitterResource = new TwitterResource(
-    process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
-    process.env.REACT_APP_TWITTER_SECRET_KEY!
-  )
 
   private currentUserlastFetchBlock: BlockType = 0
   private currentUserlastFetchBlockOfBroadcast: BlockType = 0
-  private currentUserlastFetchBlockOfBoundSocials: BlockType = 0
   private indexedDBStore: IndexedDBStore | undefined
   private box: Cryptobox | undefined
   private identitiesContract: Identities
   private messagesContract: Messages
   private broadcastMessagesContract: BroadcastMessages
-  private boundSocialsContract: BoundSocials
   private fetchMessagesTimeout: number
   private fetchBroadcastMessagesTimeout: number
-  private fetchBoundEventsTimeout: number
   private db: DB = new DB()
   private broadcastMessagesSignatures: string[] = []
-
-  public startFetchBoundEvents = () => {
-    if (this.connectStatus !== ACTIVE || this.isFetchingBoundEvents) {
-      return
-    }
-    const fetchLoop = async () => {
-      try {
-        await this.fetchBoundEvents()
-      } finally {
-        runInAction(() => {
-          this.fetchBoundEventsTimeout = window.setTimeout(fetchLoop, FETCH_BOUND_EVENTS_INTERVAL)
-        })
-      }
-    }
-
-    runInAction(() => {
-      this.isFetchingBoundEvents = true
-      this.fetchBoundEventsTimeout = window.setTimeout(fetchLoop, 0)
-    })
-  }
-
-  public addBindingSocial = async (
-    platform: SOCIAL_MEDIA_PLATFORMS,
-    bindingSocial: IbindingSocial,
-  ) => {
-    if (typeof this.currentUser === 'undefined') {
-      return
-    }
-
-    const bindingSocials: IbindingSocials = Object.assign({}, this.currentUser.bindingSocials)
-    switch (platform) {
-      case SOCIAL_MEDIA_PLATFORMS.GITHUB:
-        bindingSocials.github = bindingSocial
-        break
-      case SOCIAL_MEDIA_PLATFORMS.TWITTER:
-        bindingSocials.twitter = bindingSocial
-        break
-      case SOCIAL_MEDIA_PLATFORMS.FACEBOOK:
-        bindingSocials.facebook = bindingSocial
-        break
-      default:
-        return
-    }
-
-    this.updateBindingSocials(bindingSocials, this.currentUser)
-  }
-
-  public uploadBindingSocials = async (
-    {
-      transactionWillCreate = noop,
-      transactionDidCreate = noop,
-      sendingDidComplete = noop,
-      sendingDidFail = noop
-    }: IsendingLifecycle = {},
-  ) => {
-    if (typeof this.currentUser === 'undefined') {
-      // todo: deal with empty user
-      return
-    }
-
-    const newBoundSocials: IboundSocials = Object.assign({}, this.currentUserBoundSocials)
-    if (typeof this.currentUserBindingSocials.github !== 'undefined') {
-      const _bindingSocial = this.currentUserBindingSocials.github
-      newBoundSocials.github = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
-    }
-
-    if (typeof this.currentUserBindingSocials.twitter !== 'undefined') {
-      const _bindingSocial = this.currentUserBindingSocials.twitter
-      newBoundSocials.twitter = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
-    }
-
-    if (typeof this.currentUserBindingSocials.facebook !== 'undefined') {
-      const _bindingSocial = this.currentUserBindingSocials.facebook
-      newBoundSocials.facebook = {username: _bindingSocial.username, proofURL: _bindingSocial.proofURL}
-    }
-
-    const signature = '0x' + this.currentUserSign(JSON.stringify(newBoundSocials))
-    const signedBoundSocials: IsignedBoundSocials = {signature, socialMedias: newBoundSocials}
-    const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
-
-    transactionWillCreate()
-    this.boundSocialsContract.bind(this.currentUser.userAddress, signedBoundSocialsHex)
-      .on('transactionHash', (hash) => {
-        transactionDidCreate(hash)
-        runInAction(() => {
-          if (typeof this.currentUserBindingSocials.github !== 'undefined') {
-            this.currentUserBindingSocials.github.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
-          }
-          if (typeof this.currentUserBindingSocials.twitter !== 'undefined') {
-            this.currentUserBindingSocials.twitter.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
-          }
-          if (typeof this.currentUserBindingSocials.facebook !== 'undefined') {
-            this.currentUserBindingSocials.facebook.status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED
-          }
-        })
-      })
-      .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
-          if (!receipt.events) {
-            sendingDidFail(new Error('Unknown error'))
-            return
-          }
-
-          if (typeof this.currentUser !== 'undefined') {
-            runInAction(() => {
-              this.currentUserBoundSocials = Object.assign({}, newBoundSocials)
-              storeLogger.info(JSON.stringify(this.currentUserBoundSocials))
-            })
-            await this.updateBindingSocials({}, this.currentUser)
-          }
-
-          sendingDidComplete()
-        }
-      })
-      .on('error', (error: Error) => {
-        sendingDidFail(error)
-      })
-  }
 
   public getUserPublicKey = async (
     userAddress: string
@@ -799,12 +655,6 @@ export class Store {
     })
   }
 
-  public stopFetchBoundEvents = () => {
-    runInAction(() => {
-      this.isFetchingBoundEvents = false
-      window.clearTimeout(this.fetchBoundEventsTimeout)
-    })
-  }
   public stopFetchBroadcastMessages = () => {
     runInAction(() => {
       this.isFetchingBroadcast = false
@@ -903,52 +753,6 @@ export class Store {
     })
   }
 
-  public getBoundEvents = async (
-    lastFetchBlock: BlockType,
-    userAddress: string,
-  ) => {
-    return await this.boundSocialsContract.getBindEvents({
-      fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
-      filter: {
-        userAddress
-      }
-    })
-  }
-
-  private fetchBoundEvents = async (
-    lastFetchBlock = this.currentUserlastFetchBlockOfBoundSocials,
-    userAddress = this.currentUser!.userAddress
-  ) => {
-    const {
-      lastBlock,
-      bindEvents
-    } = await this.getBoundEvents(lastFetchBlock, userAddress)
-
-    if (typeof this.currentUser === 'undefined' || bindEvents.length === 0) {
-      return
-    }
-    const _user: Iuser = this.currentUser as Iuser
-
-    for (let i = bindEvents.length - 1; i >= 0; i--) {
-      const bindEvent = bindEvents[i]
-      const _signedBoundSocial = JSON.parse(hexToUtf8(
-        bindEvent.signedBoundSocials.slice(2))) as IsignedBoundSocials
-
-      if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(_user.boundSocials)) {
-        const currentUserPublicKey = await this.getCurrentUserPublicKey()
-        const userPublicKey = generatePublicKeyFromHexStr(currentUserPublicKey.slice(2))
-        if (userPublicKey.verify(
-          sodium.from_hex(_signedBoundSocial.signature.slice(2)),
-          JSON.stringify(_signedBoundSocial.socialMedias)
-        )) {
-          await this.updateBoundSocials(_signedBoundSocial.socialMedias, _user)
-          break
-        }
-      }
-    }
-    await this.updateLastFetchBlockOfBoundSocials(lastBlock, _user)
-  }
-
   private getPreKeys = async (userAddress: string) => {
     const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + userAddress
     const init = { method: 'GET', mode: 'cors' } as RequestInit
@@ -972,25 +776,6 @@ export class Store {
       }
     }
     throw (new Error('status is not 200'))
-  }
-  private updateBindingSocials = async (bindingSocials: IbindingSocials, user: Iuser) => {
-      await this.db.updateBindingSocials(user, bindingSocials)
-      runInAction(() => {
-        this.currentUserBindingSocials = bindingSocials
-      })
-  }
-  private updateBoundSocials = async (boundSocials: IboundSocials, user: Iuser) => {
-      await this.db.updateBoundSocials(user, boundSocials)
-      runInAction(() => {
-        this.currentUserBoundSocials = boundSocials
-      })
-  }
-  private updateLastFetchBlockOfBoundSocials = async (lastBlock: number, user: Iuser) => {
-      const _newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
-      await this.db.updateLastFetchBlockOfBoundSocials(user, _newLastBlock)
-      runInAction(() => {
-        this.currentUserlastFetchBlockOfBoundSocials = _newLastBlock
-      })
   }
 
   private updateLastFetchBlockOfBroadcast = async (lastBlock: number, user: Iuser) => {
@@ -1114,6 +899,9 @@ export class Store {
                           .findIndex((session) => session.sessionTag === sessionTag)
                         if (sessionInDB !== undefined) {
                           this.currentSession = sessionInDB
+                        }
+                        if (typeof  this.currentSession === 'undefined') {
+                          return
                         }
                         this.currentUserSessions = [
                           this.currentSession,

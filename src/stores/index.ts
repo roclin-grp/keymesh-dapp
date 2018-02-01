@@ -31,11 +31,13 @@ export function createStores(): Istores {
 
   return {
     ethereumStore,
+    contractStore,
     usersStore,
   }
 }
 
 export interface Istores {
   ethereumStore: EthereumStore
+  contractStore: ContractStore
   usersStore: UsersStore
 }

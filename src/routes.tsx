@@ -11,7 +11,7 @@ import {
 import Accounts from './pages/accounts'
 import Header from './containers/Header'
 import Broadcast from './pages/broadcast'
-// import Profile from './pages/profile'
+import Profile from './pages/profile'
 import Proving from './pages/proving'
 import Loading from './pages/loading'
 import ErrorPage from './pages/error'
@@ -125,10 +125,6 @@ type Iprops = {}
 interface IinjectedProps extends Iprops {
   ethereumStore: EthereumStore
   usersStore: UsersStore
-}
-
-function Profile() {
-  return <pre>/profile</pre>
 }
 
 function Discover() {

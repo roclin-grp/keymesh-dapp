@@ -30,7 +30,7 @@ interface IgithubClaim {
 }
 
 interface IsignedGithubClaim {
-  githubClaim: IgithubClaim
+  claim: IgithubClaim
   signature: string
 }
 

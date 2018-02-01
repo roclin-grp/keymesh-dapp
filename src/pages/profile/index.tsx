@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import { runInAction , observable } from 'mobx'
 import { inject, observer } from 'mobx-react'
 
 import {
@@ -7,379 +8,124 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-const sodium = require('libsodium-wrappers-sumo')
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
-import { Store } from '../../store'
 import {
-  getGithubClaimByProofURL,
+  noop,
 } from '../../utils'
 
 import {
-  hexToUtf8,
-} from '../../utils/hex'
-
-import {
-  storeLogger,
-} from '../../utils/loggers'
-
-import {
-  getBEMClassNamesMaker,
-} from '../../utils/classNames'
-
-import {
-  generatePublicKeyFromHexStr,
-} from '../../utils/proteus'
-
-import {
   SOCIAL_MEDIAS,
-  VERIFY_SOCIAL_STATUS,
 } from '../../constants'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
+  ETHEREUM_CONNECT_STATUS, EthereumStore,
 } from '../../stores/EthereumStore'
 
-import {
-  FacebookResource,
-} from '../../resources/facebook'
-import {
-  IboundSocials,
-  IsignedBoundSocials,
-  ItwitterClaim
-} from '../../../typings/proof.interface'
-
-import { sha3 } from 'trustbase'
-
 import { Icon } from 'antd'
+import {
+  Istores,
+} from '../../stores'
+
+import { ProfileState } from './ProfileState'
+import { UsersStore } from '../../stores/UsersStore'
+import { ContractStore } from '../../stores/ContractStore'
+import { getBEMClassNamesMaker } from '../../utils/classNames'
 
 interface Iparams {
   userAddress?: string
 }
 
 interface Iprops extends RouteComponentProps<Iparams> {
-  store: Store
+  usersStore: UsersStore
+  contractStore: ContractStore
+  ethereumStore: EthereumStore
 }
 
-interface Istate {
-  isFetchingUserProofs: boolean
-  isVerifyingUserProofs: boolean
-  fetchUserProofTimeout?: number
-  verifyProofTimeout?: number
-  verifyStatus: {
-    github?: VERIFY_SOCIAL_STATUS
-    twitter?: VERIFY_SOCIAL_STATUS
-    facebook?: VERIFY_SOCIAL_STATUS
-  }
-  userBoundSocials: IboundSocials
-  userAddress: string
-  userLastFetchBlock: number
-  userBlockHash: string
-}
+@inject(({
+  usersStore,
+  contractStore,
+  ethereumStore,
+}: Istores) => ({
+  usersStore,
+  contractStore,
+  ethereumStore,
+}))
 
-@inject('store') @observer
-class Profile extends React.Component<Iprops, Istate> {
-  constructor(props: Iprops) {
-    super(props)
-
-    let userAddress = ''
-    if (typeof props.match.params.userAddress !== 'undefined') {
-      userAddress = props.match.params.userAddress
-    }
-
-    this.state = {
-      isFetchingUserProofs: false,
-      isVerifyingUserProofs: false,
-      userLastFetchBlock: 0,
-      verifyStatus: {},
-      userAddress,
-      userBoundSocials: {},
-      userBlockHash: '0x0',
-    }
-  }
+@observer
+class Profile extends React.Component<Iprops> {
+  public data: ProfileState
 
   private readonly getBEMClassNames = getBEMClassNamesMaker('profile', this.props)
-  public stopVerifyingUserProofs = () => {
-    if (typeof this.state.verifyProofTimeout !== 'undefined') {
-      window.clearTimeout(this.state.verifyProofTimeout)
-    }
-    this.setState({
-      isVerifyingUserProofs: false,
-    })
-  }
-  public stopFetchingUserProofs = () => {
-    if (typeof this.state.fetchUserProofTimeout !== 'undefined') {
-      window.clearTimeout(this.state.fetchUserProofTimeout)
-    }
-    this.setState({
-      isFetchingUserProofs: false,
-    })
-  }
-
-  public verifyUserProofs = async () => {
-    if (this.state.userAddress === '') {
-     return
-    }
-    if (typeof this.state.userBoundSocials === 'undefined') {
-      return
-    }
-
-    const { getUserPublicKey, } = this.props.store
-    const currentUserPublicKey = await getUserPublicKey(this.state.userAddress)
-    if (currentUserPublicKey === '') {
-      return
-    }
-
-    const userPublicKey = generatePublicKeyFromHexStr(currentUserPublicKey.slice(2))
-
-    const socials = this.state.userBoundSocials
-    const verifyFacebook = async () => {
-      if (typeof socials.facebook !== 'undefined') {
-        const unverifiedClaim = await FacebookResource.getClaimByPostURL(socials.facebook.proofURL)
-        if (unverifiedClaim === null) {
-          this.setState({
-            verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.INVALID })
-          })
-        } else {
-          if (!userPublicKey.verify(
-            sodium.from_hex(unverifiedClaim.signature.slice(2)),
-            JSON.stringify(unverifiedClaim.claim))) {
-            this.setState({
-              verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.INVALID })
-            })
-          } else {
-            this.setState({
-              verifyStatus: Object.assign(this.state.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.VALID })
-            })
-          }
-        }
-      }
-    }
-    verifyFacebook()
-
-    const verifyGithub = async () => {
-      if (typeof socials.github !== 'undefined') {
-        const signedGithubClaim = await getGithubClaimByProofURL(socials.github.proofURL)
-        if (signedGithubClaim === null) {
-          this.setState({
-            verifyStatus: Object.assign(this.state.verifyStatus, { github: VERIFY_SOCIAL_STATUS.INVALID })
-          })
-        } else {
-          if (!userPublicKey.verify(
-            sodium.from_hex(signedGithubClaim.signature.slice(2)),
-            JSON.stringify(signedGithubClaim.githubClaim))) {
-            this.setState({
-              verifyStatus: Object.assign(this.state.verifyStatus, { github: VERIFY_SOCIAL_STATUS.INVALID })
-            })
-          } else {
-            this.setState({
-              verifyStatus: Object.assign(this.state.verifyStatus, { github: VERIFY_SOCIAL_STATUS.VALID })
-            })
-          }
-        }
-      }
-    }
-    verifyGithub()
-
-    const verifyTwitter = async () => {
-      if (typeof socials.twitter !== 'undefined') {
-        const {
-        twitterResource
-      } = this.props.store
-        if (typeof twitterResource === 'undefined') {
-          // todo deal with could not get twitter resource
-          return
-        }
-        const tweet = await twitterResource.getTweetByProofURL(socials.twitter.proofURL)
-        if (tweet === null) {
-          this.setState({
-            verifyStatus: Object.assign(this.state.verifyStatus, { twitter: VERIFY_SOCIAL_STATUS.INVALID })
-          })
-        } else {
-          const parts = /addr: (\w+)\s+public key: (\w+)\s+sig: (\w+)/.exec(tweet.full_text)
-          if (parts === null) {
-            this.setState({
-              verifyStatus: Object.assign(this.state.verifyStatus, { twitter: VERIFY_SOCIAL_STATUS.INVALID })
-            })
-          } else {
-            const twitterClaim: ItwitterClaim = {
-              userAddress: parts[1],
-              publicKey: parts[2],
-            }
-            if (!userPublicKey.verify(
-              sodium.from_hex(parts[3].slice(2)),
-              JSON.stringify(twitterClaim)
-            )) {
-              this.setState({
-                verifyStatus: Object.assign(this.state.verifyStatus, { twitter: VERIFY_SOCIAL_STATUS.INVALID })
-              })
-            } else {
-              this.setState({
-                verifyStatus: Object.assign(this.state.verifyStatus, { twitter: VERIFY_SOCIAL_STATUS.VALID })
-              })
-            }
-          }
-        }
-      }
-    }
-    verifyTwitter()
-  }
-
-  public fetchUserProofs = async () => {
-    const {
-      getBoundEvents,
-      getUserPublicKey,
-    } = this.props.store
-    if (this.state.userAddress === '') {
-      return
-    }
-    const currentUserPublicKey = await getUserPublicKey(this.state.userAddress)
-    if (currentUserPublicKey === '') {
-      return
-    }
-
-    const {
-      lastBlock,
-      bindEvents
-    } = await getBoundEvents(this.state.userLastFetchBlock, this.state.userAddress)
-
-    if (bindEvents.length === 0) {
-      return
-    }
-
-    const bindEvent: any = bindEvents[bindEvents.length - 1]
-    const _signedBoundSocial = JSON.parse(hexToUtf8(
-      bindEvent.signedBoundSocials.slice(2))) as IsignedBoundSocials
-
-    this.setState({
-      userLastFetchBlock: lastBlock,
-    })
-    if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(this.state.userBoundSocials)) {
-      const userPublicKey = generatePublicKeyFromHexStr(currentUserPublicKey.slice(2))
-      if (!userPublicKey.verify(
-        sodium.from_hex(_signedBoundSocial.signature.slice(2)),
-        JSON.stringify(_signedBoundSocial.socialMedias)
-      )) {
-        storeLogger.error(new Error('invalid signature'))
-        return
-      }
-      this.setState({
-        userBoundSocials: _signedBoundSocial.socialMedias
-      })
-      this.verifyUserProofs()
-    }
-  }
-
-  public startFetchingUserProofs = () => {
-    const fetchLoop = async () => {
-      try {
-        await this.fetchUserProofs()
-      } finally {
-        this.setState({
-          fetchUserProofTimeout: window.setTimeout(fetchLoop, 10000)
-        })
-      }
-    }
-
-    this.setState({
-      isFetchingUserProofs: true,
-      fetchUserProofTimeout: window.setTimeout(fetchLoop, 0)
-    })
-  }
-  public startVerifyingUserProofs = () => {
-    const loop = async () => {
-      try {
-        await this.verifyUserProofs()
-      } finally {
-        this.setState({
-          verifyProofTimeout: window.setTimeout(loop, 15000)
-        })
-      }
-    }
-
-    this.setState({
-      isVerifyingUserProofs: true,
-      verifyProofTimeout: window.setTimeout(loop, 0)
-    })
-  }
-
+  private removeEthereumConnectStatusChangeListener = noop
+  @observable
+  private initializedState = false
   public componentDidMount(isFirstMount: boolean = true) {
     const {
-      connectStatus,
-      currentUser,
-      isFetchingBoundEvents,
-      startFetchBoundEvents,
-      // listenForConnectStatusChange,
-      getIdentity,
-      getBlockHash,
-    } = this.props.store
-    if (connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE) {
-      let userAddress = this.state.userAddress
-      if (currentUser) {
-        if ('' === this.state.userAddress) {
-          userAddress = currentUser.userAddress
-          this.setState({
-            userAddress,
+      ethereumStore: {
+        isActive,
+        listenForEthereumConnectStatusChange,
+        getBlockHash,
+      },
+      usersStore,
+      contractStore,
+    } = this.props
+    const user = usersStore.hasUser ? usersStore.currentUserStore!.user : undefined
+
+    if (isActive) {
+      this.data = new ProfileState({usersStore, contractStore, getBlockHash})
+      if (typeof this.props.match.params.userAddress !== 'undefined') {
+        this.data.userAddress = this.props.match.params.userAddress
+      }
+
+      let userAddress = this.data.userAddress
+      if (usersStore.hasUser) {
+        if ('' === this.data.userAddress) {
+          userAddress = user!.userAddress
+          runInAction(() => {
+            this.data.userAddress = userAddress
           })
         }
-        if (!isFetchingBoundEvents) {
-          startFetchBoundEvents()
-        }
       }
 
-      getIdentity(userAddress).then(async ({blockNumber}) => {
-        return await getBlockHash(blockNumber)
-      }).then(blockHash => {
-          this.setState({userBlockHash: blockHash})
-      }).catch(err => {
-        storeLogger.error(err)
+      this.data.startFetchingUserProofs()
+      this.data.startVerifyingUserProofs()
+      runInAction(() => {
+        this.initializedState = true
       })
-
-      if (!this.state.isFetchingUserProofs) {
-        this.startFetchingUserProofs()
-      }
-      if (!this.state.isVerifyingUserProofs) {
-        this.startVerifyingUserProofs()
-      }
     }
 
     if (isFirstMount) {
-      // listenForConnectStatusChange(this.connectStatusListener)
+      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
     }
   }
 
   public componentWillUnmount() {
-    const {
-      stopFetchBoundEvents,
-      // removeConnectStatusListener
-    } = this.props.store
-    stopFetchBoundEvents()
-    this.stopFetchingUserProofs()
-    this.stopVerifyingUserProofs()
-    // removeConnectStatusListener(this.connectStatusListener)
+    this.data.stopFetchingUserProofs()
+    this.data.stopVerifyingUserProofs()
+    this.removeEthereumConnectStatusChangeListener()
   }
 
   public render() {
-    const {
-      connectStatus,
-    } = this.props.store
-    if (connectStatus === ETHEREUM_CONNECT_STATUS.ACTIVE) {
-      return <>
-        {this.getUserAvatar()}
-        {this.getSocials()}
-      </>
+    if (!this.initializedState) {
+      return <CommonHeaderPage/>
     }
-    return null
 
+    return <CommonHeaderPage>
+      {this.getUserAvatar()}
+      {this.socials}
+    </CommonHeaderPage>
   }
-  private getSocials() {
+
+  private get socials() {
     const socialsElements = []
     for (let social of SOCIAL_MEDIAS) {
-      const boundSocial = this.state.userBoundSocials[social.platform]
+      const boundSocial = this.data.userBoundSocials[social.platform]
       let stateText = null
 
       if (typeof boundSocial !== 'undefined') {
-        stateText = <a>{boundSocial.username}@{social.platform} {this.state.verifyStatus[social.platform]}</a>
-      } else if (this.isSelf) {
+        stateText = <a>{boundSocial.username}@{social.platform} {this.data.verifyStatus[social.platform]}</a>
+      } else if (this.data.isSelf) {
         stateText = <Link to={`/proving/${social.platform}`}>Prove your {social.label}</Link>
       }
 
@@ -401,42 +147,25 @@ class Profile extends React.Component<Iprops, Istate> {
     const avatarSize = 'large'
     const avatarClassName = getBEMClassNames('user-avatar')
 
-    let hash = ''
-    if (this.state.userBlockHash !== '0x0' && this.state.userAddress !== '') {
-      hash = sha3(this.state.userAddress + this.state.userBlockHash)
-    }
-
-    return (
-      <HashAvatar
-        className={avatarClassName}
-        shape={avatarShape}
-        size={avatarSize}
-        hash={hash}
-      />
-    )
+    return <HashAvatar
+      className={avatarClassName}
+      shape={avatarShape}
+      size={avatarSize}
+      hash={this.data.avatarHash}
+    />
   }
 
-  // private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
-  //   const {
-  //     stopFetchBoundEvents
-  //   } = this.props.store
-  //   if (prev !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
-  //     this.componentDidMount(false)
-  //   } else if (cur !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
-  //     stopFetchBoundEvents()
-  //     this.stopFetchingUserProofs()
-  //     this.stopVerifyingUserProofs()
-  //   }
-  // }
-  private get isSelf() {
-    const {
-      currentUser,
-    } = this.props.store
-    if (!currentUser) {
-      return false
+  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
+    if (prev !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
+      // fix me: this is an ugly way to call `this.componentDidMount` after assigning user
+      const notFirstDidMount = () => {
+        this.componentDidMount(false)
+      }
+      window.setTimeout(notFirstDidMount, 1000)
+    } else if (cur !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
+      this.data.stopFetchingUserProofs()
+      this.data.stopVerifyingUserProofs()
     }
-
-    return this.state.userAddress === currentUser.userAddress
   }
 }
 

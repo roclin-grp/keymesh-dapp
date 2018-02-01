@@ -66,12 +66,14 @@ import {
   IboundSocials,
   IbindingSocials,
 } from '../../typings/proof.interface.d'
+import { BoundSocialsStore } from './BoundSocialsStore'
 
 export class UserStore {
   // FIXME consider @observable.ref
   @observable public user: Iuser
   @observable.ref public sessionsStore: SessionsStore
   @observable public isCryptoboxReady = false
+  public boundSocialsStore: BoundSocialsStore
 
   @computed
   public get avatarHash() {
@@ -207,6 +209,14 @@ export class UserStore {
     return waitForTransactionReceipt()
   }
 
+  public sign = (message: string) => {
+    if (typeof this.box === 'undefined') {
+      return '0x0'
+    }
+
+    return '0x' + sodium.to_hex(this.box.identity.secret_key.sign(message))
+  }
+
   public uploadPreKeys = async (
     {
       preKeysDidUpload = noop,
@@ -289,6 +299,11 @@ export class UserStore {
     await box.load()
     runInAction(() => {
       this.isCryptoboxReady = true
+    })
+    this.boundSocialsStore = new BoundSocialsStore({
+      db: this.db,
+      userStore: this,
+      boundSocialsContract: this.contractStore.boundSocialsContract,
     })
   }
 }
