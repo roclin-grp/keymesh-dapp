@@ -1,6 +1,6 @@
 import { runInAction, observable } from 'mobx'
 import { noop } from '../utils/'
-import { IsendingLifecycle } from './SessionStore'
+import { ISendingLifecycle } from './SessionStore'
 import { UsersStore } from './UsersStore'
 import { utf8ToHex, hexToUtf8, sodiumFromHex } from '../utils/hex'
 import { BlockType } from 'trustbase/typings/web3'
@@ -9,7 +9,7 @@ import { storeLogger } from '../utils/loggers'
 import { ContractStore } from './ContractStore'
 
 export class BroadcastMessagesStore {
-  @observable.ref public broadcastMessages: IreceviedBroadcastMessage[] = []
+  @observable.ref public broadcastMessages: IReceviedBroadcastMessage[] = []
 
   constructor({
     usersStore,
@@ -40,7 +40,7 @@ export class BroadcastMessagesStore {
       transactionDidCreate = noop,
       sendingDidComplete = noop,
       sendingDidFail = noop
-    }: IsendingLifecycle = {},
+    }: ISendingLifecycle = {},
   ) => {
     const {
       hasUser,
@@ -52,7 +52,7 @@ export class BroadcastMessagesStore {
 
     const signature = currentUserStore!.sign(message)
     const timestamp = Math.floor(Date.now() / 1000)
-    const signedMessage: IsignedBroadcastMessage = {
+    const signedMessage: ISignedBroadcastMessage = {
         message,
         signature,
         timestamp,
@@ -129,7 +129,7 @@ export class BroadcastMessagesStore {
     let messages = (await Promise.all(broadcastMessages.map(async (message: any) => {
       const userAddress = message.userAddress
       const blockTimestamp = message.timestamp
-      const signedMessage = JSON.parse(hexToUtf8(message.signedMessage.slice(2))) as IsignedBroadcastMessage
+      const signedMessage = JSON.parse(hexToUtf8(message.signedMessage.slice(2))) as ISignedBroadcastMessage
       if (this.broadcastMessagesSignatures.includes(signedMessage.signature)) {
         return null
       }
@@ -153,12 +153,12 @@ export class BroadcastMessagesStore {
         timestamp: Number(signedMessage.timestamp) * 1000,
         author: userAddress,
         isInvalidTimestamp,
-      } as IreceviedBroadcastMessage
+      } as IReceviedBroadcastMessage
       if (isInvalidTimestamp) {
         m.blockTimestamp = Number(blockTimestamp) * 1000
       }
       return m
-    }))).filter((m) => m !== null) as IreceviedBroadcastMessage[]
+    }))).filter((m) => m !== null) as IReceviedBroadcastMessage[]
 
     if (messages.length > 0) {
       runInAction(() => {
@@ -170,16 +170,16 @@ export class BroadcastMessagesStore {
   }
 }
 
-export interface IbroadcastMessage {
+export interface IBroadcastMessage {
   message: string
   timestamp: number
 }
 
-export interface IsignedBroadcastMessage extends IbroadcastMessage {
+export interface ISignedBroadcastMessage extends IBroadcastMessage {
   signature: string
 }
 
-export interface IreceviedBroadcastMessage extends IsignedBroadcastMessage {
+export interface IReceviedBroadcastMessage extends ISignedBroadcastMessage {
   author: string
   isInvalidTimestamp: boolean
   blockTimestamp?: number // if isInvalidTimestamp is true, it will be filled

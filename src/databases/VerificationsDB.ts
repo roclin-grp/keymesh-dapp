@@ -11,9 +11,9 @@ import {
   IUser,
 } from '../stores/UserStore'
 import {
-  Iverifications,
-  IbindingSocials,
-  IboundSocials,
+  IVerifications,
+  IBindingSocials,
+  IBoundSocials,
 } from '../stores/BoundSocialsStore'
 
 export class VerificationsDB {
@@ -42,7 +42,7 @@ export class VerificationsDB {
           lastFetchBlock: 0,
         },
       )
-      .then((primaryKeys) => tableVerifications.get(primaryKeys)) as Dexie.Promise<Iverifications>
+      .then((primaryKeys) => tableVerifications.get(primaryKeys)) as Dexie.Promise<IVerifications>
   }
 
   public getVerifications(networkId: ETHEREUM_NETWORKS, userAddress: string) {
@@ -60,7 +60,7 @@ export class VerificationsDB {
     {
       networkId,
       userAddress
-    }: Iverifications,
+    }: IVerifications,
     updateVerificationsOptions: IUpdateVerificationsOptions = {}
   ) {
     const {
@@ -71,13 +71,13 @@ export class VerificationsDB {
         [networkId, userAddress],
         updateVerificationsOptions
       )
-      .then(() => tableVerifications.get([networkId, userAddress])) as Dexie.Promise<Iverifications>
+      .then(() => tableVerifications.get([networkId, userAddress])) as Dexie.Promise<IVerifications>
   }
 
   public deleteVerifications({
     networkId,
     userAddress
-  }: Iverifications) {
+  }: IVerifications) {
     return this.tables.tableVerifications
       .delete([networkId, userAddress])
   }
@@ -92,7 +92,7 @@ export class VerificationsDB {
 }
 
 interface IUpdateVerificationsOptions {
-  bindingSocials?: IbindingSocials
-  boundSocials?: IboundSocials
+  bindingSocials?: IBindingSocials
+  boundSocials?: IBoundSocials
   lastFetchBlock?: number
 }

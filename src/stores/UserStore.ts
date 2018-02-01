@@ -64,8 +64,8 @@ import {
 
 import {
   BoundSocialsStore,
-  IboundSocials,
-  IbindingSocials,
+  IBoundSocials,
+  IBindingSocials,
 } from './BoundSocialsStore'
 
 export class UserStore {
@@ -350,8 +350,8 @@ export interface IUser extends IUserIdentityKeys {
   lastFetchBlockOfBroadcast: number
   lastFetchBlockOfBoundSocials: number
 
-  boundSocials: IboundSocials
-  bindingSocials: IbindingSocials
+  boundSocials: IBoundSocials
+  bindingSocials: IBindingSocials
 }
 
 export enum USER_STATUS {

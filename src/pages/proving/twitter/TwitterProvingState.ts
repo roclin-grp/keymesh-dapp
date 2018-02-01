@@ -8,18 +8,18 @@ import ProvingState from '../ProvingState'
 
 import { ITweet, TwitterResource } from '../../../resources/twitter'
 import {
-  IsignedTwitterClaim,
+  ISignedTwitterClaim,
   SOCIAL_MEDIA_PLATFORMS,
   VERIFY_SOCIAL_STATUS,
-  IbindingSocial,
+  IBindingSocial,
   BINDING_SOCIAL_STATUS,
-  ItwitterClaim,
+  ITwitterClaim,
 } from '../../../stores/BoundSocialsStore'
 
 useStrict(true)
 
 export class TwitterProvingState extends ProvingState {
-  @observable public claim: IsignedTwitterClaim
+  @observable public claim: ISignedTwitterClaim
   public platform = SOCIAL_MEDIA_PLATFORMS.TWITTER
 
   private readonly twitterResource = new TwitterResource(
@@ -28,7 +28,7 @@ export class TwitterProvingState extends ProvingState {
     )
 
   protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
-    const claim: IsignedTwitterClaim = this.claim
+    const claim: ISignedTwitterClaim = this.claim
     const tweets = await this.twitterResource.getUserTimeline(this.username)
 
     const _claimText = getTwitterClaim(claim)
@@ -44,7 +44,7 @@ export class TwitterProvingState extends ProvingState {
       return VERIFY_SOCIAL_STATUS.NOT_FOUND
     }
 
-    const bindingSocial: IbindingSocial = {
+    const bindingSocial: IBindingSocial = {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: claim,
       proofURL: `https://twitter.com/statuses/${claimTweet.id_str}`,
@@ -63,7 +63,7 @@ export class TwitterProvingState extends ProvingState {
   }
 
   private generateSignedClaim = (username: string, userAddress: string, publicKey: string) => {
-    const claim: ItwitterClaim = {
+    const claim: ITwitterClaim = {
       userAddress,
       publicKey,
     }
@@ -71,11 +71,11 @@ export class TwitterProvingState extends ProvingState {
     return {
       claim: claim,
       signature,
-    } as IsignedTwitterClaim
+    } as ISignedTwitterClaim
   }
 }
 
-export function getTwitterClaim(signedClaim: IsignedTwitterClaim) {
+export function getTwitterClaim(signedClaim: ISignedTwitterClaim) {
   return `Keymail
 addr: ${signedClaim.claim.userAddress}
 public key: ${signedClaim.claim.publicKey}

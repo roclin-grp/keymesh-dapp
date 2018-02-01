@@ -100,6 +100,21 @@ export class EthereumStore {
       })
   }
 
+  @action
+  public processEthereumConnectError = (
+    errCode: ETHEREUM_CONNECT_ERROR_CODE,
+    err?: Error
+  ) => {
+    if (errCode !== ETHEREUM_CONNECT_ERROR_CODE.LOCKED) {
+      delete this.currentEthereumNetwork
+    }
+    delete this.currentEthereumAccount
+
+    this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.ERROR
+    this.ethereumConnectErrorCode = errCode
+    this.ethereumConnectError = err
+  }
+
   private removeEthereumConnectStatusListener = (listener: TypeConnectStatusListener) => {
     this.connectStatusListeners = this.connectStatusListeners.filter((_listener) => _listener !== listener)
   }
@@ -153,21 +168,6 @@ export class EthereumStore {
     window.clearTimeout(this.detectEthereumNetworkChangeTimeout)
     this.detectEthereumAccountChangeTimeout = window.setTimeout(this.listenForEthereumAccountChange, 100)
     this.detectEthereumNetworkChangeTimeout = window.setTimeout(this.listenForEthereumNetworkChange, 100)
-  }
-
-  @action
-  private processEthereumConnectError = (
-    errCode: ETHEREUM_CONNECT_ERROR_CODE,
-    err?: Error
-  ) => {
-    if (errCode !== ETHEREUM_CONNECT_ERROR_CODE.LOCKED) {
-      delete this.currentEthereumNetwork
-    }
-    delete this.currentEthereumAccount
-
-    this.ethereumConnectStatus = ETHEREUM_CONNECT_STATUS.ERROR
-    this.ethereumConnectErrorCode = errCode
-    this.ethereumConnectError = err
   }
 }
 

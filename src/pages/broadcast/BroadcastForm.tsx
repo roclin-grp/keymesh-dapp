@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { storeLogger } from '../../utils/loggers'
-interface Iprops {
+interface IProps {
   broadcastMessagesStore: BroadcastMessagesStore
 }
 
-interface Istate {
+interface IState {
   message: string
 }
 
-export class BroadcastForm extends React.Component<Iprops, Istate> {
-  constructor(props: Iprops) {
+export class BroadcastForm extends React.Component<IProps, IState> {
+  constructor(props: IProps) {
     super(props)
 
     this.state = {

@@ -8,20 +8,20 @@ import ProvingState from '../ProvingState'
 
 import { GithubResource } from '../../../resources/github'
 import {
-  IsignedGithubClaim,
+  ISignedGithubClaim,
   SOCIAL_MEDIA_PLATFORMS,
   VERIFY_SOCIAL_STATUS,
   GITHUB_GIST_FILENAME,
   getGithubClaimByRawURL,
-  IbindingSocial,
+  IBindingSocial,
   BINDING_SOCIAL_STATUS,
-  IgithubClaim,
+  IGithubClaim,
 } from '../../../stores/BoundSocialsStore'
 
 useStrict(true)
 
 export class GithubProvingState extends ProvingState {
-  @observable public claim: IsignedGithubClaim
+  @observable public claim: ISignedGithubClaim
 
   public get platform() {
     return SOCIAL_MEDIA_PLATFORMS.GITHUB
@@ -43,7 +43,7 @@ export class GithubProvingState extends ProvingState {
       return VERIFY_SOCIAL_STATUS.NOT_FOUND
     }
 
-    const signedClaim: IsignedGithubClaim|null = await getGithubClaimByRawURL(proofRawURL)
+    const signedClaim: ISignedGithubClaim|null = await getGithubClaimByRawURL(proofRawURL)
     if (signedClaim === null) {
       return VERIFY_SOCIAL_STATUS.INVALID
     }
@@ -52,7 +52,7 @@ export class GithubProvingState extends ProvingState {
       return VERIFY_SOCIAL_STATUS.INVALID
     }
 
-    const bindingSocial: IbindingSocial = {
+    const bindingSocial: IBindingSocial = {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: signedClaim,
       proofURL: proofURL,
@@ -71,7 +71,7 @@ export class GithubProvingState extends ProvingState {
   }
 
   private generateSignedClaim = (username: string, userAddress: string, publicKey: string) => {
-    const claim: IgithubClaim = {
+    const claim: IGithubClaim = {
       userAddress,
       service: {
         name: SOCIAL_MEDIA_PLATFORMS.GITHUB,
@@ -84,11 +84,11 @@ export class GithubProvingState extends ProvingState {
     return {
       claim,
       signature,
-    } as IsignedGithubClaim
+    } as ISignedGithubClaim
   }
 }
 
-export function getGithubClaim(signedClaim: IsignedGithubClaim) {
+export function getGithubClaim(signedClaim: ISignedGithubClaim) {
   const {
     claim: claim,
     signature,

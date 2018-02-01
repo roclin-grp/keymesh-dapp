@@ -23,7 +23,7 @@ import {
   IMessage,
 } from '../stores/SessionStore'
 import {
-  Iverifications,
+  IVerifications,
 } from '../stores/BoundSocialsStore'
 
 import {
@@ -134,7 +134,7 @@ const SCHEMA_V1 = Object.freeze({
 type TypeTableUsers = Dexie.Table<IUser, [ETHEREUM_NETWORKS, string]>
 type TypeTableSessions = Dexie.Table<ISession, [string, string]>
 type TypeTableMessages = Dexie.Table<IMessage, [string, string]>
-type TypeTableVerifications = Dexie.Table<Iverifications, [ETHEREUM_NETWORKS, string]>
+type TypeTableVerifications = Dexie.Table<IVerifications, [ETHEREUM_NETWORKS, string]>
 
 export interface ITables {
   tableUsers: TypeTableUsers

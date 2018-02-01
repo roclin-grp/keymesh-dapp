@@ -10,7 +10,7 @@ import {
 } from 'trustbase'
 
 import {
-  EthereumStore,
+  EthereumStore, ETHEREUM_CONNECT_ERROR_CODE,
 } from './EthereumStore'
 
 export class ContractStore {
@@ -35,10 +35,15 @@ export class ContractStore {
         isActive
       }) => {
         if (isActive) {
-          this.identitiesContract = new Identities({ networkId })
-          this.messagesContract = new Messages({ networkId })
-          this.broadcastMessagesContract = new BroadcastMessages({ networkId })
-          this.boundSocialsContract = new BoundSocials({ networkId })
+          try {
+            this.identitiesContract = new Identities({ networkId })
+            this.messagesContract = new Messages({ networkId })
+            this.broadcastMessagesContract = new BroadcastMessages({ networkId })
+            this.boundSocialsContract = new BoundSocials({ networkId })
+          } catch (err) {
+            // FIXME: this error is not an ethereum connect error.
+            this.ethereumStore.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.UNKNOWN, err)
+          }
         } else {
           delete this.identitiesContract
           delete this.messagesContract

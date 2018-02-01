@@ -1,4 +1,4 @@
-import { IsignedFacebookClaim } from '../stores/BoundSocialsStore'
+import { ISignedFacebookClaim } from '../stores/BoundSocialsStore'
 
 interface IPost {
   message: string
@@ -22,7 +22,7 @@ export class FacebookResource {
       })
   }
 
-  static async getClaimByPostURL(url: string): Promise<IsignedFacebookClaim|null> {
+  static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim|null> {
     const init = {
       method: 'GET',
       mode: 'cors',
@@ -52,6 +52,6 @@ export class FacebookResource {
         publicKey: parts[2],
       },
       signature: parts[3]
-    } as IsignedFacebookClaim
+    } as ISignedFacebookClaim
   }
 }

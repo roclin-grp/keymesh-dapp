@@ -13,7 +13,7 @@ import {
 
 import {
   noop,
- } from 'mobx/lib/utils/utils'
+ } from '../utils'
 import {
   utf8ToHex,
 } from '../utils/hex'
@@ -52,9 +52,9 @@ export class BoundSocialsStore {
   private userStore: UserStore
   private contractStore: ContractStore
 
-  private bindingSocials: IbindingSocials
-  private boundSocials: IboundSocials
-  private verifications: Iverifications
+  private bindingSocials: IBindingSocials
+  private boundSocials: IBoundSocials
+  private verifications: IVerifications
 
   public uploadBindingSocials = async (
     {
@@ -62,7 +62,7 @@ export class BoundSocialsStore {
       transactionDidCreate = noop,
       uploadingDidComplete = noop,
       uploadingDidFail = noop,
-    }: IuploadingLifecycle = {},
+    }: IUploadingLifecycle = {},
   ) => {
     const filteredBindingSocials = filterUndefinedItem(this.bindingSocials)
     if ('{}' === JSON.stringify(filteredBindingSocials)) {
@@ -70,10 +70,10 @@ export class BoundSocialsStore {
       return
     }
 
-    const newBoundSocials: IboundSocials = Object.assign(this.boundSocials, filteredBindingSocials)
+    const newBoundSocials: IBoundSocials = Object.assign(this.boundSocials, filteredBindingSocials)
 
     const signature = this.userStore.sign(JSON.stringify(newBoundSocials))
-    const signedBoundSocials: IsignedBoundSocials = {signature, socialMedias: newBoundSocials}
+    const signedBoundSocials: ISignedBoundSocials = {signature, socialMedias: newBoundSocials}
     const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
 
     transactionWillCreate()
@@ -109,17 +109,17 @@ export class BoundSocialsStore {
       })
   }
 
-  public addGithubBindingSocial = (bindingSocial: IbindingSocial) => {
+  public addGithubBindingSocial = (bindingSocial: IBindingSocial) => {
     this.bindingSocials.github = bindingSocial
     return this.persistBindingSocials()
   }
 
-  public addTwitterBindingSocial = (bindingSocial: IbindingSocial) => {
+  public addTwitterBindingSocial = (bindingSocial: IBindingSocial) => {
     this.bindingSocials.twitter = bindingSocial
     return this.persistBindingSocials()
   }
 
-  public addFacebookBindingSocial = (bindingSocial: IbindingSocial) => {
+  public addFacebookBindingSocial = (bindingSocial: IBindingSocial) => {
     this.bindingSocials.facebook = bindingSocial
     return this.persistBindingSocials()
   }
@@ -138,13 +138,9 @@ export class BoundSocialsStore {
 
   private async init() {
     const {
-      user: {
-        networkId,
-        userAddress,
-      },
       user
     } = this.userStore
-    let verifications = await this.databases.verificationsDB.getVerifications(networkId, userAddress)
+    let verifications = await this.databases.verificationsDB.getVerificationsOfUser(user)
 
     if (typeof verifications === 'undefined') {
       verifications = await this.databases.verificationsDB.createVerifications(user)
@@ -160,9 +156,9 @@ export class BoundSocialsStore {
   }
 }
 
-export interface Iverifications extends IUserIdentityKeys {
-  bindingSocials: IbindingSocials
-  boundSocials: IboundSocials
+export interface IVerifications extends IUserIdentityKeys {
+  bindingSocials: IBindingSocials
+  boundSocials: IBoundSocials
   lastFetchBlock: number
 }
 
@@ -171,7 +167,7 @@ export enum UPLOADING_FAIL_CODE {
   NO_NEW_BINDING
 }
 
-interface IuploadingLifecycle extends ITransactionLifecycle {
+interface IUploadingLifecycle extends ITransactionLifecycle {
   uploadingDidComplete?: () => void
   uploadingDidFail?: (err: Error | null, code?: UPLOADING_FAIL_CODE) => void
 }
@@ -220,7 +216,7 @@ export enum VERIFY_SOCIAL_STATUS {
 
 export const GITHUB_GIST_FILENAME = 'keymail.md'
 
-export async function getGithubClaimByProofURL(url: string): Promise<IsignedGithubClaim | null> {
+export async function getGithubClaimByProofURL(url: string): Promise<ISignedGithubClaim | null> {
   const id = /[0-9a-f]+$/.exec(url)
   if (id === null) {
     return null
@@ -231,7 +227,7 @@ export async function getGithubClaimByProofURL(url: string): Promise<IsignedGith
   return await getGithubClaimByRawURL(gist.files[GITHUB_GIST_FILENAME].raw_url)
 }
 
-export async function getGithubClaimByRawURL(rawURL: string): Promise<IsignedGithubClaim|null> {
+export async function getGithubClaimByRawURL(rawURL: string): Promise<ISignedGithubClaim|null> {
   return await GithubResource.getRawContent(rawURL)
     .then((resp) => resp.text())
     .then((text) => {
@@ -239,32 +235,32 @@ export async function getGithubClaimByRawURL(rawURL: string): Promise<IsignedGit
       if (matches === null || matches.length !== 3) {
         return null
       }
-      const _claim: IgithubClaim = JSON.parse(matches[1])
+      const _claim: IGithubClaim = JSON.parse(matches[1])
       const _signature = matches[2]
       return {
         claim: _claim,
         signature: _signature,
-      } as IsignedGithubClaim
+      } as ISignedGithubClaim
     })
 }
 
-export interface IboundSocial {
+export interface IBoundSocial {
   username: string
   proofURL: string
 }
 
-export interface IboundSocials {
-  twitter?: IboundSocial
-  github?: IboundSocial
-  facebook?: IboundSocial
+export interface IBoundSocials {
+  twitter?: IBoundSocial
+  github?: IBoundSocial
+  facebook?: IBoundSocial
 }
 
-export interface IsignedBoundSocials {
-  socialMedias: IboundSocials
+export interface ISignedBoundSocials {
+  socialMedias: IBoundSocials
   signature: string
 }
 
-export interface IgithubClaim {
+export interface IGithubClaim {
   userAddress: string
   service: {
     name: string
@@ -274,38 +270,38 @@ export interface IgithubClaim {
   publicKey: string
 }
 
-export interface IsignedGithubClaim {
-  claim: IgithubClaim
+export interface ISignedGithubClaim {
+  claim: IGithubClaim
   signature: string
 }
 
-export interface ItwitterClaim {
+export interface ITwitterClaim {
   userAddress: string
   publicKey: string
 }
 
-export interface IsignedTwitterClaim {
-  claim: ItwitterClaim
+export interface ISignedTwitterClaim {
+  claim: ITwitterClaim
   signature: string
 }
 
-export interface IfacebookClaim {
+export interface IFacebookClaim {
   userAddress: string
   publicKey: string
 }
 
-export interface IsignedFacebookClaim {
-  claim: IfacebookClaim
+export interface ISignedFacebookClaim {
+  claim: IFacebookClaim
   signature: string
 }
 
-export interface IbindingSocial extends IboundSocial {
-  signedClaim: IsignedGithubClaim|IsignedTwitterClaim|IsignedFacebookClaim
+export interface IBindingSocial extends IBoundSocial {
+  signedClaim: ISignedGithubClaim|ISignedTwitterClaim|ISignedFacebookClaim
   status: BINDING_SOCIAL_STATUS
 }
 
-export interface IbindingSocials {
-  twitter?: IbindingSocial
-  github?: IbindingSocial
-  facebook?: IbindingSocial
+export interface IBindingSocials {
+  twitter?: IBindingSocial
+  github?: IBindingSocial
+  facebook?: IBindingSocial
 }

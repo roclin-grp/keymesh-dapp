@@ -12,10 +12,10 @@ import { ContractStore } from '../../stores/ContractStore'
 import { hexToUtf8, sodiumFromHex } from '../../utils/hex'
 import {
   VERIFY_SOCIAL_STATUS,
-  IboundSocials,
-  IsignedBoundSocials,
+  IBoundSocials,
+  ISignedBoundSocials,
   getGithubClaimByProofURL,
-  ItwitterClaim,
+  ITwitterClaim,
 } from '../../stores/BoundSocialsStore'
 
 export class ProfileState {
@@ -34,7 +34,7 @@ export class ProfileState {
       facebook: VERIFY_SOCIAL_STATUS.NOT_FOUND
     }
 
-  @observable public userBoundSocials: IboundSocials = {}
+  @observable public userBoundSocials: IBoundSocials = {}
   public userLastFetchBlock: number = 0
   @observable public userBlockHash: string = '0x0'
 
@@ -125,7 +125,7 @@ export class ProfileState {
     })
     for (let i = bindEvents.length - 1; i >= 0; i--) {
       const bindEvent: any = bindEvents[i]
-      const _signedBoundSocial = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials.slice(2))) as IsignedBoundSocials
+      const _signedBoundSocial = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials.slice(2))) as ISignedBoundSocials
       if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(this.userBoundSocials)) {
         if (!publicKey.verify(
           sodiumFromHex(_signedBoundSocial.signature, true),
@@ -248,7 +248,7 @@ export class ProfileState {
               this.verifyStatus = Object.assign(this.verifyStatus, { twitter: VERIFY_SOCIAL_STATUS.INVALID })
             })
           } else {
-            const twitterClaim: ItwitterClaim = {
+            const twitterClaim: ITwitterClaim = {
               userAddress: parts[1],
               publicKey: parts[2],
             }
