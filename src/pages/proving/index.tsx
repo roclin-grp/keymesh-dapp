@@ -21,18 +21,17 @@ import { TwitterProvingState } from './twitter/TwitterProvingState'
 import { FacebookProvingState } from './facebook/FacebookProvingState'
 
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { EthereumStore } from '../../stores/EthereumStore'
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { SOCIAL_MEDIA_PLATFORMS } from '../../stores/BoundSocialsStore'
 
-interface Iparams {
+interface IParams {
   platform: string
 }
-interface Iprops extends RouteComponentProps<Iparams> {
+interface IProps extends RouteComponentProps<IParams> {
   usersStore: UsersStore
   contractStore: ContractStore
   ethereumStore: EthereumStore
@@ -42,17 +41,17 @@ interface Iprops extends RouteComponentProps<Iparams> {
   usersStore,
   contractStore,
   ethereumStore,
-}: Istores) => ({
+}: IStores) => ({
     usersStore,
     contractStore,
     ethereumStore,
   }))
 
 @observer
-class Proving extends React.Component<Iprops> {
+class Proving extends React.Component<IProps> {
   public data: ProvingState
 
-  constructor(props: Iprops) {
+  constructor(props: IProps) {
     super(props)
 
     const platform = props.match.params.platform
@@ -70,16 +69,14 @@ class Proving extends React.Component<Iprops> {
       hasUser,
     } = this.props.usersStore
     if (!hasUser) {
-      return <CommonHeaderPage>
-        <Link to="/">Back to index</Link>
-      </CommonHeaderPage>
+      return <Link to="/">Back to index</Link>
     }
 
     if (!this.isValidPlatform) {
-      return <CommonHeaderPage>
+      return <>
         <p>Invalid platform</p>
         <Link to="/profile">Back to profile</Link>
-      </CommonHeaderPage>
+      </>
     }
 
     const {

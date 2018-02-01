@@ -1,13 +1,13 @@
 import * as React from 'react'
 
 import { inject, observer } from 'mobx-react'
-import { Istores } from '../../stores/index'
+import { IStores } from '../../stores/index'
 import { UsersStore } from '../../stores/UsersStore'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { EthereumStore } from '../../stores/EthereumStore'
 import { BroadcastForm } from './BroadcastForm'
 
-interface Iprops {
+interface IProps {
   usersStore: UsersStore
   ethereumStore: EthereumStore,
   broadcastMessagesStore: BroadcastMessagesStore
@@ -17,14 +17,14 @@ interface Iprops {
   usersStore,
   ethereumStore,
   broadcastMessagesStore,
-}: Istores) => ({
+}: IStores) => ({
   usersStore,
   ethereumStore,
   broadcastMessagesStore,
 }))
 
 @observer
-class Broadcast extends React.Component<Iprops> {
+class Broadcast extends React.Component<IProps> {
   public componentDidMount() {
     this.props.broadcastMessagesStore.startFetchBroadcastMessages()
   }

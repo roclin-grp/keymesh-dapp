@@ -9,7 +9,7 @@ import { Provider } from 'mobx-react'
 
 import {
   createStores,
-  Istores,
+  IStores,
 } from './stores'
 import App from './routes'
 
@@ -20,7 +20,7 @@ const load = (Component: typeof App) => {
     if (isDevelop) {
       const oldStores = (window as any).__STORE
       if (oldStores) {
-        return oldStores as Istores
+        return oldStores as IStores
       }
     }
     const newStores = createStores()

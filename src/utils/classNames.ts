@@ -30,7 +30,7 @@ import * as classnames from 'classnames'
  */
 export function getBEMClassNamesMaker(
   blockName: string,
-  { className = '', prefixClass = '' }: IextendableClassNamesProps = {}
+  { className = '', prefixClass = '' }: IExtendableClassNamesProps = {}
 ) {
   return function getBEMClassNames(
     elementName: string = '',
@@ -72,16 +72,16 @@ export function getBEMClassNamesMaker(
             },
           {}
         )
-      ) as ClassDictionary
+      ) as IClassDictionary
     )
   }
 }
 
-interface ClassDictionary {
+interface IClassDictionary {
   [id: string]: boolean | undefined | null
 }
 
-export interface IextendableClassNamesProps {
+export interface IExtendableClassNamesProps {
   className?: string
   prefixClass?: string
 }

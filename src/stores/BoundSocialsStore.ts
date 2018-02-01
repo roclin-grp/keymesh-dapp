@@ -1,60 +1,72 @@
 import {
   runInAction,
+  observable,
 } from 'mobx'
+import {
+  UserStore,
+  IUserIdentityKeys,
+} from './UserStore'
+import {
+  ContractStore,
+  ITransactionLifecycle,
+} from './ContractStore'
 
 import {
-  Identities,
-  Messages,
-  BroadcastMessages,
-  BoundSocials
-} from 'trustbase'
+  noop,
+ } from 'mobx/lib/utils/utils'
+import {
+  utf8ToHex,
+} from '../utils/hex'
 
-import { UserStore, IuserIdentityKeys } from './UserStore'
-import DB, { TableSocialMedias } from '../DB'
-import { utf8ToHex } from '../utils/hex'
-import { ETHEREUM_NETWORKS } from './EthereumStore'
-import { SENDING_FAIL_CODE } from './SessionStore'
-import { GithubResource } from '../resources/github'
+import {
+  Databases,
+} from '../databases'
+// import {
+//   Iverifications,
+// } from '../DB/VerificationsDB'
+
+import {
+  GithubResource,
+} from '../resources/github'
 
 export class BoundSocialsStore {
-  public identitiesContract: Identities
-  public messagesContract: Messages
-  public broadcastMessagesContract: BroadcastMessages
-  public boundSocialsContract: BoundSocials
+  @observable isVerificationsLoaded = false
 
   constructor({
-    db,
+    databases,
     userStore,
-    boundSocialsContract,
+    contractStore,
   }: {
-    db: DB
+    databases: Databases
     userStore: UserStore
-    boundSocialsContract: BoundSocials
+    contractStore: ContractStore
   }) {
     this.userStore = userStore
-    this.table = db.tableSocialMedias
-    this.boundSocialsContract = boundSocialsContract
+    this.databases = databases
+    this.contractStore = contractStore
 
     this.init()
   }
 
-  private table: TableSocialMedias
+  private databases: Databases
   private userStore: UserStore
+  private contractStore: ContractStore
+
   private bindingSocials: IbindingSocials
   private boundSocials: IboundSocials
+  private verifications: Iverifications
 
   public uploadBindingSocials = async (
     {
-      noNewBinding,
-      transactionWillCreate,
-      transactionDidCreate,
-      sendingDidComplete,
-      sendingDidFail,
-    }: IuploadingLifecycle,
+      transactionWillCreate = noop,
+      transactionDidCreate = noop,
+      uploadingDidComplete = noop,
+      uploadingDidFail = noop,
+    }: IuploadingLifecycle = {},
   ) => {
     const filteredBindingSocials = filterUndefinedItem(this.bindingSocials)
     if ('{}' === JSON.stringify(filteredBindingSocials)) {
-      noNewBinding()
+      uploadingDidFail(null, UPLOADING_FAIL_CODE.NO_NEW_BINDING)
       return
     }
 
@@ -65,7 +77,7 @@ export class BoundSocialsStore {
     const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
 
     transactionWillCreate()
-    this.boundSocialsContract.bind(this.userStore.user.userAddress, signedBoundSocialsHex)
+    this.contractStore.boundSocialsContract.bind(this.userStore.user.userAddress, signedBoundSocialsHex)
       .on('transactionHash', (hash) => {
         transactionDidCreate(hash)
         runInAction(() => {
@@ -77,7 +89,7 @@ export class BoundSocialsStore {
       .on('confirmation', async (confirmationNumber, receipt) => {
         if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           if (!receipt.events) {
-            sendingDidFail(new Error('Unknown error'))
+            uploadingDidFail(new Error('Unknown error'))
             return
           }
 
@@ -89,11 +101,11 @@ export class BoundSocialsStore {
           await this.persistBindingSocials()
           await this.persistBoundSocials()
 
-          sendingDidComplete()
+          uploadingDidComplete()
         }
       })
       .on('error', (error: Error) => {
-        sendingDidFail(error)
+        uploadingDidFail(error)
       })
   }
 
@@ -113,69 +125,55 @@ export class BoundSocialsStore {
   }
 
   private persistBindingSocials() {
-    return this.table.update(this.id, {bindingSocials: this.bindingSocials})
+    return this.databases.verificationsDB.updateVerifications(this.verifications, {
+      bindingSocials: this.bindingSocials
+    })
   }
 
   private persistBoundSocials() {
-    return this.table.update(this.id, {boundSocials: this.boundSocials})
+    return this.databases.verificationsDB.updateVerifications(this.verifications, {
+      boundSocials: this.boundSocials
+    })
   }
 
   private async init() {
-    await this.tryCreateRecord()
-    return this.loadData()
-  }
-
-  private async loadData() {
-    const row = await this.table.get(this.id)
-    // load binding socials, boud socials
-    this.bindingSocials = row!.bindingSocials
-    this.boundSocials = row!.boundSocials
-  }
-
-  private get id(): [ETHEREUM_NETWORKS, string] {
     const {
-      networkId,
-      userAddress,
-    } = this.userStore.user
-    return [networkId, userAddress]
-  }
+      user: {
+        networkId,
+        userAddress,
+      },
+      user
+    } = this.userStore
+    let verifications = await this.databases.verificationsDB.getVerifications(networkId, userAddress)
 
-  private async tryCreateRecord() {
-    const {
-      networkId,
-      userAddress,
-    } = this.userStore.user
-
-    const socialMedias = await this.table.get(this.id)
-    if (typeof socialMedias === 'undefined') {
-      this.table.add(
-        {
-          networkId,
-          userAddress,
-          bindingSocials: {},
-          boundSocials: {},
-          lastFetchBlock: 0,
-        },
-      ).catch(() => {
-        // it's not a problem
-        // do nothing if the record is exists
-      })
+    if (typeof verifications === 'undefined') {
+      verifications = await this.databases.verificationsDB.createVerifications(user)
     }
+
+    this.verifications = verifications
+    this.bindingSocials = verifications.bindingSocials
+    this.boundSocials = verifications.boundSocials
+
+    runInAction(() => {
+      this.isVerificationsLoaded = true
+    })
   }
 }
 
-export interface IsocialMedials extends IuserIdentityKeys {
+export interface Iverifications extends IUserIdentityKeys {
   bindingSocials: IbindingSocials
   boundSocials: IboundSocials
   lastFetchBlock: number
 }
 
-interface IuploadingLifecycle {
-  noNewBinding: () => void
-  transactionWillCreate: () => void
-  transactionDidCreate: (transactionHash: string) => void
-  sendingDidComplete: () => void
-  sendingDidFail: (err: Error | null, code?: SENDING_FAIL_CODE) => void
+export enum UPLOADING_FAIL_CODE {
+  UNKNOWN = 0,
+  NO_NEW_BINDING
+}
+
+interface IuploadingLifecycle extends ITransactionLifecycle {
+  uploadingDidComplete?: () => void
+  uploadingDidFail?: (err: Error | null, code?: UPLOADING_FAIL_CODE) => void
 }
 
 function filterUndefinedItem(obj: Object): Object {

@@ -9,12 +9,12 @@ import {
 } from 'react-router-dom'
 import { GITHUB_GIST_FILENAME } from '../../../stores/BoundSocialsStore'
 
-interface Iprops {
+interface IProps {
   state: GithubProvingState
 }
 
 @observer
-class GithubProving extends React.Component<Iprops> {
+class GithubProving extends React.Component<IProps> {
   public render() {
     const label = 'Github'
     const {

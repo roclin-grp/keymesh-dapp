@@ -6,7 +6,7 @@ import {
 
 import ProvingState from '../ProvingState'
 
-import { Itweet, TwitterResource } from '../../../resources/twitter'
+import { ITweet, TwitterResource } from '../../../resources/twitter'
 import {
   IsignedTwitterClaim,
   SOCIAL_MEDIA_PLATFORMS,
@@ -32,7 +32,7 @@ export class TwitterProvingState extends ProvingState {
     const tweets = await this.twitterResource.getUserTimeline(this.username)
 
     const _claimText = getTwitterClaim(claim)
-    let claimTweet: Itweet|undefined
+    let claimTweet: ITweet|undefined
     for (let tweet of tweets) {
       if (tweet.full_text === _claimText) {
         claimTweet = tweet

@@ -4,27 +4,27 @@ import { sha3 } from 'trustbase'
 
 import {
   getBEMClassNamesMaker,
-  IextendableClassNamesProps
+  IExtendableClassNamesProps
 } from '../../utils/classNames'
 
 import HashAvatar from '../../components/HashAvatar'
 
 import {
-  Iuser,
+  IUser,
   USER_STATUS,
 } from '../../stores/UserStore'
 
 import './index.css'
 
-interface Iprops extends IextendableClassNamesProps {
-  user: Iuser
-  onSelect: (user: Iuser) => void
+interface IProps extends IExtendableClassNamesProps {
+  user: IUser
+  onSelect: (user: IUser) => void
 }
 
-interface Istate {
+interface IState {
   showNetworks: boolean
 }
-class SwitchUserOption extends React.Component<Iprops, Istate> {
+class SwitchUserOption extends React.Component<IProps, IState> {
   public static readonly blockName = 'switch-user-option'
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(SwitchUserOption.blockName, this.props)

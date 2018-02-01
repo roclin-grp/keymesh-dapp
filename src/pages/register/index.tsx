@@ -27,7 +27,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -48,12 +48,12 @@ import {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class Register extends React.Component<Iprops, Istate> {
+class Register extends React.Component<IProps, IState> {
   public static readonly blockName = 'register'
 
   public readonly state = Object.freeze({
@@ -62,7 +62,7 @@ class Register extends React.Component<Iprops, Istate> {
     isImporting: false
   })
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Register.blockName, this.props)
 
@@ -214,14 +214,14 @@ class Register extends React.Component<Iprops, Istate> {
 }
 
 // typing
-type Iprops = {}
+type IProps = {}
 
-interface IinjectedProps extends RouteComponentProps<{}> {
+interface IInjectedProps extends RouteComponentProps<{}> {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   registerButtonContent: string
   isRegistering: boolean
   isImporting: boolean

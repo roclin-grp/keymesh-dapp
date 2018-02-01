@@ -10,7 +10,6 @@ import { TwitterResource } from '../../resources/twitter'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { hexToUtf8, sodiumFromHex } from '../../utils/hex'
-import { BlockType } from 'trustbase/typings/web3.d'
 import {
   VERIFY_SOCIAL_STATUS,
   IboundSocials,
@@ -273,7 +272,7 @@ export class ProfileState {
   }
 
   private getBindEvents = (
-    lastFetchBlock: BlockType,
+    lastFetchBlock: number,
     userAddress: string,
   ) => {
     return this.contractStore.boundSocialsContract.getBindEvents({

@@ -3,7 +3,7 @@ import * as React from 'react'
 import { inject, observer } from 'mobx-react'
 
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 
 import {
@@ -26,12 +26,12 @@ import {
 
 import './index.css'
 
-interface IinjectedProps {
+interface IInjectedProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   isSending: boolean
   sendingProgress: string
   showCompose: boolean
@@ -40,19 +40,19 @@ interface Istate {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class Home extends React.Component<{}, Istate> {
+class Home extends React.Component<{}, IState> {
   public readonly state = Object.freeze({
     isSending: false,
     sendingProgress: '',
     showCompose: false
   })
 
-  private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+  private readonly injectedProps=  this.props as Readonly<IInjectedProps>
 
   // private unmounted = false
   private toInput: HTMLInputElement | null

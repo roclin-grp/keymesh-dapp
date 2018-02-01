@@ -1,9 +1,9 @@
 const logdown = require('logdown')
 
-export const storeLogger: Logdown = logdown('keymail:store')
-export const uiLogger: Logdown = logdown('keymail:ui')
+export const storeLogger: ILogdown = logdown('keymail:store')
+export const uiLogger: ILogdown = logdown('keymail:ui')
 
-interface Logdown {
+interface ILogdown {
   log: (...str: any[]) => void
   info: (...str: any[]) => void
   warn: (...str: any[]) => void

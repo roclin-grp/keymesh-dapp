@@ -18,7 +18,7 @@ export class Envelope {
     for (let i = 0; i <= nprops - 1; i += 1) {
       switch (d.u8()) {
         case 0: {
-          (header as IenvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
+          (header as IEnvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
           break
         }
         case 1: {
@@ -26,7 +26,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).mac = new Uint8Array(d.bytes())
+                (header as IEnvelopeHeader).mac = new Uint8Array(d.bytes())
                 break
               default:
                 d.skip()
@@ -35,7 +35,7 @@ export class Envelope {
           break
         }
         case 2: {
-          (header as IenvelopeHeader).baseKey = keys.PublicKey.decode(d)
+          (header as IEnvelopeHeader).baseKey = keys.PublicKey.decode(d)
           break
         }
         case 3: {
@@ -43,7 +43,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).sessionTag = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
+                (header as IEnvelopeHeader).sessionTag = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
                 break
               default:
                 d.skip()
@@ -52,7 +52,7 @@ export class Envelope {
           break
         }
         case 4: {
-          (header as IenvelopeHeader).isPreKeyMessage = d.bool()
+          (header as IEnvelopeHeader).isPreKeyMessage = d.bool()
           break
         }
         case 5: {
@@ -60,7 +60,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
+                (header as IEnvelopeHeader).messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
                 break
               default:
                 d.skip()
@@ -77,7 +77,7 @@ export class Envelope {
         }
       }
     }
-    return new Envelope((header as IenvelopeHeader), cipherMessage as message.CipherMessage)
+    return new Envelope((header as IEnvelopeHeader), cipherMessage as message.CipherMessage)
   }
 
   public static deserialize(buf: ArrayBuffer) {
@@ -94,7 +94,7 @@ export class Envelope {
     ).buffer)
   }
 
-  constructor(public header: IenvelopeHeader, public cipherMessage: message.CipherMessage) {
+  constructor(public header: IEnvelopeHeader, public cipherMessage: message.CipherMessage) {
     this.header = header
     this.cipherMessage = cipherMessage
   }
@@ -150,7 +150,7 @@ export class Envelope {
   }
 }
 
-export interface IenvelopeHeader {
+export interface IEnvelopeHeader {
   senderIdentity: keys.IdentityKey
   mac: Uint8Array
   baseKey: keys.PublicKey

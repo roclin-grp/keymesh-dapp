@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 const sodium = require('libsodium-wrappers-sumo')
 
 import {
-  Iuser,
+  IUser,
 } from '../stores/UserStore'
 import { sodiumFromHex } from './hex'
 
@@ -15,7 +15,7 @@ const CRYPTOBOX_SCHEMA = Object.freeze({
 export async function dumpCryptobox({
   networkId,
   userAddress
-}: Iuser
+}: IUser
 ) {
   const dbname = `cryptobox@${networkId}@${userAddress}`
   const db = new Dexie(dbname)
@@ -23,7 +23,7 @@ export async function dumpCryptobox({
   return {dbname, tables: await dumpDB(db)}
 }
 
-export function restoreCryptobox(dbname: string, tables: IdumpedTable[]) {
+export function restoreCryptobox(dbname: string, tables: IDumpedTable[]) {
   const db = new Dexie(dbname)
   db.version(1).stores(CRYPTOBOX_SCHEMA)
 
@@ -66,7 +66,7 @@ export function dumpDB(db: Dexie) {
 
 export function restoreDB(
   db: Dexie,
-  data: IdumpedTable[],
+  data: IDumpedTable[],
   getKeysFunc: (tablename: string) => string[] | undefined,
 ) {
   return db.transaction('rw', db.tables, () => {
@@ -84,11 +84,11 @@ export function downloadObjectAsJson(exportObj: any, exportName: string) {
   downloadAnchorNode.remove()
 }
 
-export interface IdumpedDatabases {
-  [dbname: string]: IdumpedTable[]
+export interface IDumpedDatabases {
+  [dbname: string]: IDumpedTable[]
 }
 
-export interface IdumpedTable {
+export interface IDumpedTable {
   table: string
   rows: any[]
 }

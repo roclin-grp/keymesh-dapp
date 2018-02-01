@@ -28,17 +28,17 @@
 
 // const noop = () => {/**/}
 
-// interface Iprops {
+// interface IProps {
 //   session: Isession
 // }
 
-// interface IinjectedProps extends Iprops {
+// interface IInjectedProps extends IProps {
 //   usersStore: UsersStore
 //   contractStore: ContractStore
 //   ethereumStore: EthereumStore
 // }
 
-// interface Istate {
+// interface IState {
 //   sendingProgress: string
 //   isLoading: boolean
 //   isSending: boolean
@@ -55,14 +55,14 @@
 // }))
 
 // @observer
-// class Session extends React.Component<Iprops, Istate> {
+// class Session extends React.Component<IProps, IState> {
 //   public readonly state = Object.freeze({
 //     isLoading: false,
 //     isSending: false,
 //     sendingProgress: ''
 //   })
 
-//   private readonly injectedProps=  this.props as Readonly<IinjectedProps>
+//   private readonly injectedProps=  this.props as Readonly<IInjectedProps>
 
 //   private input: HTMLInputElement | null
 

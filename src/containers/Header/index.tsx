@@ -26,7 +26,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -37,7 +37,7 @@ import {
   UsersStore
 } from '../../stores/UsersStore'
 import {
-  Iuser
+  IUser
 } from '../../stores/UserStore'
 
 // helper
@@ -47,19 +47,19 @@ import {
 } from '../../utils'
 import {
   getBEMClassNamesMaker,
-  IextendableClassNamesProps
+  IExtendableClassNamesProps
 } from '../../utils/classNames'
 import { storeLogger } from '../../utils/loggers'
 
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class Header extends React.Component<Iprops, Istate> {
+class Header extends React.Component<IProps, IState> {
   public static readonly blockName = 'header'
 
   public readonly state = Object.freeze({
@@ -68,7 +68,7 @@ class Header extends React.Component<Iprops, Istate> {
     isExporting: false,
   })
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Header.blockName, this.props)
 
@@ -302,7 +302,7 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private handleSelectUser = (user: Iuser) => {
+  private handleSelectUser = (user: IUser) => {
     window.setTimeout(
       () => this.injectedProps.usersStore.switchUser(user),
       300
@@ -359,14 +359,14 @@ const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
 }
 
 // typing
-type Iprops = IextendableClassNamesProps & RouteComponentProps<{}>
+type IProps = IExtendableClassNamesProps & RouteComponentProps<{}>
 
-interface IinjectedProps extends Iprops {
+interface IInjectedProps extends IProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   hidden: boolean
   hasShadow: boolean
   isExporting: boolean

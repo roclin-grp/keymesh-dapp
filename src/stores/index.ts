@@ -11,14 +11,18 @@ import {
 import {
   UsersStore,
 } from './UsersStore'
+import {
+  BroadcastMessagesStore,
+} from './BroadcastMessagesStore'
 
-import DB from '../DB'
-import { BroadcastMessagesStore } from './BroadcastMessagesStore'
+import {
+  Databases,
+} from '../databases'
 
 useStrict(true)
 
-export function createStores(): Istores {
-  const db = new DB()
+export function createStores(): IStores {
+  const databases = new Databases()
   const ethereumStore = new EthereumStore()
   const contractStore = new ContractStore({
     ethereumStore
@@ -26,7 +30,7 @@ export function createStores(): Istores {
   const usersStore = new UsersStore({
     ethereumStore,
     contractStore,
-    db
+    databases
   })
   ethereumStore.connect()
   const broadcastMessagesStore = new BroadcastMessagesStore({
@@ -42,7 +46,7 @@ export function createStores(): Istores {
   }
 }
 
-export interface Istores {
+export interface IStores {
   ethereumStore: EthereumStore
   contractStore: ContractStore
   usersStore: UsersStore

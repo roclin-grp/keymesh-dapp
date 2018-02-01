@@ -29,7 +29,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -39,7 +39,7 @@ import {
   REGISTER_FAIL_CODE,
 } from '../../stores/UsersStore'
 import {
-  Iuser
+  IUser
 } from '../../stores/UserStore'
 
 // helper
@@ -53,12 +53,12 @@ import {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class Accounts extends React.Component<Iprops, Istate> {
+class Accounts extends React.Component<IProps, IState> {
   public static readonly blockName = 'accounts'
 
   public readonly state = Object.freeze({
@@ -67,7 +67,7 @@ class Accounts extends React.Component<Iprops, Istate> {
     isImporting: false
   })
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Accounts.blockName, this.props)
 
@@ -87,7 +87,7 @@ class Accounts extends React.Component<Iprops, Istate> {
         currentUserStore,
         hasNoRegisterRecordOnLocal,
         hasNoRegisterRecordOnChain,
-        hasCorrespondingUsableUser,
+        hasWalletCorrespondingUsableUser,
       },
     } = this.injectedProps
     const {
@@ -133,7 +133,7 @@ class Accounts extends React.Component<Iprops, Istate> {
           : null
         }
         {
-          hasCorrespondingUsableUser
+          hasWalletCorrespondingUsableUser
           && !currentUserStore!.isCorrespondingEthereumAddressAccount
           ? (
             <>
@@ -187,7 +187,7 @@ class Accounts extends React.Component<Iprops, Istate> {
         <div className={getBEMClassNames('user-list-container', {}, { container: true })}>
           <List
             dataSource={users}
-            renderItem={(user: Iuser) => (
+            renderItem={(user: IUser) => (
               <AccountListItem key={user.userAddress} user={user} />
             )}
           />
@@ -224,7 +224,8 @@ class Accounts extends React.Component<Iprops, Istate> {
       return
     }
     this.setState({
-      registerButtonContent: 'Register'
+      registerButtonContent: 'Register',
+      isCreatingTransaction: false
     })
   }
 
@@ -306,14 +307,14 @@ class Accounts extends React.Component<Iprops, Istate> {
 }
 
 // typing
-type Iprops = {}
+type IProps = {}
 
-interface IinjectedProps extends RouteComponentProps<{}> {
+interface IInjectedProps extends RouteComponentProps<{}> {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   registerButtonContent: string
   isCreatingTransaction: boolean
   isImporting: boolean

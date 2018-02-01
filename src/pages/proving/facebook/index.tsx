@@ -9,12 +9,12 @@ import {
   Link,
 } from 'react-router-dom'
 
-interface Iprops {
+interface IProps {
   state: FacebookProvingState
 }
 
 @observer
-class FacebookProving extends React.Component<Iprops> {
+class FacebookProving extends React.Component<IProps> {
   public render() {
     const label = 'Facebook'
     const {

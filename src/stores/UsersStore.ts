@@ -11,11 +11,11 @@ import {
 } from './EthereumStore'
 import {
   ContractStore,
-  ItransactionLifecycle,
+  ITransactionLifecycle,
 } from './ContractStore'
 import {
   UserStore,
-  Iuser,
+  IUser,
   USER_STATUS,
 } from './UserStore'
 
@@ -37,12 +37,15 @@ import {
   isHexZeroValue
 } from '../utils/hex'
 
-import DB from '../DB'
+import {
+  Databases,
+} from '../databases'
+
 import IndexedDBStore from '../IndexedDBStore'
 import { generatePublicKeyFromHexStr } from '../utils/proteus'
 
 export class UsersStore {
-  @observable.ref public users: Iuser[] = []
+  @observable.ref public users: IUser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
   @observable public isLoadingUsers = true
   @observable public hasNoRegisterRecordOnChain = false
@@ -58,7 +61,7 @@ export class UsersStore {
   }
 
   @computed
-  public get hasCorrespondingUsableUser() {
+  public get hasWalletCorrespondingUsableUser() {
     const {
       currentEthereumAccount
     } = this.ethereumStore
@@ -76,15 +79,15 @@ export class UsersStore {
   }
 
   constructor({
-    db,
+    databases,
     ethereumStore,
     contractStore,
   }: {
-    db: DB
+    databases: Databases
     ethereumStore: EthereumStore
     contractStore: ContractStore
   }) {
-    this.db = db
+    this.databases = databases
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
 
@@ -107,16 +110,16 @@ export class UsersStore {
           && this.lastNetworkId !== networkId
         ) {
           this.isLoadingUsers = true
-          const users = await db.getUsers(networkId!)
+          const users = await databases.usersDB.getUsers(networkId!)
 
           let userAddress = getNetworkLastUsedUserAddress(networkId!)
-          let user: Iuser | undefined
+          let user: IUser | undefined
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
           }
-          if (typeof user === 'undefined' && this.usableUsers.length > 0) {
-            user = this.usableUsers[0]
-          }
+          // if (typeof user === 'undefined' && this.usableUsers.length > 0) {
+          //   user = this.usableUsers[0]
+          // }
 
           runInAction(() => {
             this.loadUsers(users)
@@ -135,7 +138,7 @@ export class UsersStore {
     )
   }
 
-  private db: DB
+  private databases: Databases
   private ethereumStore: EthereumStore
   private contractStore: ContractStore
   private lastNetworkId: ETHEREUM_NETWORKS | undefined
@@ -163,7 +166,7 @@ export class UsersStore {
     transactionWillCreate = noop,
     transactionDidCreate = noop,
     registerDidFail = noop
-  }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
+  }: IRegisterLifecycle = {}) => new Promise(async (resolve, reject) => {
     if (!this.hasNoRegisterRecordOnLocal) {
       storeLogger.error(new Error('BUG: Trying to invoke `register` when it should not be invoked'))
       return
@@ -200,7 +203,7 @@ export class UsersStore {
           await store.save_identity(identityKeyPair)
           await store.save_prekey(PreKey.last_resort())
 
-          const user = await this.db.createUser(
+          const user = await this.databases.usersDB.createUser(
             {
               networkId: ethereumNetworkId,
               userAddress: ethereumAddress,
@@ -226,22 +229,23 @@ export class UsersStore {
   }).catch(registerDidFail)
 
   public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
-    const user = await this.db.getUser(networkId, userAddress)
+    const {usersDB} = this.databases
+    const user = await usersDB.getUser(networkId, userAddress)
     if (typeof user !== 'undefined') {
-      await this.db.deleteUser(user)
+      await usersDB.deleteUser(user)
       if (this.ethereumStore.currentEthereumNetwork === networkId) {
         this.removeUser(user)
       }
     }
   }
 
-  public switchUser = (user: Iuser) => {
+  public switchUser = (user: IUser) => {
     setNetworkLastUsedUserAddress(user)
     window.location.reload()
   }
 
   public importUser = async (stringifyData: string) => {
-    const user = await this.db.restoreUserFromExportedData(
+    const user = await this.databases.usersDB.restoreUserFromExportedData(
       this.ethereumStore.currentEthereumNetwork!,
       JSON.parse(stringifyData)
     )
@@ -255,27 +259,22 @@ export class UsersStore {
     //
   }
 
-  public createUserStore = (user: Iuser) => {
+  public createUserStore = (user: IUser) => {
     return new UserStore(user, {
-      db: this.db,
+      databases: this.databases,
       ethereumStore: this.ethereumStore,
       contractStore: this.contractStore,
       usersStore: this
     })
   }
 
-  public isCurrentUser = (user: Iuser) => {
+  public isCurrentUser = (user: IUser) => {
     return this.hasUser && this.currentUserStore!.user.userAddress === user.userAddress
   }
 
   @action
-  public useUser = (user: Iuser) => {
-    this.currentUserStore = new UserStore(user, {
-      db: this.db,
-      ethereumStore: this.ethereumStore,
-      contractStore: this.contractStore,
-      usersStore: this
-    })
+  public useUser = (user: IUser) => {
+    this.currentUserStore = this.createUserStore(user)
     setNetworkLastUsedUserAddress(user)
   }
 
@@ -292,18 +291,18 @@ export class UsersStore {
   }
 
   @action
-  private loadUsers = (users: Iuser[]) => {
+  private loadUsers = (users: IUser[]) => {
     this.users = users
     this.unsetUser()
   }
 
   @action
-  private addUser = (user: Iuser) => {
+  private addUser = (user: IUser) => {
     this.users = this.users.concat(user)
   }
 
   @action
-  private removeUser = (user: Iuser) => {
+  private removeUser = (user: IUser) => {
     // const remainUsers =
     this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
 
@@ -327,7 +326,7 @@ export class UsersStore {
 function setNetworkLastUsedUserAddress({
   networkId,
   userAddress
-}: Iuser) {
+}: IUser) {
   localStorage.setItem(`keymail@'${networkId}@last-used-user`, userAddress)
 }
 
@@ -335,7 +334,7 @@ function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
   return (localStorage.getItem(`keymail@'${networkId}@last-used-user`) || '').toString()
 }
 
-interface IregisterLifecycle extends ItransactionLifecycle {
+interface IRegisterLifecycle extends ITransactionLifecycle {
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 

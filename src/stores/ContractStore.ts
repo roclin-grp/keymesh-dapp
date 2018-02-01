@@ -52,7 +52,7 @@ export class ContractStore {
   private ethereumStore: EthereumStore
 }
 
-export interface ItransactionLifecycle {
+export interface ITransactionLifecycle {
   transactionWillCreate?: () => void
   transactionDidCreate?: (transactionHash: string) => void
 }

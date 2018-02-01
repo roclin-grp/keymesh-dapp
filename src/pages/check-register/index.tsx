@@ -20,7 +20,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -41,21 +41,21 @@ import {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class CheckRegister extends React.Component<Iprops, Istate> {
+class CheckRegister extends React.Component<IProps, IState> {
   public static readonly blockName = 'check-register'
 
   public readonly state = Object.freeze({
     done: false,
-    error: null as IregisterError | null,
+    error: null as IRegisterError | null,
     shouldPreventRedirect: false
   })
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(CheckRegister.blockName, this.props)
 
@@ -157,7 +157,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
               <h3 className={getBEMClassNames('subtitle')}>
                 Oops! Something has gone wrong!
               </h3>
-              {(error as IregisterError).message}
+              {(error as IRegisterError).message}
             </>
             )
             : null
@@ -251,7 +251,6 @@ class CheckRegister extends React.Component<Iprops, Istate> {
         )
         break
       case REGISTER_FAIL_CODE.UNKNOWN:
-      // tslint:disable-next-line no-switch-case-fall-through
       default:
         type = REGISTER_ERROR_TYPE.UNEXCEPTED
         message = (
@@ -284,20 +283,20 @@ enum REGISTER_ERROR_TYPE {
 }
 
 // typing
-type Iprops = RouteComponentProps<{}>
+type IProps = RouteComponentProps<{}>
 
-interface IinjectedProps extends Iprops {
+interface IInjectedProps extends IProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   done: boolean
-  error: IregisterError | null
+  error: IRegisterError | null
   shouldPreventRedirect: boolean
 }
 
-interface IregisterError {
+interface IRegisterError {
   type: REGISTER_ERROR_TYPE
   message: string | React.ReactNode
 }

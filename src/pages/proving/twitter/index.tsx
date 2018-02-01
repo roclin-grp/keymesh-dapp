@@ -8,12 +8,12 @@ import {
   Link,
 } from 'react-router-dom'
 
-interface Iprops {
+interface IProps {
   state: TwitterProvingState
 }
 
 @observer
-class TwitterProving extends React.Component<Iprops> {
+class TwitterProving extends React.Component<IProps> {
   public render() {
     const label = 'Twitter'
     const {

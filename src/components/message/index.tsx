@@ -8,19 +8,19 @@ import {
   MESSAGE_STATUS_STR,
 } from '../../stores/SessionStore'
 import {
-  Icontact,
+  IContact,
 } from '../../stores/UserStore'
 
-interface Iprops {
+interface IProps {
   messageType: MESSAGE_TYPE
   timestamp: number
   isFromYourself: boolean
-  contact: Icontact
+  contact: IContact
   plainText?: string
   status: MESSAGE_STATUS
 }
 
-class Message extends React.Component<Iprops> {
+class Message extends React.Component<IProps> {
   public render() {
     const {
       isFromYourself,

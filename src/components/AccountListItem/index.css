@@ -1,0 +1,13 @@
+.account-list-item__transaction-link,
+.account-list-item__transaction-link:hover {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.account-list-item__status-icon:not(:last-child) {
+  margin-right: 0.625rem;
+}
+
+.account-list-item__list-content {
+  margin-left: 0.625rem;
+  min-width: 1rem;
+}

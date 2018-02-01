@@ -1,10 +1,10 @@
 import * as React from 'react'
 
-interface Iprops {
+interface IProps {
   value: string
 }
 
-class ProvingTextarea extends React.Component<Iprops> {
+class ProvingTextarea extends React.Component<IProps> {
   private element: any
 
   public render() {

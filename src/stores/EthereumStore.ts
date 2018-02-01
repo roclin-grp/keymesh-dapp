@@ -60,7 +60,7 @@ export class EthereumStore {
 
   public connect = () => {
     const metaMasksWeb3 = (window as any).web3
-    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IasyncProvider : undefined
+    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IAsyncProvider : undefined
 
     if (typeof provider === 'undefined') {
       this.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.NO_METAMASK)
@@ -173,7 +173,7 @@ export class EthereumStore {
 
 type TypeConnectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => void
 
-interface IasyncProvider {
+interface IAsyncProvider {
   sendAsync(payload: JsonRPCRequest, callback: (e: Error, val: JsonRPCResponse) => void): void
 }
 

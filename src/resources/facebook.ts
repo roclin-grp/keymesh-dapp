@@ -1,13 +1,13 @@
 import { IsignedFacebookClaim } from '../stores/BoundSocialsStore'
 
-interface Ipost {
+interface IPost {
   message: string
   created_time: string
   id: string
 }
 
 export class FacebookResource {
-  static getPosts(userID: string, accessToken: string): Promise<Ipost[]> {
+  static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
     const init = {
       method: 'GET',
       mode: 'cors',

@@ -21,7 +21,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from './stores'
 import {
   EthereumStore,
@@ -33,13 +33,13 @@ import {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
 @observer
-class App extends React.Component<Iprops> {
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+class App extends React.Component<IProps> {
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   public render() {
     const {
@@ -93,6 +93,18 @@ class App extends React.Component<Iprops> {
               <Route path="/profile/:userAddress" component={Profile} />
               {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
               <ConditionalRoute
+                path="/chat"
+                component={Chat}
+                predicate={hasUser}
+                redirectTo="/accounts"
+              />
+              <ConditionalRoute
+                path="/broadcast"
+                component={Broadcast}
+                predicate={hasUser}
+                redirectTo="/accounts"
+              />
+              <ConditionalRoute
                 path="/profile"
                 exact={true}
                 component={Profile}
@@ -114,11 +126,15 @@ class App extends React.Component<Iprops> {
   }
 }
 
-type Iprops = {}
+type IProps = {}
 
-interface IinjectedProps extends Iprops {
+interface IInjectedProps extends IProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
+}
+
+function Chat() {
+  return <pre>/chat</pre>
 }
 
 function NotFound() {

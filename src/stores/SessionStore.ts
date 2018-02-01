@@ -2,50 +2,52 @@ import {
   observable
 } from 'mobx'
 import {
-  ItransactionLifecycle
+  ITransactionLifecycle
 } from './ContractStore'
 import {
   UserStore,
-  IuserIdentityKeys,
-  Icontact,
+  IUserIdentityKeys,
+  IContact,
 } from './UserStore'
 
 import {
   keys
 } from 'wire-webapp-proteus'
 
-import DB from '../DB'
+import {
+  Databases,
+} from '../databases'
 
 export class SessionStore {
-  @observable public session: Isession
-  @observable.ref public messages: Imessage[] = []
+  @observable public session: ISession
+  @observable.ref public messages: IMessage[] = []
 
-  constructor(session: Isession, {
-    db,
+  constructor(session: ISession, {
+    databases,
     userStore
   }: {
-    db: DB,
+    databases: Databases,
     userStore: UserStore
   }) {
-    // this.db = db
+    // this.databases = databases
     this.session = this.sessionRef = session
   }
 
-  private sessionRef: Isession
-  // private db: DB
+  private sessionRef: ISession
+  // private databases: Databases
 }
 
-export interface Isession extends IuserIdentityKeys {
+export interface ISession extends IUserIdentityKeys {
   sessionTag: string
   lastUpdate: number
-  contact: Icontact
+  contact: IContact
   subject: string
   isClosed: boolean
   unreadCount: number
   summary: string
 }
 
-export interface Imessage extends IuserIdentityKeys {
+export interface IMessage extends IUserIdentityKeys {
   messageId: string
   sessionTag: string
   messageType: MESSAGE_TYPE
@@ -76,19 +78,19 @@ export const MESSAGE_STATUS_STR = Object.freeze({
   [messageStatus: number]: string
 }
 
-export interface ItrustbaseRawMessage {
+export interface ITrustbaseRawMessage {
   message: string
   timestamp: string
 }
 
-export interface IdecryptedTrustbaseMessage {
+export interface IDecryptedTrustbaseMessage {
   decryptedPaddedMessage: Uint8Array
   senderIdentity: keys.IdentityKey
   timestamp: string
   messageByteLength: number
 }
 
-export interface IrawUnppaddedMessage {
+export interface IRawUnppaddedMessage {
   messageType: MESSAGE_TYPE
   timestamp: number
   subject: string
@@ -96,18 +98,18 @@ export interface IrawUnppaddedMessage {
   plainText?: string
 }
 
-export interface IreceivedMessage extends IrawUnppaddedMessage {
+export interface IReceivedMessage extends IRawUnppaddedMessage {
   mac: Uint8Array
   sessionTag: string
   timestamp: number
   blockHash?: string
 }
 
-export interface IcheckMessageStatusLifecycle {
+export interface ICheckMessageStatusLifecycle {
   sendingDidFail?: () => void
 }
 
-export interface IsendingLifecycle extends ItransactionLifecycle {
+export interface ISendingLifecycle extends ITransactionLifecycle {
   sendingDidComplete?: () => void
   sendingDidFail?: (err: Error | null, code?: SENDING_FAIL_CODE) => void
 }

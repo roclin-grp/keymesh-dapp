@@ -14,7 +14,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -31,7 +31,7 @@ import {
 @inject(({
   ethereumStore,
   usersStore
-}: Istores) => ({
+}: IStores) => ({
   ethereumStore,
   usersStore
 }))
@@ -39,7 +39,7 @@ import {
 class ErrorPage extends React.Component {
   public static readonly blockName = 'error-page'
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(ErrorPage.blockName, this.props)
 
@@ -85,7 +85,7 @@ class ErrorPage extends React.Component {
   }
 }
 
-interface IinjectedProps {
+interface IInjectedProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }

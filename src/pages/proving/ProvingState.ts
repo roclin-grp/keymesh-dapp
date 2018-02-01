@@ -13,6 +13,7 @@ import { storeLogger } from '../../utils/loggers'
 import {
   VERIFY_SOCIAL_STATUS,
   SOCIAL_MEDIA_PLATFORMS,
+  UPLOADING_FAIL_CODE,
 } from '../../stores/BoundSocialsStore'
 
 useStrict(true)
@@ -56,27 +57,25 @@ export default abstract class ProvingState {
   }
 
   public uploadBindingProof = async () => {
-    this.usersStore.currentUserStore!.boundSocialsStore.uploadBindingSocials({
-      noNewBinding: () => {
-        storeLogger.error('no new binding')
-        runInAction(() => {
-          this.isFinished = true
-        })
-      },
-      transactionWillCreate: noop,
-      transactionDidCreate: () => {
-        storeLogger.log('created')
-      },
-      sendingDidComplete: () => {
-        storeLogger.log('completed')
-        runInAction(() => {
-          this.isFinished = true
-        })
-      },
-      sendingDidFail: () => {
-        storeLogger.error('sending did fail')
-      },
-    })
+    const {
+      isVerificationsLoaded,
+      uploadBindingSocials,
+    } = this.usersStore.currentUserStore!.boundSocialsStore
+    if (isVerificationsLoaded) {
+      uploadBindingSocials({
+        transactionWillCreate: noop,
+        transactionDidCreate: () => {
+          storeLogger.log('created')
+        },
+        uploadingDidComplete: () => {
+          storeLogger.log('completed')
+          runInAction(() => {
+            this.isFinished = true
+          })
+        },
+        uploadingDidFail: this.uploadingDidFail,
+      }).catch(this.uploadingDidFail)
+    }
   }
 
   @action
@@ -87,4 +86,14 @@ export default abstract class ProvingState {
 
   protected abstract setClaim(username: string, userAddress: string, publicKey: string): void
   protected async abstract _checkProof(): Promise<VERIFY_SOCIAL_STATUS>
+
+  private uploadingDidFail = (err: Error | null, code = UPLOADING_FAIL_CODE.UNKNOWN) => {
+    if (code === UPLOADING_FAIL_CODE.NO_NEW_BINDING) {
+      storeLogger.error('no new binding')
+      runInAction(() => {
+        this.isFinished = true
+      })
+    }
+    storeLogger.error('sending did fail')
+  }
 }

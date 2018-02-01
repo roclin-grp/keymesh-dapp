@@ -8,7 +8,6 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
 
 import {
@@ -17,7 +16,7 @@ import {
 
 import { Icon } from 'antd'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 
 import { ProfileState } from './ProfileState'
@@ -26,11 +25,11 @@ import { ContractStore } from '../../stores/ContractStore'
 import { getBEMClassNamesMaker } from '../../utils/classNames'
 import { SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
 
-interface Iparams {
+interface IParams {
   userAddress?: string
 }
 
-interface Iprops extends RouteComponentProps<Iparams> {
+interface IProps extends RouteComponentProps<IParams> {
   usersStore: UsersStore
   contractStore: ContractStore
   ethereumStore: EthereumStore
@@ -40,17 +39,17 @@ interface Iprops extends RouteComponentProps<Iparams> {
   usersStore,
   contractStore,
   ethereumStore,
-}: Istores) => ({
+}: IStores) => ({
   usersStore,
   contractStore,
   ethereumStore,
 }))
 
 @observer
-class Profile extends React.Component<Iprops> {
+class Profile extends React.Component<IProps> {
   public data: ProfileState
 
-  constructor(props: Iprops) {
+  constructor(props: IProps) {
     super(props)
     const {
       ethereumStore: {
@@ -82,10 +81,10 @@ class Profile extends React.Component<Iprops> {
   }
 
   public render() {
-    return <CommonHeaderPage>
+    return <>
       {this.getUserAvatar()}
       {this.socials}
-    </CommonHeaderPage>
+    </>
   }
 
   private get socials() {

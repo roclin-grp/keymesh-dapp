@@ -23,7 +23,7 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  Istores,
+  IStores,
 } from '../../stores'
 import {
   EthereumStore,
@@ -34,13 +34,13 @@ import {
   REGISTER_FAIL_CODE,
 } from '../../stores/UsersStore'
 import {
-  Iuser,
+  IUser,
 } from '../../stores/UserStore'
 
 // helper
 import {
   getBEMClassNamesMaker,
-  IextendableClassNamesProps
+  IExtendableClassNamesProps
 } from '../../utils/classNames'
 import {
   storeLogger
@@ -49,12 +49,12 @@ import {
 @inject(({
   usersStore,
   ethereumStore,
-}: Istores) => ({
+}: IStores) => ({
   usersStore,
   ethereumStore,
 }))
 @observer
-class AccountListItem extends React.Component<Iprops, Istate> {
+class AccountListItem extends React.Component<IProps, IState> {
   public static readonly blockName = 'account-list-item'
 
   public readonly state = Object.freeze({
@@ -63,7 +63,7 @@ class AccountListItem extends React.Component<Iprops, Istate> {
     isDeleting: false
   })
 
-  private readonly injectedProps = this.props as Readonly<IinjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(AccountListItem.blockName, this.props)
 
@@ -109,7 +109,9 @@ class AccountListItem extends React.Component<Iprops, Istate> {
           />}
           title={<Link to={`/profile${isCurrentUser(user) ? '' : `/${user.userAddress}`}`}>{user.userAddress}</Link>}
         />
-        {this.getListContent()}
+        <div className={getBEMClassNames('list-content')}>
+          {this.getListContent()}
+        </div>
       </List.Item>
     )
   }
@@ -184,6 +186,7 @@ class AccountListItem extends React.Component<Iprops, Istate> {
   }
 
   private getListContent = () => {
+    const {getBEMClassNames} = this
     const {
       user
     } = this.props
@@ -198,6 +201,9 @@ class AccountListItem extends React.Component<Iprops, Istate> {
       isCurrentUser,
     } = this.injectedProps.usersStore
 
+    const statusSummaryClassNames = getBEMClassNames('status-summary')
+    const statusIconClassNames = getBEMClassNames('status-icon')
+
     switch (status) {
       case REGISTER_STATUS.PENDING:
         return <Spin />
@@ -205,11 +211,12 @@ class AccountListItem extends React.Component<Iprops, Istate> {
         return (
           <Tooltip title={helpMessage} placement="bottom">
             <a
+              className={getBEMClassNames('transaction-link')}
               target="_blank"
               href={`${ETHEREUM_NETWORK_TX_URL_PREFIX[currentEthereumNetwork!]}${user.identityTransactionHash}`}
             >
-              <Icon type={REGISTER_STATUS_ICON_TYPE[status]} />
-              {REGISTER_STATUS_SUMMARY_TEXT[status]}
+              <Icon className={statusIconClassNames} type={REGISTER_STATUS_ICON_TYPE[status]} />
+              <span className={statusSummaryClassNames}>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
             </a>
           </Tooltip>
         )
@@ -220,8 +227,8 @@ class AccountListItem extends React.Component<Iprops, Istate> {
       case REGISTER_STATUS.OCCUPIED:
         return (
           <Tooltip title={helpMessage} placement="bottom">
-            <Icon type={REGISTER_STATUS_ICON_TYPE[status]} />
-            {REGISTER_STATUS_SUMMARY_TEXT[status]}
+            <Icon className={statusIconClassNames} type={REGISTER_STATUS_ICON_TYPE[status]} />
+            <span className={statusSummaryClassNames}>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
           </Tooltip>
         )
       default:
@@ -286,6 +293,11 @@ class AccountListItem extends React.Component<Iprops, Istate> {
       preKeysUploadDidFail: this.preKeysUploadDidFail,
       isRegister: true
     }).catch(this.preKeysUploadDidFail)
+
+    this.setState({
+      status: REGISTER_STATUS.IDENTITY_UPLOADED,
+      helpMessage: 'Uploading pre-keys to cloud server.'
+    })
   }
 
   private preKeysDidUpload = async () => {
@@ -388,16 +400,16 @@ const REGISTER_STATUS_ICON_TYPE = Object.freeze({
 }
 
 // typing
-interface Iprops extends IextendableClassNamesProps {
-  user: Iuser
+interface IProps extends IExtendableClassNamesProps {
+  user: IUser
 }
 
-interface IinjectedProps extends Iprops {
+interface IInjectedProps extends IProps {
   ethereumStore: EthereumStore
   usersStore: UsersStore
 }
 
-interface Istate {
+interface IState {
   status: REGISTER_STATUS
   isDeleting: boolean
   helpMessage: string

@@ -22,9 +22,6 @@ import {
 import {
   sha3,
 } from 'trustbase'
-import {
-  BlockType,
-} from 'trustbase/typings/web3.d'
 
 const sodium = require('libsodium-wrappers-sumo')
 import {
@@ -51,15 +48,18 @@ import {
 } from '../utils/loggers'
 import {
   dumpCryptobox,
-  IdumpedDatabases,
+  IDumpedDatabases,
   downloadObjectAsJson,
 } from '../utils/data'
 
-import DB from '../DB'
+import {
+  Databases,
+} from '../databases'
+
 import IndexedDBStore from '../IndexedDBStore'
 import {
   PreKeysPackage,
-  IpreKeyPublicKeys,
+  IPreKeyPublicKeys,
 } from '../PreKeysPackage'
 
 import {
@@ -70,7 +70,7 @@ import {
 
 export class UserStore {
   // FIXME consider @observable.ref
-  @observable public user: Iuser
+  @observable public user: IUser
   @observable.ref public sessionsStore: SessionsStore
   @observable public isCryptoboxReady = false
   public boundSocialsStore: BoundSocialsStore
@@ -92,25 +92,30 @@ export class UserStore {
     return this.user.userAddress === this.ethereumStore.currentEthereumAccount
   }
 
-  constructor(user: Iuser, {
-    db,
+  constructor(user: IUser, {
+    databases,
     ethereumStore,
     contractStore,
     usersStore,
   }: {
-    db: DB
+    databases: Databases
     ethereumStore: EthereumStore
     contractStore: ContractStore
     usersStore: UsersStore
   }) {
     this.user = this.userRef = user
-    this.db = db
+    this.databases = databases
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
     this.usersStore = usersStore
     this.sessionsStore = new SessionsStore({
-      db,
+      databases,
       userStore: this,
+    })
+    this.boundSocialsStore = new BoundSocialsStore({
+      databases,
+      userStore: this,
+      contractStore: this.contractStore,
     })
     this.loadDataFromLocal()
 
@@ -118,7 +123,7 @@ export class UserStore {
       () => ({
         status: this.user.status,
         blockHash: this.user.blockHash,
-      }) as Iuser,
+      }) as IUser,
       (observableUserData) => {
         if (observableUserData.status === USER_STATUS.OK) {
           // refresh usableUsers
@@ -128,8 +133,8 @@ export class UserStore {
       })
   }
 
-  private userRef: Iuser
-  private db: DB
+  private userRef: IUser
+  private databases: Databases
   private ethereumStore: EthereumStore
   private contractStore: ContractStore
   private usersStore: UsersStore
@@ -141,7 +146,7 @@ export class UserStore {
       checkRegisterWillStart = noop,
       identityDidUpload = noop,
       registerDidFail = noop,
-    }: IcheckIdentityUploadStatusLifecycle = {}
+    }: ICheckIdentityUploadStatusLifecycle = {}
   ) => {
     const user = this.user
     if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
@@ -180,7 +185,13 @@ export class UserStore {
               return window.setTimeout(waitForTransactionReceipt, 1000, counter)
             }
             try {
-              await this.db.updateUserStatus(Object.assign({}, user, { blockHash }), USER_STATUS.IDENTITY_UPLOADED)
+              await this.databases.usersDB.updateUser(
+                user,
+                {
+                  blockHash,
+                  status: USER_STATUS.IDENTITY_UPLOADED
+                }
+              )
               runInAction(() => {
                 this.user.status = USER_STATUS.IDENTITY_UPLOADED
                 this.user.blockHash = blockHash
@@ -222,12 +233,12 @@ export class UserStore {
       preKeysDidUpload = noop,
       preKeysUploadDidFail = noop,
       isRegister = false
-    }: IuploadPreKeysOptions = {}
+    }: IUploadPreKeysOptions = {}
   ) => {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
 
-    const preKeysPublicKeys: IpreKeyPublicKeys = preKeys.reduce(
+    const preKeysPublicKeys: IPreKeyPublicKeys = preKeys.reduce(
       (result, preKey) => Object.assign(result, {
         [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
       }),
@@ -263,7 +274,7 @@ export class UserStore {
       }
       preKeysDidUpload()
       if (isRegister) {
-        await this.db.updateUserStatus(this.user, USER_STATUS.OK)
+        await this.databases.usersDB.updateUser(this.user, { status: USER_STATUS.OK })
         runInAction(() => {
           this.user.status = USER_STATUS.OK
         })
@@ -274,12 +285,16 @@ export class UserStore {
   }
 
   public exportUser = async () => {
-    const data: IdumpedDatabases = {}
+    const {
+      sessionsDB,
+      messagesDB,
+    } = this.databases
+    const data: IDumpedDatabases = {}
     const user = this.user
     data.keymail = [
       { table: 'users', rows: [user], },
-      { table: 'sessions', rows: await this.db.getSessions(user)},
-      { table: 'messages', rows: await this.db.getUserMessages(user)}
+      { table: 'sessions', rows: await sessionsDB.getSessions(user)},
+      { table: 'messages', rows: await messagesDB.getMessagesOfUser(user)}
     ]
     const cryptobox = await dumpCryptobox(user)
     data[cryptobox.dbname] = cryptobox.tables
@@ -300,11 +315,6 @@ export class UserStore {
     runInAction(() => {
       this.isCryptoboxReady = true
     })
-    this.boundSocialsStore = new BoundSocialsStore({
-      db: this.db,
-      userStore: this,
-      boundSocialsContract: this.contractStore.boundSocialsContract,
-    })
   }
 }
 
@@ -313,32 +323,32 @@ function generatePreKeys(start: number, interval: number, size: number) {
     .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
 }
 
-interface IcheckIdentityUploadStatusLifecycle {
+interface ICheckIdentityUploadStatusLifecycle {
   checkRegisterWillStart?: (hash: string) => void
   identityDidUpload?: () => void
   registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
-interface IuploadPreKeysOptions {
+interface IUploadPreKeysOptions {
   isRegister?: boolean
   preKeysDidUpload?: () => void
   preKeysUploadDidFail?: (err: Error) => void
 }
 
-export interface IuserIdentityKeys {
+export interface IUserIdentityKeys {
   networkId: ETHEREUM_NETWORKS,
   userAddress: string,
 }
 
-export interface Iuser extends IuserIdentityKeys {
+export interface IUser extends IUserIdentityKeys {
   status: USER_STATUS
   blockHash: string
   identityTransactionHash: string
-  contacts: Icontact[]
+  contacts: IContact[]
 
-  lastFetchBlock: BlockType
-  lastFetchBlockOfBroadcast: BlockType
-  lastFetchBlockOfBoundSocials: BlockType
+  lastFetchBlockOfMessages: number
+  lastFetchBlockOfBroadcast: number
+  lastFetchBlockOfBoundSocials: number
 
   boundSocials: IboundSocials
   bindingSocials: IbindingSocials
@@ -350,7 +360,7 @@ export enum USER_STATUS {
   OK = 2
 }
 
-export interface Icontact {
+export interface IContact {
   userAddress: string
   blockHash: string
 }

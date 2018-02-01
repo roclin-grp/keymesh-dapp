@@ -5,38 +5,40 @@ import {
 } from 'mobx'
 import {
   SessionStore,
-  Isession,
+  ISession,
 } from './SessionStore'
 import {
   UserStore,
 } from './UserStore'
 
-import DB from '../DB'
+import {
+  Databases,
+} from '../databases'
 
 export class SessionsStore {
-  @observable.ref public sessions: Isession[] = []
+  @observable.ref public sessions: ISession[] = []
   @observable.ref public currentSessionStore: SessionStore | undefined
   @observable public isLoading = false
 
   constructor({
-    db,
+    databases,
     userStore,
   }: {
-    db: DB
+    databases: Databases
     userStore: UserStore
   }) {
-    this.db = db
+    this.databases = databases
     this.userStore = userStore
   }
 
-  private db: DB
+  private databases: Databases
   private userStore: UserStore
 
   public loadSessions = async () => {
     runInAction(() => {
       this.isLoading = true
     })
-    const sessions = await this.db.getSessions(this.userStore.user)
+    const sessions = await this.databases.sessionsDB.getSessions(this.userStore.user)
     runInAction(() => {
       this.sessions = sessions
       if (sessions.length > 0) {
@@ -46,15 +48,15 @@ export class SessionsStore {
     })
   }
 
-  public deleteSession = async (session: Isession) => {
-    await this.db.deleteSession(this.userStore.user, session)
+  public deleteSession = async (session: ISession) => {
+    await this.databases.sessionsDB.deleteSession(session)
     this.removeSession(session)
   }
 
   @action
-  public selectSession = async (session: Isession) => {
+  public selectSession = async (session: ISession) => {
     this.currentSessionStore = new SessionStore(session, {
-      db: this.db,
+      databases: this.databases,
       userStore: this.userStore
     })
   }
@@ -67,7 +69,7 @@ export class SessionsStore {
   // }
 
   @action
-  private removeSession = (session: Isession) => {
+  private removeSession = (session: ISession) => {
     const remainSessions = this.sessions = this.sessions.filter(
       (_session) => session.sessionTag !== _session.sessionTag
     )
