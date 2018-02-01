@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { runInAction , observable } from 'mobx'
+import { runInAction } from 'mobx'
 import { inject, observer } from 'mobx-react'
 
 import {
@@ -10,12 +10,9 @@ import {
 
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
-import {
-  noop,
-} from '../../utils'
 
 import {
-  ETHEREUM_CONNECT_STATUS, EthereumStore,
+  EthereumStore,
 } from '../../stores/EthereumStore'
 
 import { Icon } from 'antd'
@@ -53,61 +50,38 @@ interface Iprops extends RouteComponentProps<Iparams> {
 class Profile extends React.Component<Iprops> {
   public data: ProfileState
 
-  private readonly getBEMClassNames = getBEMClassNamesMaker('profile', this.props)
-  private removeEthereumConnectStatusChangeListener = noop
-  @observable
-  private initializedState = false
-  public componentDidMount(isFirstMount: boolean = true) {
+  constructor(props: Iprops) {
+    super(props)
     const {
       ethereumStore: {
-        isActive,
-        listenForEthereumConnectStatusChange,
         getBlockHash,
       },
       usersStore,
       contractStore,
     } = this.props
-    const user = usersStore.hasUser ? usersStore.currentUserStore!.user : undefined
 
-    if (isActive) {
-      this.data = new ProfileState({usersStore, contractStore, getBlockHash})
+    this.data = new ProfileState({ usersStore, contractStore, getBlockHash })
+    runInAction(() => {
       if (typeof this.props.match.params.userAddress !== 'undefined') {
         this.data.userAddress = this.props.match.params.userAddress
+      } else {
+        this.data.userAddress = usersStore.currentUserStore!.user.userAddress
       }
+    })
+  }
+  private readonly getBEMClassNames = getBEMClassNamesMaker('profile', this.props)
 
-      let userAddress = this.data.userAddress
-      if (usersStore.hasUser) {
-        if ('' === this.data.userAddress) {
-          userAddress = user!.userAddress
-          runInAction(() => {
-            this.data.userAddress = userAddress
-          })
-        }
-      }
-
-      this.data.startFetchingUserProofs()
-      this.data.startVerifyingUserProofs()
-      runInAction(() => {
-        this.initializedState = true
-      })
-    }
-
-    if (isFirstMount) {
-      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
-    }
+  public componentDidMount() {
+    this.data.startFetchingUserProofs()
+    this.data.startVerifyingUserProofs()
   }
 
   public componentWillUnmount() {
     this.data.stopFetchingUserProofs()
     this.data.stopVerifyingUserProofs()
-    this.removeEthereumConnectStatusChangeListener()
   }
 
   public render() {
-    if (!this.initializedState) {
-      return <CommonHeaderPage/>
-    }
-
     return <CommonHeaderPage>
       {this.getUserAvatar()}
       {this.socials}
@@ -150,19 +124,6 @@ class Profile extends React.Component<Iprops> {
       size={avatarSize}
       hash={this.data.avatarHash}
     />
-  }
-
-  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
-    if (prev !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
-      // fix me: this is an ugly way to call `this.componentDidMount` after assigning user
-      const notFirstDidMount = () => {
-        this.componentDidMount(false)
-      }
-      window.setTimeout(notFirstDidMount, 1000)
-    } else if (cur !== ETHEREUM_CONNECT_STATUS.ACTIVE) {
-      this.data.stopFetchingUserProofs()
-      this.data.stopVerifyingUserProofs()
-    }
   }
 }
 
