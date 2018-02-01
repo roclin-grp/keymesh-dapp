@@ -1,83 +1,61 @@
-// import * as React from 'react'
+import * as React from 'react'
 
-// import { inject, observer } from 'mobx-react'
-// import { Store } from '../../store'
+import { inject, observer } from 'mobx-react'
+import { Istores } from '../../stores/index'
+import { UsersStore } from '../../stores/UsersStore'
+import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
+import { EthereumStore } from '../../stores/EthereumStore'
+import { BroadcastForm } from './BroadcastForm'
 
-// import { storeLogger } from '../../utils/loggers'
+interface Iprops {
+  usersStore: UsersStore
+  ethereumStore: EthereumStore,
+  broadcastMessagesStore: BroadcastMessagesStore
+}
 
-// interface Iprops {
-//   store: Store
-// }
+@inject(({
+  usersStore,
+  ethereumStore,
+  broadcastMessagesStore,
+}: Istores) => ({
+  usersStore,
+  ethereumStore,
+  broadcastMessagesStore,
+}))
 
-// interface Istate {
-//   message: string
-// }
+@observer
+class Broadcast extends React.Component<Iprops> {
+  public componentDidMount() {
+    this.props.broadcastMessagesStore.startFetchBroadcastMessages()
+  }
 
-// class BroadcastForm extends React.Component<Iprops, Istate> {
-//   constructor(props: Iprops) {
-//     super(props)
+  public componentWillUnmount() {
+    this.props.broadcastMessagesStore.stopFetchBroadcastMessages()
+  }
 
-//     this.state = {
-//       message: ''
-//     }
-//   }
+  public render() {
+    const messagesElements = []
+    for (let message of this.props.broadcastMessagesStore.broadcastMessages) {
+      const date = new Date(message.timestamp).toTimeString()
+      messagesElements.push(
+        <div>
+          <p>Message: {message.message}</p>
+          <p>Author: {message.author}  at: {date}</p>
+        </div>
+      )
+    }
 
-//   public handlePublish = () => {
-//     this.props.store.publishBoradcastMessage(this.state.message, {
-//       transactionDidCreate: () => {
-//         this.setState({message: ''})
-//       },
-//       sendingDidComplete: () => {
-//         storeLogger.log('completed')
-//       },
-//       sendingDidFail: (err: Error) => {
-//         storeLogger.error(err)
-//       }
-//     })
-//   }
+    let form
+    if (this.props.usersStore.hasUser) {
+      form = <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore} />
+    }
 
-//   public handleChange = (event: any) => {
-//     this.setState({message: event.target.value})
-//   }
+    return <>
+      <div>Broadcast</div>
+      {form}
+      <div>{messagesElements}</div>
+      </>
+  }
+}
 
-//   public render() {
-//     return <div>
-//       <textarea value={this.state.message} onChange={this.handleChange} />
-//       <button onClick={this.handlePublish}>Publish</button>
-//     </div>
-//   }
-// }
-
-// @inject('store') @observer
-// class Broadcast extends React.Component<Iprops> {
-//   public componentDidMount(isFirstMount: boolean = true) {
-//     const {
-//       startFetchBroadcast,
-//     } = this.props.store
-
-//     window.setTimeout(startFetchBroadcast, 1000)
-//   }
-
-//   public render() {
-//     const messagesElements = []
-//     for (let message of this.props.store.broadcastMessages) {
-//       const date = new Date(message.timestamp).toTimeString()
-//       messagesElements.push(
-//         <div>
-//           <p>Message: {message.message}</p>
-//           <p>Author: {message.author}  at: {date}</p>
-//         </div>
-//       )
-//     }
-
-//     return (
-//       <>
-//         <div>Broadcast</div>
-//         <BroadcastForm store={this.props.store} />
-//         <div>{messagesElements}</div>
-//       </>
-//     )
-//   }
-// }
-
-// export default Broadcast
+export default Broadcast

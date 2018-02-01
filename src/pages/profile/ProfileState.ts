@@ -4,13 +4,12 @@ import {
   runInAction,
 } from 'mobx'
 
-const sodium = require('libsodium-wrappers-sumo')
 import { sha3, } from 'trustbase'
 import { FacebookResource } from '../../resources/facebook'
 import { TwitterResource } from '../../resources/twitter'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { hexToUtf8 } from '../../utils/hex'
+import { hexToUtf8, sodiumFromHex } from '../../utils/hex'
 import { BlockType } from 'trustbase/typings/web3.d'
 import {
   VERIFY_SOCIAL_STATUS,
@@ -130,7 +129,7 @@ export class ProfileState {
       const _signedBoundSocial = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials.slice(2))) as IsignedBoundSocials
       if (JSON.stringify(_signedBoundSocial.socialMedias) !== JSON.stringify(this.userBoundSocials)) {
         if (!publicKey.verify(
-          sodium.from_hex(_signedBoundSocial.signature.slice(2)),
+          sodiumFromHex(_signedBoundSocial.signature, true),
           JSON.stringify(_signedBoundSocial.socialMedias)
         )) {
           continue
@@ -197,7 +196,7 @@ export class ProfileState {
           })
         } else {
           if (!publicKey.verify(
-            sodium.from_hex(unverifiedClaim.signature.slice(2)),
+            sodiumFromHex(unverifiedClaim.signature, true),
             JSON.stringify(unverifiedClaim.claim))) {
             runInAction(() => {
               this.verifyStatus = Object.assign(this.verifyStatus, { facebook: VERIFY_SOCIAL_STATUS.INVALID })
@@ -221,7 +220,7 @@ export class ProfileState {
           })
         } else {
           if (!publicKey.verify(
-            sodium.from_hex(signedGithubClaim.signature.slice(2)),
+            sodiumFromHex(signedGithubClaim.signature, true),
             JSON.stringify(signedGithubClaim.claim))) {
             runInAction(() => {
               this.verifyStatus = Object.assign(this.verifyStatus, { github: VERIFY_SOCIAL_STATUS.INVALID })
@@ -255,7 +254,7 @@ export class ProfileState {
               publicKey: parts[2],
             }
             if (!publicKey.verify(
-              sodium.from_hex(parts[3].slice(2)),
+              sodiumFromHex(parts[3], true),
               JSON.stringify(twitterClaim)
             )) {
               runInAction(() => {

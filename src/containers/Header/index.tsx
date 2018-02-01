@@ -260,8 +260,8 @@ class Header extends React.Component<Iprops, Istate> {
           </Tooltip>
         </Menu.Item>
         <Menu.Item>
-          <Link to="/broadcast">
-            Broadcast
+          <Link to="/discover">
+            Discover
           </Link>
         </Menu.Item>
         <Menu.Item>

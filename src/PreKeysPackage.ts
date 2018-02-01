@@ -1,4 +1,5 @@
 import * as CBOR from 'wire-webapp-cbor'
+import { sodiumFromHex } from './utils/hex'
 const sodium = require('libsodium-wrappers-sumo')
 
 export class PreKeysPackage {
@@ -74,7 +75,7 @@ export class PreKeysPackage {
     Object.keys(this.preKeyPublicKeys).forEach((preKeyId) => {
       e.object(1)
       e.u16(Number(preKeyId))
-      e.bytes(sodium.from_hex(this.preKeyPublicKeys[preKeyId].slice(2)))
+      e.bytes(sodiumFromHex(this.preKeyPublicKeys[preKeyId], true))
     })
   }
 }

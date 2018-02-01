@@ -13,6 +13,7 @@ import {
 } from './UsersStore'
 
 import DB from '../DB'
+import { BroadcastMessagesStore } from './BroadcastMessagesStore'
 
 useStrict(true)
 
@@ -28,11 +29,16 @@ export function createStores(): Istores {
     db
   })
   ethereumStore.connect()
+  const broadcastMessagesStore = new BroadcastMessagesStore({
+    usersStore,
+    contractStore,
+  })
 
   return {
     ethereumStore,
     contractStore,
     usersStore,
+    broadcastMessagesStore,
   }
 }
 
@@ -40,4 +46,5 @@ export interface Istores {
   ethereumStore: EthereumStore
   contractStore: ContractStore
   usersStore: UsersStore
+  broadcastMessagesStore: BroadcastMessagesStore
 }

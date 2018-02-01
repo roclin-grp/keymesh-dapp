@@ -10,7 +10,7 @@ import {
 // import Home from './pages/home'
 import Accounts from './pages/accounts'
 import Header from './containers/Header'
-// import Broadcast from './pages/broadcast'
+import Broadcast from './pages/broadcast'
 import Profile from './pages/profile'
 import Proving from './pages/proving'
 import Loading from './pages/loading'
@@ -88,16 +88,10 @@ class App extends React.Component<Iprops> {
           <div className="page-content">
             <Switch>
               <Redirect from="/" exact={true} to="/discover" />
-              <Route path="/discover" component={Discover} />
+              <Route path="/discover" component={Broadcast} />
               <Route path="/accounts" component={Accounts} />
               <Route path="/profile/:userAddress" component={Profile} />
               {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
-              <ConditionalRoute
-                path="/broadcast"
-                component={Broadcast}
-                predicate={hasUser}
-                redirectTo="/accounts"
-              />
               <ConditionalRoute
                 path="/profile"
                 exact={true}
@@ -125,13 +119,6 @@ type Iprops = {}
 interface IinjectedProps extends Iprops {
   ethereumStore: EthereumStore
   usersStore: UsersStore
-}
-function Broadcast() {
-  return <pre>/broadcast</pre>
-}
-
-function Discover() {
-  return <pre>/discover</pre>
 }
 
 function NotFound() {

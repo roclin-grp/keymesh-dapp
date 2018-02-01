@@ -4,6 +4,7 @@ const sodium = require('libsodium-wrappers-sumo')
 import {
   Iuser,
 } from '../stores/UserStore'
+import { sodiumFromHex } from './hex'
 
 const CRYPTOBOX_SCHEMA = Object.freeze({
   keys: '',
@@ -29,7 +30,7 @@ export function restoreCryptobox(dbname: string, tables: IdumpedTable[]) {
   tables = tables.map((t) => {
     t.rows = t.rows.map((row) => {
       if (row.serialised) {
-        row.serialised = sodium.from_hex(row.serialised).buffer
+        row.serialised = sodiumFromHex(row.serialised).buffer
       }
       return row
     })

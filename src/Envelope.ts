@@ -8,6 +8,7 @@ import * as CBOR from 'wire-webapp-cbor'
 const sodium = require('libsodium-wrappers-sumo')
 
 import { Buffer } from 'buffer'
+import { sodiumFromHex } from './utils/hex'
 
 export class Envelope {
   public static decode(d: CBOR.Decoder) {
@@ -137,7 +138,7 @@ export class Envelope {
     e.u8(3)
     e.object(1)
     e.u8(0)
-    e.bytes(sodium.from_hex(sessionTag.slice(2)))
+    e.bytes(sodiumFromHex(sessionTag, true))
     e.u8(4)
     e.bool(Number(isPreKeyMessage))
     e.u8(5)

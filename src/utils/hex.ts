@@ -9,5 +9,12 @@ export function utf8ToHex(str: string): string {
 }
 
 export function hexToUtf8(hex: string): string {
-  return sodium.to_string(sodium.from_hex(hex))
+  return sodium.to_string(sodiumFromHex(hex))
+}
+
+export function sodiumFromHex(hex: string, removePrefix: boolean = false) {
+  if (removePrefix) {
+    hex = hex.slice(2)
+  }
+  return sodium.from_hex(hex)
 }
