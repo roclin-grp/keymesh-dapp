@@ -9,9 +9,6 @@ import {
 } from 'react-router-dom'
 
 import { Icon } from 'antd'
-import {
-  SOCIAL_MEDIA_PLATFORMS,
-} from '../../constants'
 
 import ProvingState from './ProvingState'
 
@@ -30,6 +27,7 @@ import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { EthereumStore } from '../../stores/EthereumStore'
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
+import { SOCIAL_MEDIA_PLATFORMS } from '../../stores/BoundSocialsStore'
 
 interface Iparams {
   platform: string

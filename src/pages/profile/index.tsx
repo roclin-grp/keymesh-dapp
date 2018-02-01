@@ -15,10 +15,6 @@ import {
 } from '../../utils'
 
 import {
-  SOCIAL_MEDIAS,
-} from '../../constants'
-
-import {
   ETHEREUM_CONNECT_STATUS, EthereumStore,
 } from '../../stores/EthereumStore'
 
@@ -31,6 +27,7 @@ import { ProfileState } from './ProfileState'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { getBEMClassNamesMaker } from '../../utils/classNames'
+import { SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
 
 interface Iparams {
   userAddress?: string

@@ -5,19 +5,16 @@ import {
 } from 'mobx'
 
 import ProvingState from '../ProvingState'
-import {
-  SOCIAL_MEDIA_PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
-  BINDING_SOCIAL_STATUS,
-} from '../../../constants'
-
-import {
-  IsignedTwitterClaim,
-  IbindingSocial,
-  ItwitterClaim
-} from '../../../../typings/proof.interface'
 
 import { Itweet, TwitterResource } from '../../../resources/twitter'
+import {
+  IsignedTwitterClaim,
+  SOCIAL_MEDIA_PLATFORMS,
+  VERIFY_SOCIAL_STATUS,
+  IbindingSocial,
+  BINDING_SOCIAL_STATUS,
+  ItwitterClaim,
+} from '../../../stores/BoundSocialsStore'
 
 useStrict(true)
 

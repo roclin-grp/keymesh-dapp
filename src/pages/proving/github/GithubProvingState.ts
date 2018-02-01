@@ -5,24 +5,18 @@ import {
 } from 'mobx'
 
 import ProvingState from '../ProvingState'
-import {
-  IsignedGithubClaim,
-  IgithubClaim,
-  IbindingSocial
-} from '../../../../typings/proof.interface'
-
-import {
-  SOCIAL_MEDIA_PLATFORMS,
-  GITHUB_GIST_FILENAME,
-  VERIFY_SOCIAL_STATUS,
-  BINDING_SOCIAL_STATUS,
-} from '../../../constants'
 
 import { GithubResource } from '../../../resources/github'
-
 import {
-  getGithubClaimByRawURL
-} from '../../../utils'
+  IsignedGithubClaim,
+  SOCIAL_MEDIA_PLATFORMS,
+  VERIFY_SOCIAL_STATUS,
+  GITHUB_GIST_FILENAME,
+  getGithubClaimByRawURL,
+  IbindingSocial,
+  BINDING_SOCIAL_STATUS,
+  IgithubClaim,
+} from '../../../stores/BoundSocialsStore'
 
 useStrict(true)
 

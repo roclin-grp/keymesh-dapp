@@ -5,14 +5,16 @@ import {
 } from 'mobx'
 
 import ProvingState from '../ProvingState'
-import {
-  SOCIAL_MEDIA_PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
-  BINDING_SOCIAL_STATUS,
-} from '../../../constants'
-import { IsignedFacebookClaim, IbindingSocial, IfacebookClaim } from '../../../../typings/proof.interface'
 import { FacebookResource } from '../../../resources/facebook'
 import { storeLogger } from '../../../utils/loggers'
+import {
+  IsignedFacebookClaim,
+  SOCIAL_MEDIA_PLATFORMS,
+  VERIFY_SOCIAL_STATUS,
+  IbindingSocial,
+  BINDING_SOCIAL_STATUS,
+  IfacebookClaim,
+} from '../../../stores/BoundSocialsStore'
 
 useStrict(true)
 

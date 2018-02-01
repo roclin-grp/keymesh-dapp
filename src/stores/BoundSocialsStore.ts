@@ -10,17 +10,11 @@ import {
 } from 'trustbase'
 
 import { UserStore, IuserIdentityKeys } from './UserStore'
-import {
-  IbindingSocial,
-  IbindingSocials,
-  IboundSocials,
-  IsignedBoundSocials,
-} from '../../typings/proof.interface'
-import {  BINDING_SOCIAL_STATUS } from '../constants'
 import DB, { TableSocialMedias } from '../DB'
 import { utf8ToHex } from '../utils/hex'
 import { ETHEREUM_NETWORKS } from './EthereumStore'
 import { SENDING_FAIL_CODE } from './SessionStore'
+import { GithubResource } from '../resources/github'
 
 export class BoundSocialsStore {
   public identitiesContract: Identities
@@ -191,4 +185,129 @@ function filterUndefinedItem(obj: Object): Object {
     .forEach((key) => ret[key] = obj[key])
 
   return ret
+}
+
+export enum SOCIAL_MEDIA_PLATFORMS {
+  GITHUB = 'github',
+  TWITTER = 'twitter',
+  FACEBOOK = 'facebook',
+}
+
+export const SOCIAL_MEDIAS = [
+  {
+    'platform': SOCIAL_MEDIA_PLATFORMS.GITHUB,
+    'label': 'GitHub',
+  },
+  {
+    'platform': SOCIAL_MEDIA_PLATFORMS.TWITTER,
+    'label': 'Twitter',
+  },
+  {
+    'platform': SOCIAL_MEDIA_PLATFORMS.FACEBOOK,
+    'label': 'Facebook',
+  },
+]
+
+export enum BINDING_SOCIAL_STATUS {
+  CHECKED = 100,
+  TRANSACTION_CREATED = 200,
+  CONFIRMED = 300,
+}
+
+export enum VERIFY_SOCIAL_STATUS {
+  NOT_FOUND = 0,
+  INVALID = 100,
+  VALID = 200,
+}
+
+export const GITHUB_GIST_FILENAME = 'keymail.md'
+
+export async function getGithubClaimByProofURL(url: string): Promise<IsignedGithubClaim | null> {
+  const id = /[0-9a-f]+$/.exec(url)
+  if (id === null) {
+    return null
+  }
+
+  const _id = id[0]
+  const gist = await GithubResource.getGist(_id)
+  return await getGithubClaimByRawURL(gist.files[GITHUB_GIST_FILENAME].raw_url)
+}
+
+export async function getGithubClaimByRawURL(rawURL: string): Promise<IsignedGithubClaim|null> {
+  return await GithubResource.getRawContent(rawURL)
+    .then((resp) => resp.text())
+    .then((text) => {
+      const matches = /\`\`\`json([\s\S]*?)\`\`\`[\s\S]*?\`\`\`\s*(.*?)\s*\`\`\`/g.exec(text)
+      if (matches === null || matches.length !== 3) {
+        return null
+      }
+      const _claim: IgithubClaim = JSON.parse(matches[1])
+      const _signature = matches[2]
+      return {
+        claim: _claim,
+        signature: _signature,
+      } as IsignedGithubClaim
+    })
+}
+
+export interface IboundSocial {
+  username: string
+  proofURL: string
+}
+
+export interface IboundSocials {
+  twitter?: IboundSocial
+  github?: IboundSocial
+  facebook?: IboundSocial
+}
+
+export interface IsignedBoundSocials {
+  socialMedias: IboundSocials
+  signature: string
+}
+
+export interface IgithubClaim {
+  userAddress: string
+  service: {
+    name: string
+    username: string
+  },
+  ctime: number
+  publicKey: string
+}
+
+export interface IsignedGithubClaim {
+  claim: IgithubClaim
+  signature: string
+}
+
+export interface ItwitterClaim {
+  userAddress: string
+  publicKey: string
+}
+
+export interface IsignedTwitterClaim {
+  claim: ItwitterClaim
+  signature: string
+}
+
+export interface IfacebookClaim {
+  userAddress: string
+  publicKey: string
+}
+
+export interface IsignedFacebookClaim {
+  claim: IfacebookClaim
+  signature: string
+}
+
+export interface IbindingSocial extends IboundSocial {
+  signedClaim: IsignedGithubClaim|IsignedTwitterClaim|IsignedFacebookClaim
+  status: BINDING_SOCIAL_STATUS
+}
+
+export interface IbindingSocials {
+  twitter?: IbindingSocial
+  github?: IbindingSocial
+  facebook?: IbindingSocial
 }

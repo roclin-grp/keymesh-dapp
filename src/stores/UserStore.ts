@@ -63,10 +63,10 @@ import {
 } from '../PreKeysPackage'
 
 import {
+  BoundSocialsStore,
   IboundSocials,
   IbindingSocials,
-} from '../../typings/proof.interface.d'
-import { BoundSocialsStore } from './BoundSocialsStore'
+} from './BoundSocialsStore'
 
 export class UserStore {
   // FIXME consider @observable.ref

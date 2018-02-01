@@ -10,7 +10,7 @@ import {
   USER_STATUS,
 } from './stores/UserStore'
 
-import { IsocialMedials } from './stores/BoundSocialsStore'
+import { IsocialMedials, IbindingSocials, IboundSocials } from './stores/BoundSocialsStore'
 
 import {
   dumpDB,
@@ -20,10 +20,6 @@ import {
   IdumpedDatabases,
 } from './utils/data'
 
-import {
-  IboundSocials,
-  IbindingSocials,
-} from '../typings/proof.interface'
 import {
   Isession,
   MESSAGE_TYPE,

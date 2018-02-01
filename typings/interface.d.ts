@@ -1,12 +1,3 @@
-import {
-  SOCIAL_MEDIA_PLATFORMS,
-} from '../src/constants'
-
-import {
-  IboundSocials,
-  IbindingSocials,
-} from './proof.interface'
-
 export interface IcreateAccountLifecycle {
   accountWillCreate?: () => void
   accountDidCreate?: () => void

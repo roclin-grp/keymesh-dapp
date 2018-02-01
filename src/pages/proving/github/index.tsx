@@ -7,8 +7,7 @@ import ProvingTextarea from '../../../components/ProvingTextarea'
 import {
   Link,
 } from 'react-router-dom'
-
-import { GITHUB_GIST_FILENAME } from '../../../constants'
+import { GITHUB_GIST_FILENAME } from '../../../stores/BoundSocialsStore'
 
 interface Iprops {
   state: GithubProvingState

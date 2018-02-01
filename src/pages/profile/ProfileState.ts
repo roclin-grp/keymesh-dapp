@@ -4,22 +4,21 @@ import {
   runInAction,
 } from 'mobx'
 
-import {
-  IboundSocials, IsignedBoundSocials, ItwitterClaim,
-} from '../../../typings/proof.interface'
-
 const sodium = require('libsodium-wrappers-sumo')
-import {
-  VERIFY_SOCIAL_STATUS,
-} from '../../constants'
 import { sha3, } from 'trustbase'
-import { getGithubClaimByProofURL, } from '../../utils'
 import { FacebookResource } from '../../resources/facebook'
 import { TwitterResource } from '../../resources/twitter'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { hexToUtf8 } from '../../utils/hex'
 import { BlockType } from '../../../../../trustbase/typings/web3'
+import {
+  VERIFY_SOCIAL_STATUS,
+  IboundSocials,
+  IsignedBoundSocials,
+  getGithubClaimByProofURL,
+  ItwitterClaim,
+} from '../../stores/BoundSocialsStore'
 
 export class ProfileState {
   public isFetchingUserProofs: boolean = false

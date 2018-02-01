@@ -1,4 +1,4 @@
-import { IsignedFacebookClaim } from '../../typings/proof.interface'
+import { IsignedFacebookClaim } from '../stores/BoundSocialsStore'
 
 interface Ipost {
   message: string

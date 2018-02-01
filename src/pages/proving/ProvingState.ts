@@ -6,15 +6,14 @@ import {
 } from 'mobx'
 
 import {
-  SOCIAL_MEDIA_PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
-} from '../../constants'
-
-import {
   noop,
  } from '../../utils'
 import { UsersStore } from '../../stores/UsersStore'
 import { storeLogger } from '../../utils/loggers'
+import {
+  VERIFY_SOCIAL_STATUS,
+  SOCIAL_MEDIA_PLATFORMS,
+} from '../../stores/BoundSocialsStore'
 
 useStrict(true)
 
