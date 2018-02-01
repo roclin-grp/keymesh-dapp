@@ -13,14 +13,13 @@ import {
   VERIFY_SOCIAL_STATUS,
 } from '../../constants'
 import { sha3, } from 'trustbase'
-import { UsersStore, ContractStore } from '../../stores'
-import {
-  hexToUtf8,
-  getGithubClaimByProofURL,
-} from '../../utils'
+import { getGithubClaimByProofURL, } from '../../utils'
 import { FacebookResource } from '../../resources/facebook'
-import { web3BlockType } from '../../../typings/interface'
 import { TwitterResource } from '../../resources/twitter'
+import { UsersStore } from '../../stores/UsersStore'
+import { ContractStore } from '../../stores/ContractStore'
+import { hexToUtf8 } from '../../utils/hex'
+import { BlockType } from '../../../../../trustbase/typings/web3'
 
 export class ProfileState {
   public isFetchingUserProofs: boolean = false
@@ -276,7 +275,7 @@ export class ProfileState {
   }
 
   private getBindEvents = (
-    lastFetchBlock: web3BlockType,
+    lastFetchBlock: BlockType,
     userAddress: string,
   ) => {
     return this.contractStore.boundSocialsContract.getBindEvents({

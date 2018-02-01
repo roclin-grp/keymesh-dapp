@@ -5,48 +5,51 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-
-import * as copy from 'copy-to-clipboard'
-const throttle = require('lodash.throttle')
-
-import {
-  noop,
-  getBEMClassNamesMaker,
-  IextendableClassNamesProps,
-  storeLogger,
-} from '../../utils'
-
-import {
-  ETHEREUM_NETWORK_NAMES
-} from '../../constants'
-
-import {
-  ETHEREUM_CONNECT_STATUS,
-} from '../../stores/EthereumStore'
-
+// component
 import {
   Tooltip,
   Icon,
   Dropdown,
   Menu,
   message,
+  Button,
 } from 'antd'
-
-import {
-  EthereumStore,
-  UsersStore,
-  Istores,
-} from '../../stores'
-
 import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
-import { Iuser } from '../../../typings/interface'
 
+// style
 import './index.css'
+
+// state management
+import {
+  inject,
+  observer,
+} from 'mobx-react'
+import {
+  Istores,
+} from '../../stores'
+import {
+  EthereumStore,
+  ETHEREUM_NETWORK_NAMES,
+  ETHEREUM_CONNECT_STATUS,
+} from '../../stores/EthereumStore'
+import {
+  UsersStore
+} from '../../stores/UsersStore'
+import {
+  Iuser
+} from '../../stores/UserStore'
+
+// helper
+import * as copy from 'copy-to-clipboard'
+import {
+  noop,
+} from '../../utils'
+import {
+  getBEMClassNamesMaker,
+  IextendableClassNamesProps
+} from '../../utils/classNames'
+import { storeLogger } from '../../utils/loggers'
 
 @inject(({
   ethereumStore,
@@ -59,57 +62,20 @@ import './index.css'
 class Header extends React.Component<Iprops, Istate> {
   public static readonly blockName = 'header'
 
-  public readonly state = {
+  public readonly state = Object.freeze({
     hidden: false,
     hasShadow: false,
     isExporting: false,
-  }
+  })
 
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(Header.blockName, this.props)
 
-  private throttledScrollCallback = throttle(
-    (() => {
-      let scrollBefore = 0
-      return () => {
-        if (this.isUnmounted) {
-          return
-        }
-        const scrollCurrent = window.pageYOffset
-        const scrollDiff = scrollBefore - scrollCurrent
-        const isTop = scrollCurrent === 0
-        const DELTA = 7
-        const isHidden = this.state.hidden
-        if (scrollDiff < -DELTA) {
-          if (!isHidden) {
-            this.setState({
-              hidden: true
-            })
-          }
-        } else if (isTop || scrollDiff > DELTA) {
-          if (isHidden || (isTop && this.state.hasShadow)) {
-            this.setState({
-              hidden: false,
-              hasShadow: !isTop
-            })
-          }
-        }
-        scrollBefore = scrollCurrent
-      }
-    })(),
-    300
-  )
-
   private isUnmounted = false
-
-  public componentDidMount() {
-    document.addEventListener('scroll', this.throttledScrollCallback)
-  }
 
   public componentWillUnmount() {
     this.isUnmounted = true
-    document.removeEventListener('scroll', this.throttledScrollCallback)
   }
 
   public render() {
@@ -131,14 +97,14 @@ class Header extends React.Component<Iprops, Istate> {
               Keymail
             </Link>
           </h1>
-          {this.networkStatus}
-          {this.userMenu}
+          {this.getNetworkStatus()}
+          {this.getUserMenu()}
         </div>
       </header>
     )
   }
 
-  private get networkStatus() {
+  private getNetworkStatus() {
     const {isPending} = this.injectedProps.ethereumStore
     if (isPending) {
       return null
@@ -166,13 +132,13 @@ class Header extends React.Component<Iprops, Istate> {
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
-          {this.networkText}
+          {this.getNetworkText()}
         </span>
       </>
     )
   }
 
-  private get networkText() {
+  private getNetworkText() {
     const {
       hasError,
       isMetaMaskLocked,
@@ -195,13 +161,33 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private get userMenu() {
-    const {isPending} = this.injectedProps.ethereumStore
+  private getUserMenu() {
+    const {
+      isPending,
+      hasError,
+    } = this.injectedProps.ethereumStore
     if (isPending) {
       return null
     }
 
-    const {hasUser} = this.injectedProps.usersStore
+    const {
+      usableUsers,
+      isLoadingUsers,
+      hasUser,
+    } = this.injectedProps.usersStore
+
+    if (!hasError && !isLoadingUsers && usableUsers.length === 0) {
+      return (
+        <Link to="/accounts">
+          <Button
+            size="large"
+            type="primary"
+          >
+            Create account
+          </Button>
+        </Link>
+      )
+    }
     if (!hasUser) {
       return null
     }
@@ -212,7 +198,7 @@ class Header extends React.Component<Iprops, Istate> {
     return (
       <Dropdown
         trigger={['click']}
-        overlay={this.userOptions}
+        overlay={this.getUserOptions()}
         placement="bottomRight"
       >
         <a
@@ -221,14 +207,14 @@ class Header extends React.Component<Iprops, Istate> {
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
-          {this.userAvatar}
+          {this.getUserAvatar()}
           <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
         </a>
       </Dropdown>
     )
   }
 
-  private get userAvatar() {
+  private getUserAvatar() {
     const {getBEMClassNames} = this
     const {avatarHash} = this.injectedProps.usersStore.currentUserStore!
 
@@ -242,18 +228,16 @@ class Header extends React.Component<Iprops, Istate> {
     )
   }
 
-  private get userOptions() {
+  private getUserOptions() {
     const {getBEMClassNames} = this
     const {
-      users,
-      canCreateOrImportUser
+      usableUsers,
     } = this.injectedProps.usersStore
     const {
       user,
-      isDatabaseLoaded
     } = this.injectedProps.usersStore.currentUserStore!
 
-    const canExportUser = isDatabaseLoaded && !this.state.isExporting
+    const canExportUser = !this.state.isExporting
 
     return (
       <Menu>
@@ -293,11 +277,11 @@ class Header extends React.Component<Iprops, Istate> {
           </a>
         </Menu.Item>
         <Menu.Divider />
-        {users.length > 1
+        {usableUsers.length > 1
           ? (
             <Menu.SubMenu title={<span>Switch user</span>}>
               {
-                users
+                usableUsers
                   .filter((_user) => _user.userAddress !== user.userAddress)
                   .map((_user) => (
                     <Menu.Item key={`${_user.userAddress}@${_user.networkId}`}>
@@ -309,17 +293,11 @@ class Header extends React.Component<Iprops, Istate> {
           )
           : null
         }
-        {
-          canCreateOrImportUser
-            ? (
-              <Menu.Item>
-                <Link className={getBEMClassNames('register-new')} to="/register">
-                  Sign up/Import
-                </Link>
-              </Menu.Item>
-            )
-            : null
-        }
+        <Menu.Item>
+          <Link className={getBEMClassNames('manage-accounts')} to="/accounts">
+            Manage accounts
+          </Link>
+        </Menu.Item>
       </Menu>
     )
   }
@@ -364,6 +342,7 @@ class Header extends React.Component<Iprops, Istate> {
   }
 }
 
+// constant
 const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
   [ETHEREUM_CONNECT_STATUS.PENDING]: 'pending',
   [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'active',
@@ -379,6 +358,7 @@ const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [connectStatus: number]: string
 }
 
+// typing
 type Iprops = IextendableClassNamesProps & RouteComponentProps<{}>
 
 interface IinjectedProps extends Iprops {

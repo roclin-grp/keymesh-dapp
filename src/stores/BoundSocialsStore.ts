@@ -9,17 +9,18 @@ import {
   BoundSocials
 } from 'trustbase'
 
-import { UserStore } from './UserStore'
+import { UserStore, IuserIdentityKeys } from './UserStore'
 import {
   IbindingSocial,
   IbindingSocials,
   IboundSocials,
   IsignedBoundSocials,
 } from '../../typings/proof.interface'
-import { SENDING_FAIL_CODE, BINDING_SOCIAL_STATUS, ETHEREUM_NETWORKS } from '../constants/index'
+import {  BINDING_SOCIAL_STATUS } from '../constants'
 import DB, { TableSocialMedias } from '../DB'
-import { IuserIdentityKeys } from '../../typings/interface'
-import { utf8ToHex } from '../utils'
+import { utf8ToHex } from '../utils/hex'
+import { ETHEREUM_NETWORKS } from './EthereumStore'
+import { SENDING_FAIL_CODE } from './SessionStore'
 
 export class BoundSocialsStore {
   public identitiesContract: Identities

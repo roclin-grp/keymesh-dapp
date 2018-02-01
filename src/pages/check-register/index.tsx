@@ -5,76 +5,38 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-
+// component
 import {
   Steps,
   Icon,
 } from 'antd'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
-
-import {
-  getBEMClassNamesMaker,
-  noop,
-} from '../../utils'
-
-import {
-  EthereumStore,
-  UsersStore,
-  Istores,
-} from '../../stores'
-
-import {
-  ETHEREUM_CONNECT_STATUS
-} from '../../stores/EthereumStore'
-
-import {
-  REGISTER_FAIL_CODE,
-  USER_STATUS,
-} from '../../constants'
-
+// style
 import './index.css'
 
-interface Iparams {
-  networkId: string
-}
+// state management
+import {
+  inject,
+  observer,
+} from 'mobx-react'
+import {
+  Istores,
+} from '../../stores'
+import {
+  EthereumStore,
+} from '../../stores/EthereumStore'
+import {
+  UsersStore,
+  REGISTER_FAIL_CODE,
+} from '../../stores/UsersStore'
+import {
+  USER_STATUS,
+} from '../../stores/UserStore'
 
-type Iprops = RouteComponentProps<Iparams>
-
-interface IinjectedProps extends Iprops {
-  ethereumStore: EthereumStore
-  usersStore: UsersStore
-}
-
-interface Istate {
-  done: boolean
-  error: IregisterError | null
-  shouldPreventRedirect: boolean
-}
-
-enum REGISTER_PROGRESS {
-  CONFIRMATION = 1,
-  UPLOAD_PRE_KEYS,
-  DONE
-}
-
-interface IregisterError {
-  type: REGISTER_ERROR_TYPE
-  message: string | React.ReactNode
-}
-
-enum REGISTER_ERROR_TYPE {
-  UNEXCEPTED = 0,
-  OCCUPIED,
-  TIMEOUT,
-  UPLOAD_PRE_KEYS_ERROR
-}
-
-const refreshThePage = <Link replace={true} to="/check-register">click here</Link>
+// helper
+import {
+  getBEMClassNamesMaker,
+} from '../../utils/classNames'
 
 @inject(({
   ethereumStore,
@@ -97,137 +59,110 @@ class CheckRegister extends React.Component<Iprops, Istate> {
 
   private readonly getBEMClassNames = getBEMClassNamesMaker(CheckRegister.blockName, this.props)
 
-  private removeEthereumConnectStatusChangeListener = noop
   private unmounted = false
+
   public componentDidMount() {
     const {
-      ethereumStore: {
-        isActive,
-        listenForEthereumConnectStatusChange,
-      },
-      usersStore: {
-        currentUserStore,
-        hasUser,
-      },
-    } = this.injectedProps
-    const user = hasUser ? currentUserStore!.user : undefined
-    if (
-      isActive
-      && hasUser
-      && user!.registerRecord
-    ) {
+      currentUserStore
+    } = this.injectedProps.usersStore
+
+    if (!currentUserStore!.isRegisterCompleted) {
       currentUserStore!.checkIdentityUploadStatus({
         identityDidUpload: this.identityDidUpload,
         registerDidFail: this.registerDidFail
       }).catch(this.registerDidFail)
-    } else {
-      this.removeEthereumConnectStatusChangeListener = listenForEthereumConnectStatusChange(this.connectStatusListener)
     }
   }
+
   public componentWillUnmount() {
     this.unmounted = true
-    this.removeEthereumConnectStatusChangeListener()
   }
+
   public render() {
     const {
-      ethereumStore: {
-        isPending,
-      },
-      usersStore: {
-        currentUserStore,
-        hasUser
-      },
-    } = this.injectedProps
-    const user = hasUser ? currentUserStore!.user : undefined
+      currentUserStore
+    } = this.injectedProps.usersStore
     const {
       done: isDone,
       error,
-      shouldPreventRedirect
+      shouldPreventRedirect,
     } = this.state
-    const { getBEMClassNames } = this
 
-    if (!shouldPreventRedirect && !isPending && (!hasUser || (user!.status === USER_STATUS.OK))) {
+    if (currentUserStore!.isRegisterCompleted && !shouldPreventRedirect) {
       return <Redirect to="/" />
     }
 
+    const { getBEMClassNames } = this
     const hasError = error !== null
-
-    const isIdentityUploaded = hasUser && user!.status !== USER_STATUS.PENDING
+    const user = currentUserStore!.user
+    const isIdentityUploaded = user.status !== USER_STATUS.PENDING
 
     return (
-      <CommonHeaderPage prefixClass={CheckRegister.blockName} className={getBEMClassNames()}>
+      <>
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+          Register progress
+        </h2>
+        <div className={getBEMClassNames('progress', {}, { container: true })}>
+          <Steps
+            status={hasError ? 'error' : undefined}
+            current={
+              isIdentityUploaded
+                ? (isDone ? REGISTER_PROGRESS.DONE : REGISTER_PROGRESS.UPLOAD_PRE_KEYS)
+                : REGISTER_PROGRESS.CONFIRMATION
+            }
+          >
+            <Steps.Step
+              status="finish"
+              title="Submit"
+              icon={<Icon type="user-add" />}
+            />
+            <Steps.Step
+              title="Confirmation"
+              description="1~5 mins"
+              icon={<Icon type={isIdentityUploaded || hasError ? 'solution' : 'loading'} />}
+            />
+            <Steps.Step
+              title="Upload keys"
+              description="1~5 secs"
+              icon={
+                <Icon
+                  type={
+                    isIdentityUploaded && !isDone && !hasError
+                      ? 'loading'
+                      : 'cloud-upload'
+                    }
+                />
+              }
+            />
+            <Steps.Step title="Done" icon={<Icon type="smile-o" />} />
+          </Steps>
+        </div>
         {
-          hasUser
+          isDone
           ? (
             <>
-              <h2 className={getBEMClassNames('title', {}, { title: true })}>
-                Register progress
-              </h2>
-              <div className={getBEMClassNames('progress', {}, { container: true })}>
-                <Steps
-                  status={hasError ? 'error' : undefined}
-                  current={
-                    isIdentityUploaded
-                      ? (isDone ? REGISTER_PROGRESS.DONE : REGISTER_PROGRESS.UPLOAD_PRE_KEYS)
-                      : REGISTER_PROGRESS.CONFIRMATION
-                  }
-                >
-                  <Steps.Step
-                    status="finish"
-                    title="Submit"
-                    icon={<Icon type="user-add" />}
-                  />
-                  <Steps.Step
-                    title="Confirmation"
-                    description="1~5 mins"
-                    icon={<Icon type={isIdentityUploaded || hasError ? 'solution' : 'loading'} />}
-                  />
-                  <Steps.Step
-                    title="Upload keys"
-                    description="1~5 secs"
-                    icon={
-                      <Icon
-                        type={
-                          isIdentityUploaded && !isDone && !hasError
-                            ? 'loading'
-                            : 'cloud-upload'
-                          }
-                      />
-                    }
-                  />
-                  <Steps.Step title="Done" icon={<Icon type="smile-o" />} />
-                </Steps>
-              </div>
-              {
-                isDone
-                ? (
-                  <>
-                    <Icon type="check-circle" className={getBEMClassNames('result-icon', { success: true })}/>
-                    <h3 className={getBEMClassNames('subtitle')}>
-                      Reigster completed!
-                    </h3>
-                    <p className="center">
-                      please <Link to="/">click here</Link> if you are not redirected in a few seconds
-                    </p>
-                  </>
-                )
-                : hasError
-                  ? (
-                    <>
-                    <Icon type="close-circle-o" className={getBEMClassNames('result-icon', { error: true })} />
-                    <h3 className={getBEMClassNames('subtitle')}>
-                      Oops! Something has gone wrong!
-                    </h3>
-                    {(error as IregisterError).message}
-                  </>
-                  )
-                  : null
-              }
+              <Icon type="check-circle" className={getBEMClassNames('result-icon', { success: true })}/>
+              <h3 className={getBEMClassNames('subtitle')}>
+                Reigster completed!
+              </h3>
+              <p className="center">
+                please <Link to="/">click here</Link> if you are not redirected in a few seconds
+              </p>
             </>
           )
-          : null
+          : hasError
+            ? (
+              <>
+              <Icon type="close-circle-o" className={getBEMClassNames('result-icon', { error: true })} />
+              <h3 className={getBEMClassNames('subtitle')}>
+                Oops! Something has gone wrong!
+              </h3>
+              {(error as IregisterError).message}
+            </>
+            )
+            : null
         }
-      </CommonHeaderPage>
+      </>
     )
   }
 
@@ -254,7 +189,7 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       done: true,
       shouldPreventRedirect: true
     })
-    await this.injectedProps.usersStore.currentUserStore!.updateUserStatusToOK()
+    // await this.injectedProps.usersStore.currentUserStore!.updateUserStatusToOK()
     window.setTimeout(
       () => {
         if (this.unmounted) {
@@ -323,19 +258,6 @@ class CheckRegister extends React.Component<Iprops, Istate> {
           <p className="center">Something has gone wrong, you can {refreshThePage} to retry.</p>
         )
     }
-    if (type === REGISTER_ERROR_TYPE.OCCUPIED) {
-      window.setTimeout(
-        () => {
-          if (this.unmounted) {
-            return
-          }
-          if (this.injectedProps.location.pathname === '/check-register') {
-            this.injectedProps.history.replace('/')
-          }
-        },
-        5000
-      )
-    }
     this.setState({
       error: {
         type,
@@ -343,30 +265,41 @@ class CheckRegister extends React.Component<Iprops, Istate> {
       }
     })
   }
-  private connectStatusListener = (prev: ETHEREUM_CONNECT_STATUS, cur: ETHEREUM_CONNECT_STATUS) => {
-    if (this.unmounted) {
-      return
-    }
+}
 
-    const {
-      usersStore: {
-        currentUserStore,
-        hasUser
-      },
-    } = this.injectedProps
+const refreshThePage = <Link replace={true} to="/check-register">click here</Link>
 
-    if (
-      prev !== ETHEREUM_CONNECT_STATUS.ACTIVE
-      && cur === ETHEREUM_CONNECT_STATUS.ACTIVE
-      && hasUser
-      && currentUserStore!.user.registerRecord
-    ) {
-      currentUserStore!.checkIdentityUploadStatus({
-        identityDidUpload: this.identityDidUpload,
-        registerDidFail: this.registerDidFail
-      }).catch(this.registerDidFail)
-    }
-  }
+// constant
+enum REGISTER_PROGRESS {
+  CONFIRMATION = 1,
+  UPLOAD_PRE_KEYS,
+  DONE
+}
+
+enum REGISTER_ERROR_TYPE {
+  UNEXCEPTED = 0,
+  OCCUPIED,
+  TIMEOUT,
+  UPLOAD_PRE_KEYS_ERROR
+}
+
+// typing
+type Iprops = RouteComponentProps<{}>
+
+interface IinjectedProps extends Iprops {
+  ethereumStore: EthereumStore
+  usersStore: UsersStore
+}
+
+interface Istate {
+  done: boolean
+  error: IregisterError | null
+  shouldPreventRedirect: boolean
+}
+
+interface IregisterError {
+  type: REGISTER_ERROR_TYPE
+  message: string | React.ReactNode
 }
 
 export default CheckRegister

@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { Avatar } from 'antd'
 
-import { IextendableClassNamesProps } from '../../utils'
+import { IextendableClassNamesProps } from '../../utils/classNames'
 
 const Identicon = require('identicon.js')
 

@@ -5,50 +5,74 @@ import {
   reaction,
   runInAction,
 } from 'mobx'
+import {
+  EthereumStore,
+  ETHEREUM_NETWORKS,
+} from './EthereumStore'
+import {
+  ContractStore,
+  ItransactionLifecycle,
+} from './ContractStore'
+import {
+  UserStore,
+  Iuser,
+  USER_STATUS,
+} from './UserStore'
 
 import {
   keys,
 } from 'wire-webapp-proteus'
-
-import {
-  EthereumStore,
-  ContractStore,
-  UserStore,
-} from './'
-
-import {
-  noop,
-  storeLogger,
-  isHexZeroValue,
-  generatePublicKeyFromHexStr,
-} from '../utils'
-
-import {
-  ETHEREUM_NETWORKS,
-} from '../constants'
-
-import DB from '../DB'
-import IndexedDBStore from '../IndexedDBStore'
-
-import {
-  Iuser,
-  IregisterLifecycle,
-} from '../../typings/interface'
-
-const sodium = require('libsodium-wrappers-sumo')
-
 const {
   IdentityKeyPair,
   PreKey,
 } = keys
 
+import {
+  noop,
+} from '../utils'
+import {
+  storeLogger,
+} from '../utils/loggers'
+import {
+  isHexZeroValue
+} from '../utils/hex'
+
+import DB from '../DB'
+import IndexedDBStore from '../IndexedDBStore'
+import { generatePublicKeyFromHexStr } from '../utils/proteus'
+
 export class UsersStore {
   @observable.ref public users: Iuser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
+  @observable public isLoadingUsers = true
+  @observable public hasNoRegisterRecordOnChain = false
+
+  @computed
+  public get usableUsers() {
+    return this.users.filter((user) => user.status === USER_STATUS.OK)
+  }
 
   @computed
   public get hasUser() {
     return typeof this.currentUserStore !== 'undefined'
+  }
+
+  @computed
+  public get hasCorrespondingUsableUser() {
+    const {
+      currentEthereumAccount
+    } = this.ethereumStore
+    return typeof this.usableUsers.find((user) => user.userAddress === currentEthereumAccount) !== 'undefined'
+  }
+
+  @computed
+  public get hasNoRegisterRecordOnLocal() {
+    const {
+      isActive,
+      currentEthereumAccount,
+    } = this.ethereumStore
+    return isActive
+      && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
 
   constructor({
@@ -63,6 +87,12 @@ export class UsersStore {
     this.db = db
     this.ethereumStore = ethereumStore
     this.contractStore = contractStore
+
+    reaction(
+      () => this.ethereumStore.currentEthereumAccount,
+      this.checkChainRegisterRecordByUserAddress
+    )
+
     reaction(
       () => ({
         isActive: this.ethereumStore.isActive,
@@ -76,7 +106,7 @@ export class UsersStore {
           isActive
           && this.lastNetworkId !== networkId
         ) {
-          this.isLoadingData = true
+          this.isLoadingUsers = true
           const users = await db.getUsers(networkId!)
 
           let userAddress = getNetworkLastUsedUserAddress(networkId!)
@@ -84,8 +114,8 @@ export class UsersStore {
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
           }
-          if (typeof user === 'undefined' && users.length > 0) {
-            user = users[0]
+          if (typeof user === 'undefined' && this.usableUsers.length > 0) {
+            user = this.usableUsers[0]
           }
 
           runInAction(() => {
@@ -97,7 +127,7 @@ export class UsersStore {
                 this.switchUser(user)
               }
             }
-            this.isLoadingData = false
+            this.isLoadingUsers = false
           })
           this.lastNetworkId = networkId
         }
@@ -109,18 +139,6 @@ export class UsersStore {
   private ethereumStore: EthereumStore
   private contractStore: ContractStore
   private lastNetworkId: ETHEREUM_NETWORKS | undefined
-  @observable private isLoadingData = false
-
-  @computed
-  public get canCreateOrImportUser() {
-    const {
-      isActive,
-      currentEthereumAccount,
-    } = this.ethereumStore
-    return isActive
-      && !this.isLoadingData
-      && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
-  }
 
   public async getUserPublicKey(userAddress: string) {
     if (userAddress === '') {
@@ -146,7 +164,7 @@ export class UsersStore {
     transactionDidCreate = noop,
     registerDidFail = noop
   }: IregisterLifecycle = {}) => new Promise(async (resolve, reject) => {
-    if (!this.canCreateOrImportUser) {
+    if (!this.hasNoRegisterRecordOnLocal) {
       storeLogger.error(new Error('BUG: Trying to invoke `register` when it should not be invoked'))
       return
     }
@@ -161,6 +179,11 @@ export class UsersStore {
       publicKey
     } = await this.getIdentity(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
+      if (ethereumAddress === this.ethereumStore.currentEthereumAccount) {
+        runInAction(() => {
+          this.hasNoRegisterRecordOnChain = false
+        })
+      }
       return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
     }
 
@@ -175,22 +198,18 @@ export class UsersStore {
           // crytobox data
           const store = new IndexedDBStore(`${ethereumNetworkId}@${ethereumAddress}`)
           await store.save_identity(identityKeyPair)
-          await store.save_prekeys([PreKey.last_resort()])
+          await store.save_prekey(PreKey.last_resort())
 
           const user = await this.db.createUser(
             {
               networkId: ethereumNetworkId,
-              userAddress: ethereumAddress
-            },
-            {
-              identityTransactionHash: transactionHash,
-              identity: sodium.to_hex(new Uint8Array(identityKeyPair.serialise()))
+              userAddress: ethereumAddress,
+              identityTransactionHash: transactionHash
             }
           )
 
           runInAction(() => {
             this.addUser(user)
-            this.useUser(user)
           })
           resolve()
         } catch (err) {
@@ -211,14 +230,7 @@ export class UsersStore {
     if (typeof user !== 'undefined') {
       await this.db.deleteUser(user)
       if (this.ethereumStore.currentEthereumNetwork === networkId) {
-        if (
-          typeof this.currentUserStore !== 'undefined'
-          && this.currentUserStore.user.userAddress === userAddress
-        ) {
-          this.removeCurrentUser()
-        } else {
-          this.removeUser(user)
-        }
+        this.removeUser(user)
       }
     }
   }
@@ -228,47 +240,36 @@ export class UsersStore {
     window.location.reload()
   }
 
-  public importUser = async (data: string, shouldRefreshSessions: boolean) => {
-    await this.db.restoreUserFromExportedData(data)
-    // todo
-    // const oldUsers = this.currentNetworkUsers
-    // if (users.length > 0) {
-    //   runInAction(() => {
-    //     this.currentNetworkUsers = users
-    //   })
-    //   if (oldUsers.length > 0) {
-    //     const userAddresses = oldUsers.reduce(
-    //       (result, user) => {
-    //         result[user.userAddress] = true
-    //         return result
-    //       },
-    //       {} as {[userAddress: string]: boolean}
-    //     )
-    //     const newUser = users.find((user) => !userAddresses[user.userAddress])
-    //     if (newUser && newUser.networkId === currentNetworkId) {
-    //       // await this.useUser(newUser, shouldRefreshSessions)
-    //       if (shouldRefreshSessions) {
-    //         return this.startFetchMessages()
-    //       }
-    //     }
-    //   } else {
-    //     const newUser = users[0]
-    //     if (newUser.networkId === currentNetworkId) {
-    //       // await this.useUser(newUser, shouldRefreshSessions)
-    //       if (shouldRefreshSessions) {
-    //         return this.startFetchMessages()
-    //       }
-    //     }
-    //   }
-    // }
+  public importUser = async (stringifyData: string) => {
+    const user = await this.db.restoreUserFromExportedData(
+      this.ethereumStore.currentEthereumNetwork!,
+      JSON.parse(stringifyData)
+    )
+    runInAction(() => {
+      this.addUser(user)
+      this.useUser(user)
+    })
   }
 
   public getAvatarHashByUserAddress = async (userAddress: string) => {
     //
   }
 
+  public createUserStore = (user: Iuser) => {
+    return new UserStore(user, {
+      db: this.db,
+      ethereumStore: this.ethereumStore,
+      contractStore: this.contractStore,
+      usersStore: this
+    })
+  }
+
+  public isCurrentUser = (user: Iuser) => {
+    return this.hasUser && this.currentUserStore!.user.userAddress === user.userAddress
+  }
+
   @action
-  private useUser = (user: Iuser) => {
+  public useUser = (user: Iuser) => {
     this.currentUserStore = new UserStore(user, {
       db: this.db,
       ethereumStore: this.ethereumStore,
@@ -276,6 +277,18 @@ export class UsersStore {
       usersStore: this
     })
     setNetworkLastUsedUserAddress(user)
+  }
+
+  private checkChainRegisterRecordByUserAddress = async (userAddress: string) => {
+    if (typeof userAddress !== 'undefined') {
+      const {
+        publicKey
+      } = await this.contractStore.identitiesContract.getIdentity(userAddress)
+
+      runInAction(() => {
+        this.hasNoRegisterRecordOnChain = isHexZeroValue(publicKey)
+      })
+    }
   }
 
   @action
@@ -291,17 +304,17 @@ export class UsersStore {
 
   @action
   private removeUser = (user: Iuser) => {
+    // const remainUsers =
     this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
-  }
 
-  @action
-  private removeCurrentUser = () => {
-    this.removeUser(this.currentUserStore!.user)
-    this.unsetUser()
-
-    const remainUsers = this.users
-    if (remainUsers.length > 0) {
-      this.useUser(remainUsers[0])
+    if (
+      this.hasUser
+      && this.currentUserStore!.user.userAddress === user.userAddress
+    ) {
+      this.unsetUser()
+      // if (remainUsers.length > 0) {
+      //   this.useUser(remainUsers[0])
+      // }
     }
   }
 
@@ -320,6 +333,10 @@ function setNetworkLastUsedUserAddress({
 
 function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
   return (localStorage.getItem(`keymail@'${networkId}@last-used-user`) || '').toString()
+}
+
+interface IregisterLifecycle extends ItransactionLifecycle {
+  registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
 }
 
 export enum REGISTER_FAIL_CODE {

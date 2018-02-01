@@ -3,19 +3,16 @@ import * as React from 'react'
 import { sha3 } from 'trustbase'
 
 import {
-  USER_STATUS
-} from '../../constants'
-
-import {
   getBEMClassNamesMaker,
   IextendableClassNamesProps
-} from '../../utils'
+} from '../../utils/classNames'
 
 import HashAvatar from '../../components/HashAvatar'
 
 import {
-  Iuser
-} from '../../../typings/interface.d'
+  Iuser,
+  USER_STATUS,
+} from '../../stores/UserStore'
 
 import './index.css'
 

@@ -11,10 +11,10 @@ import {
 } from '../../constants'
 
 import {
-  storeLogger,
   noop,
  } from '../../utils'
-import { UsersStore  } from '../../stores'
+import { UsersStore } from '../../stores/UsersStore'
+import { storeLogger } from '../../utils/loggers'
 
 useStrict(true)
 

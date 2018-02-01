@@ -1,11 +1,7 @@
 import * as CBOR from 'wire-webapp-cbor'
 const sodium = require('libsodium-wrappers-sumo')
 
-import {
-  IpreKeyPublicKeys
-} from '../typings/interface.d'
-
-class PreKeysPackage {
+export class PreKeysPackage {
   public static deserialize(buf: ArrayBuffer) {
     const d = new CBOR.Decoder(buf)
     return PreKeysPackage.decode(d)
@@ -83,4 +79,6 @@ class PreKeysPackage {
   }
 }
 
-export default PreKeysPackage
+export interface IpreKeyPublicKeys {
+  [preKeyId: string]: string
+}

@@ -3,7 +3,7 @@ const sodium = require('libsodium-wrappers-sumo')
 
 import {
   Iuser,
-} from '../../typings/interface'
+} from '../stores/UserStore'
 
 const CRYPTOBOX_SCHEMA = Object.freeze({
   keys: '',
@@ -22,7 +22,7 @@ export async function dumpCryptobox({
   return {dbname, tables: await dumpDB(db)}
 }
 
-export async function restoreCryptobox(dbname: string, tables: IdumpedTable[]) {
+export function restoreCryptobox(dbname: string, tables: IdumpedTable[]) {
   const db = new Dexie(dbname)
   db.version(1).stores(CRYPTOBOX_SCHEMA)
 
@@ -36,7 +36,7 @@ export async function restoreCryptobox(dbname: string, tables: IdumpedTable[]) {
     return t
   })
 
-  return await restoreDB(db, tables, (tablename: string): string[]|undefined => {
+  return restoreDB(db, tables, (tablename: string): string[]|undefined => {
     const t = tables.find((_t) => _t.table === tablename)
     if (t === undefined) {
       return undefined

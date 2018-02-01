@@ -8,8 +8,6 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
-
 import { Icon } from 'antd'
 import {
   SOCIAL_MEDIA_PLATFORMS,
@@ -17,19 +15,21 @@ import {
 
 import ProvingState from './ProvingState'
 
-import GithubProving from './github/index'
-import TwitterProving from './twitter/index'
-import FacebookProving from './facebook/index'
+import GithubProving from './github'
+import TwitterProving from './twitter'
+import FacebookProving from './facebook'
 
 import { GithubProvingState } from './github/GithubProvingState'
 import { TwitterProvingState } from './twitter/TwitterProvingState'
 import { FacebookProvingState } from './facebook/FacebookProvingState'
+
 import {
   Istores,
-  UsersStore,
-  ContractStore,
-  EthereumStore,
 } from '../../stores'
+import { UsersStore } from '../../stores/UsersStore'
+import { ContractStore } from '../../stores/ContractStore'
+import { EthereumStore } from '../../stores/EthereumStore'
+import CommonHeaderPage from '../../containers/CommonHeaderPage'
 
 interface Iparams {
   platform: string
@@ -45,10 +45,10 @@ interface Iprops extends RouteComponentProps<Iparams> {
   contractStore,
   ethereumStore,
 }: Istores) => ({
-  usersStore,
-  contractStore,
-  ethereumStore,
-}))
+    usersStore,
+    contractStore,
+    ethereumStore,
+  }))
 
 @observer
 class Proving extends React.Component<Iprops> {
@@ -91,22 +91,22 @@ class Proving extends React.Component<Iprops> {
 
     let provingComponent
     if (platform === SOCIAL_MEDIA_PLATFORMS.GITHUB) {
-      provingComponent = <GithubProving state={this.data as GithubProvingState}/>
+      provingComponent = <GithubProving state={this.data as GithubProvingState} />
     } else if (platform === SOCIAL_MEDIA_PLATFORMS.TWITTER) {
-      provingComponent = <TwitterProving state={this.data as TwitterProvingState}/>
+      provingComponent = <TwitterProving state={this.data as TwitterProvingState} />
     } else if (platform === SOCIAL_MEDIA_PLATFORMS.FACEBOOK) {
-      provingComponent = <FacebookProving state={this.data as FacebookProvingState}/>
+      provingComponent = <FacebookProving state={this.data as FacebookProvingState} />
     }
 
     if (isFinished) {
       return <Redirect to="/profile" />
     }
-    return <CommonHeaderPage>
-      <div style={{marginBottom: '8px'}}>
-        <Icon type={platform} style={{fontSize: 60}}/>
+    return <>
+      <div style={{ marginBottom: '8px' }}>
+        <Icon type={platform} style={{ fontSize: 60 }} />
         {provingComponent}
       </div>
-    </CommonHeaderPage>
+      </>
   }
 
   private getSocialProvingState(platform: SOCIAL_MEDIA_PLATFORMS): ProvingState {

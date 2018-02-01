@@ -3,16 +3,21 @@ import * as React from 'react'
 import { inject, observer } from 'mobx-react'
 
 import {
-  EthereumStore,
-  UsersStore,
   Istores,
 } from '../../stores'
+
+import {
+  EthereumStore,
+} from '../../stores/EthereumStore'
+
+import {
+  UsersStore,
+} from '../../stores/UsersStore'
 
 import {
   // SENDING_FAIL_CODE
 } from '../../constants'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 // import Session from '../../containers/session'
 
 import {
@@ -111,7 +116,7 @@ class Home extends React.Component<{}, Istate> {
       showCompose
     } = this.state
     return (
-      <CommonHeaderPage shouldRefreshSessions={true}>
+      <>
         {
           isActive && hasUser
             ? <div>
@@ -181,7 +186,7 @@ class Home extends React.Component<{}, Istate> {
               }</ul>
             : 'No account'
         } */}
-      </CommonHeaderPage>
+      </>
     )
   }
   // private refreshSessions = () => {

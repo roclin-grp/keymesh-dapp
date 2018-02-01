@@ -1,10 +1,9 @@
 import * as React from 'react'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { inject, observer } from 'mobx-react'
 import { Store } from '../../store'
 
-import { storeLogger } from '../../utils'
+import { storeLogger } from '../../utils/loggers'
 
 interface Iprops {
   store: Store
@@ -71,10 +70,13 @@ class Broadcast extends React.Component<Iprops> {
       )
     }
 
-    return <CommonHeaderPage><div>Broadcast</div>
-      <BroadcastForm store={this.props.store} />
-      <div>{messagesElements}</div>
-    </CommonHeaderPage>
+    return (
+      <>
+        <div>Broadcast</div>
+        <BroadcastForm store={this.props.store} />
+        <div>{messagesElements}</div>
+      </>
+    )
   }
 }
 

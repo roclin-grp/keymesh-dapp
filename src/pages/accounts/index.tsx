@@ -10,7 +10,9 @@ import {
   Icon,
   Upload,
   message,
+  List,
 } from 'antd'
+import AccountListItem from '../../components/AccountListItem'
 import {
   UploadFile,
 } from 'antd/lib/upload/interface.d'
@@ -33,9 +35,12 @@ import {
   EthereumStore,
 } from '../../stores/EthereumStore'
 import {
-  REGISTER_FAIL_CODE,
   UsersStore,
+  REGISTER_FAIL_CODE,
 } from '../../stores/UsersStore'
+import {
+  Iuser
+} from '../../stores/UserStore'
 
 // helper
 import {
@@ -53,18 +58,18 @@ import {
   usersStore
 }))
 @observer
-class Register extends React.Component<Iprops, Istate> {
-  public static readonly blockName = 'register'
+class Accounts extends React.Component<Iprops, Istate> {
+  public static readonly blockName = 'accounts'
 
   public readonly state = Object.freeze({
     registerButtonContent: 'Register',
-    isRegistering: false,
+    isCreatingTransaction: false,
     isImporting: false
   })
 
   private readonly injectedProps = this.props as Readonly<IinjectedProps>
 
-  private readonly getBEMClassNames = getBEMClassNamesMaker(Register.blockName, this.props)
+  private readonly getBEMClassNames = getBEMClassNamesMaker(Accounts.blockName, this.props)
 
   private unmounted = false
   public componentWillUnmount() {
@@ -72,36 +77,78 @@ class Register extends React.Component<Iprops, Istate> {
   }
 
   public render() {
+    const {getBEMClassNames} = this
     const {
       ethereumStore: {
-        currentEthereumAccount
+        currentEthereumAccount,
+      },
+      usersStore: {
+        users,
+        currentUserStore,
+        hasNoRegisterRecordOnLocal,
+        hasNoRegisterRecordOnChain,
+        hasCorrespondingUsableUser,
       },
     } = this.injectedProps
     const {
-      getBEMClassNames,
-      state: {
-        registerButtonContent
-      }
-    } = this
+      isCreatingTransaction,
+      registerButtonContent,
+    } = this.state
 
     return (
       <>
-        <h2 className={getBEMClassNames('title', {}, { title: true })}>
-          Register new account
-        </h2>
+        {
+          users.length === 0
+          ? (
+            <h2 className={getBEMClassNames('title', {}, { title: true })}>
+              Create new account
+            </h2>
+          )
+          : this.getUserList()
+        }
         <h3>
           Wallet Address: {currentEthereumAccount}
         </h3>
-        <p>Click the button below and confirm the transaction to create a new account</p>
-        <Button
-          loading={this.state.isRegistering}
-          size="large"
-          type="primary"
-          disabled={this.state.isRegistering}
-          onClick={this.handleRegister}
-        >
-          {registerButtonContent}
-        </Button>
+        {
+          hasNoRegisterRecordOnLocal && hasNoRegisterRecordOnChain
+          ? (
+            <>
+              <p>Click the button below and confirm the transaction to create a new account</p>
+              <Button
+                loading={isCreatingTransaction}
+                size="large"
+                type="primary"
+                disabled={isCreatingTransaction}
+                onClick={this.handleRegister}
+              >
+                {registerButtonContent}
+              </Button>
+            </>
+          )
+          : null
+        }
+        {
+          hasNoRegisterRecordOnLocal && !hasNoRegisterRecordOnChain
+          ? <p>This address already registered, please use another wallet address or import existed account.</p>
+          : null
+        }
+        {
+          hasCorrespondingUsableUser
+          && !currentUserStore!.isCorrespondingEthereumAddressAccount
+          ? (
+            <>
+              <p>Would you like to swtich to corresponding account?</p>
+              <Button
+                size="large"
+                type="primary"
+                onClick={this.handleSwitch}
+              >
+                Switch
+              </Button>
+            </>
+          )
+          : null
+        }
         <Divider className={getBEMClassNames('divider', {}, { container: true })} />
         <h2 className={getBEMClassNames('title', {}, { title: true })}>
           Import account
@@ -125,15 +172,40 @@ class Register extends React.Component<Iprops, Istate> {
     )
   }
 
+  private getUserList() {
+    const {getBEMClassNames} = this
+    const {
+      usersStore: {
+        users,
+      },
+    } = this.injectedProps
+    return (
+      <>
+        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+          Manage accounts
+        </h2>
+        <div className={getBEMClassNames('user-list-container', {}, { container: true })}>
+          <List
+            dataSource={users}
+            renderItem={(user: Iuser) => (
+              <AccountListItem key={user.userAddress} user={user} />
+            )}
+          />
+        </div>
+      </>
+    )
+  }
+
   private handleRegister = () => {
     this.setState({
-      isRegistering: true,
+      isCreatingTransaction: true,
       registerButtonContent: 'Checking...'
     })
 
     this.injectedProps.usersStore.register({
       transactionWillCreate: this.transactionWillCreate,
       registerDidFail: this.registerDidFail,
+      transactionDidCreate: this.transactionDidCreate,
     })
       .catch(this.registerDidFail)
   }
@@ -147,6 +219,15 @@ class Register extends React.Component<Iprops, Istate> {
     })
   }
 
+  private transactionDidCreate = () => {
+    if (this.unmounted) {
+      return
+    }
+    this.setState({
+      registerButtonContent: 'Register'
+    })
+  }
+
   private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return
@@ -154,7 +235,7 @@ class Register extends React.Component<Iprops, Istate> {
     message.error((() => {
       switch (code) {
         case REGISTER_FAIL_CODE.OCCUPIED:
-          return `User address already registered.`
+          return `Wallet address already registered.`
         case REGISTER_FAIL_CODE.UNKNOWN:
         default:
           if ((err as Error).message.includes('User denied transaction signature')) {
@@ -166,8 +247,19 @@ class Register extends React.Component<Iprops, Istate> {
     })())
     this.setState({
       registerButtonContent: 'Register',
-      isRegistering: false
+      isCreatingTransaction: false
     })
+  }
+
+  private handleSwitch = () => {
+    const {
+      usableUsers,
+      useUser,
+    } = this.injectedProps.usersStore
+    const {
+      currentEthereumAccount,
+    } = this.injectedProps.ethereumStore
+    useUser(usableUsers.find((user) => user.userAddress === currentEthereumAccount)!)
   }
 
   private handleImport = (_: UploadFile, files: UploadFile[]) => {
@@ -223,8 +315,8 @@ interface IinjectedProps extends RouteComponentProps<{}> {
 
 interface Istate {
   registerButtonContent: string
-  isRegistering: boolean
+  isCreatingTransaction: boolean
   isImporting: boolean
 }
 
-export default Register
+export default Accounts

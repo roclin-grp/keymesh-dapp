@@ -11,7 +11,6 @@ import {
 import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import HashAvatar from '../../components/HashAvatar'
 import {
-  getBEMClassNamesMaker,
   noop,
 } from '../../utils'
 
@@ -20,18 +19,18 @@ import {
 } from '../../constants'
 
 import {
-  ETHEREUM_CONNECT_STATUS,
+  ETHEREUM_CONNECT_STATUS, EthereumStore,
 } from '../../stores/EthereumStore'
 
 import { Icon } from 'antd'
 import {
   Istores,
-  UsersStore ,
-  ContractStore,
-  EthereumStore,
 } from '../../stores'
 
 import { ProfileState } from './ProfileState'
+import { UsersStore } from '../../stores/UsersStore'
+import { ContractStore } from '../../stores/ContractStore'
+import { getBEMClassNamesMaker } from '../../utils/classNames'
 
 interface Iparams {
   userAddress?: string
@@ -113,7 +112,7 @@ class Profile extends React.Component<Iprops> {
     }
 
     return <CommonHeaderPage>
-      {this.userAvatar}
+      {this.getUserAvatar()}
       {this.socials}
     </CommonHeaderPage>
   }
@@ -142,7 +141,7 @@ class Profile extends React.Component<Iprops> {
     return <ul>{socialsElements}</ul>
   }
 
-  private get userAvatar() {
+  private getUserAvatar() {
     const { getBEMClassNames } = this
     const avatarShape = 'square'
     const avatarSize = 'large'

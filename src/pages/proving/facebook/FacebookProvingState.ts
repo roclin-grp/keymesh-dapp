@@ -11,8 +11,8 @@ import {
   BINDING_SOCIAL_STATUS,
 } from '../../../constants'
 import { IsignedFacebookClaim, IbindingSocial, IfacebookClaim } from '../../../../typings/proof.interface'
-import { storeLogger } from '../../../utils'
 import { FacebookResource } from '../../../resources/facebook'
+import { storeLogger } from '../../../utils/loggers'
 
 useStrict(true)
 
