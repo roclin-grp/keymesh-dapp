@@ -1,8 +1,3 @@
-export interface IcreateAccountLifecycle {
-  accountWillCreate?: () => void
-  accountDidCreate?: () => void
-}
-
 export interface IbroadcastMessage {
   message: string
   timestamp: number

@@ -11,7 +11,7 @@ import { TwitterResource } from '../../resources/twitter'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { hexToUtf8 } from '../../utils/hex'
-import { BlockType } from '../../../../../trustbase/typings/web3'
+import { BlockType } from 'trustbase/typings/web3.d'
 import {
   VERIFY_SOCIAL_STATUS,
   IboundSocials,
