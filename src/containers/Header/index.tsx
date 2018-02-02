@@ -18,7 +18,8 @@ import SwitchUserOption from '../../components/SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
 
 // style
-import './index.css'
+import * as classnames from 'classnames'
+import * as styles from './index.css'
 
 // state management
 import {
@@ -48,10 +49,6 @@ import * as copy from 'copy-to-clipboard'
 import {
   noop,
 } from '../../utils'
-import {
-  getBEMClassNamesMaker,
-  IExtendableClassNamesProps
-} from '../../utils/classNames'
 import { storeLogger } from '../../utils/loggers'
 
 @inject(({
@@ -75,8 +72,6 @@ class Header extends React.Component<IProps, IState> {
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
-  private readonly getBEMClassNames = getBEMClassNamesMaker(Header.blockName, this.props)
-
   private isUnmounted = false
 
   public componentWillUnmount() {
@@ -84,21 +79,13 @@ class Header extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const {getBEMClassNames} = this
-
     return (
       <header
-        className={getBEMClassNames(
-          '',
-          {
-            hidden: this.state.hidden,
-            shadow: this.state.hasShadow
-          }
-        )}
+        className={styles.header}
       >
-        <div className={getBEMClassNames('content', {}, { container: true })}>
-          <h1 className={getBEMClassNames('logo')}>
-            <Link tabIndex={0} className={getBEMClassNames('logo-text')} to="/">
+        <div className={classnames(styles.content, 'container')}>
+          <h1 className={styles.logo}>
+            <Link tabIndex={0} className={styles.logoText} to="/">
               Keymail
             </Link>
           </h1>
@@ -115,7 +102,6 @@ class Header extends React.Component<IProps, IState> {
       return null
     }
 
-    const {getBEMClassNames} = this
     const {connectStatus} = this.injectedProps.metaMaskStore
 
     return (
@@ -123,17 +109,18 @@ class Header extends React.Component<IProps, IState> {
         <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[connectStatus]}>
           <span
             title="Network status"
-            className={getBEMClassNames('network-indicator-wrapper')}
+            className={styles.networkIndicatorWrapper}
           >
             <span
-              className={getBEMClassNames('network-indicator', {
-                [CONNECT_STATUS_INDICATOR_MODIFIER[connectStatus]]: true
-              })}
+              className={classnames(
+                styles.networkIndicator,
+                CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES[connectStatus]
+              )}
             />
           </span>
         </Tooltip>
         <span
-          className={getBEMClassNames('network-options-button', {}, {'ant-dropdown-link': true})}
+          className={classnames(styles.networkOptionsButton, 'ant-dropdown-link')}
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
@@ -152,7 +139,7 @@ class Header extends React.Component<IProps, IState> {
 
     return (
       <span
-        className={this.getBEMClassNames('network-text')}
+        className={styles.networkText}
         title="Current Ethereum network"
       >
         {isNotAvailable && !isLocked
@@ -202,7 +189,6 @@ class Header extends React.Component<IProps, IState> {
       return null
     }
 
-    const {getBEMClassNames} = this
     const {user} = this.injectedProps.usersStore.currentUserStore!
 
     return (
@@ -213,24 +199,23 @@ class Header extends React.Component<IProps, IState> {
       >
         <a
           title={user.userAddress}
-          className={getBEMClassNames('user-options-button', {}, {'ant-dropdown-link': true})}
+          className={classnames(styles.userOptionsButton, 'ant-dropdown-link')}
           // looks like antd does not support keyboard accessibility well
           // tabIndex={0}
         >
           {this.getUserAvatar()}
-          <Icon type="down" className={getBEMClassNames('user-avatar-down-icon')} />
+          <Icon type="down" className={styles.userAvatarDownIcon} />
         </a>
       </Dropdown>
     )
   }
 
   private getUserAvatar() {
-    const {getBEMClassNames} = this
     const {avatarHash} = this.injectedProps.usersStore.currentUserStore!
 
     return (
       <HashAvatar
-        className={getBEMClassNames('user-avatar')}
+        className={styles.userAvatar}
         shape="square"
         size="small"
         hash={avatarHash}
@@ -239,7 +224,6 @@ class Header extends React.Component<IProps, IState> {
   }
 
   private getUserOptions() {
-    const {getBEMClassNames} = this
     const {
       usableUsers,
     } = this.injectedProps.usersStore
@@ -252,7 +236,7 @@ class Header extends React.Component<IProps, IState> {
     return (
       <Menu>
         <Menu.Item
-          className={getBEMClassNames('current-user-address')}
+          className={styles.currentUserAddress}
           disabled={true}
         >
           {`Using `}
@@ -262,7 +246,7 @@ class Header extends React.Component<IProps, IState> {
           >
             <span
               title={user.userAddress}
-              className={getBEMClassNames('user-address')}
+              className={styles.userAddress}
               onClick={this.handleCopyUserAddress}
             >
               {user.userAddress.slice(0, 8)}...
@@ -304,7 +288,7 @@ class Header extends React.Component<IProps, IState> {
           : null
         }
         <Menu.Item>
-          <Link className={getBEMClassNames('manage-accounts')} to="/accounts">
+          <Link to="/accounts">
             Manage accounts
           </Link>
         </Menu.Item>
@@ -353,10 +337,10 @@ class Header extends React.Component<IProps, IState> {
 }
 
 // constant
-const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
-  [METAMASK_CONNECT_STATUS.PENDING]: 'pending',
-  [METAMASK_CONNECT_STATUS.ACTIVE]: 'active',
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'no-account'
+const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
+  [METAMASK_CONNECT_STATUS.PENDING]: '',
+  [METAMASK_CONNECT_STATUS.ACTIVE]: styles.networkIndicatorActive,
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable
 }) as {
   [connectStatus: number]: string
 }
@@ -369,7 +353,9 @@ const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
 }
 
 // typing
-type IProps = IExtendableClassNamesProps & RouteComponentProps<{}>
+interface IProps extends RouteComponentProps<{}> {
+  className?: string
+}
 
 interface IInjectedProps extends IProps {
   metaMaskStore: MetaMaskStore
