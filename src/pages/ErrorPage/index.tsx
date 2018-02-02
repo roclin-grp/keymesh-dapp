@@ -6,14 +6,7 @@ import {
 } from 'antd'
 
 // style
-import './index.css'
-
-// helper
-import {
-  getBEMClassNamesMaker,
-} from '../../utils/classNames'
-
-const getBEMClassNames = getBEMClassNamesMaker('error-page')
+import * as styles from './index.css'
 
 function ErrorPage({
   message,
@@ -21,7 +14,7 @@ function ErrorPage({
 }: IProps) {
   return (
     <>
-      <Icon type="close-circle-o" className={getBEMClassNames('icon-error')} />
+      <Icon type="close-circle-o" className={styles.iconError} />
       <h1>{message}</h1>
       <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
       <details>

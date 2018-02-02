@@ -22,7 +22,6 @@ import {
 import { ProfileState } from './ProfileState'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { getBEMClassNamesMaker } from '../../utils/classNames'
 import { SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
 
 interface IParams {
@@ -68,7 +67,6 @@ class Profile extends React.Component<IProps> {
       }
     })
   }
-  private readonly getBEMClassNames = getBEMClassNamesMaker('profile', this.props)
 
   public componentDidMount() {
     this.data.startFetchingUserProofs()
@@ -112,13 +110,10 @@ class Profile extends React.Component<IProps> {
   }
 
   private getUserAvatar() {
-    const { getBEMClassNames } = this
     const avatarShape = 'square'
     const avatarSize = 'large'
-    const avatarClassName = getBEMClassNames('user-avatar')
 
     return <HashAvatar
-      className={avatarClassName}
       shape={avatarShape}
       size={avatarSize}
       hash={this.data.avatarHash}

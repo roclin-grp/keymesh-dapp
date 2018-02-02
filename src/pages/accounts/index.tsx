@@ -21,7 +21,8 @@ const {
 } = Upload
 
 // style
-import './index.css'
+import * as classnames from 'classnames'
+import * as styles from './index.css'
 
 // state management
 import {
@@ -46,9 +47,6 @@ import {
 import {
   storeLogger,
 } from '../../utils/loggers'
-import {
-  getBEMClassNamesMaker,
-} from '../../utils/classNames'
 
 @inject(({
   metaMaskStore,
@@ -59,8 +57,6 @@ import {
 }))
 @observer
 class Accounts extends React.Component<IProps, IState> {
-  public static readonly blockName = 'accounts'
-
   public readonly state = Object.freeze({
     registerButtonContent: 'Register',
     isCreatingTransaction: false,
@@ -69,15 +65,12 @@ class Accounts extends React.Component<IProps, IState> {
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
-  private readonly getBEMClassNames = getBEMClassNamesMaker(Accounts.blockName, this.props)
-
   private unmounted = false
   public componentWillUnmount() {
     this.unmounted = true
   }
 
   public render() {
-    const {getBEMClassNames} = this
     const {
       metaMaskStore: {
         currentEthereumAccount,
@@ -100,7 +93,7 @@ class Accounts extends React.Component<IProps, IState> {
         {
           users.length === 0
           ? (
-            <h2 className={getBEMClassNames('title', {}, { title: true })}>
+            <h2 className="title">
               Create new account
             </h2>
           )
@@ -149,12 +142,12 @@ class Accounts extends React.Component<IProps, IState> {
           )
           : null
         }
-        <Divider className={getBEMClassNames('divider', {}, { container: true })} />
-        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+        <Divider className="container" />
+        <h2 className="title">
           Import account
         </h2>
         <Dragger
-          className={getBEMClassNames('import', {}, { container: true })}
+          className="container"
           action="/"
           beforeUpload={this.handleImport}
           accept=".json"
@@ -173,7 +166,6 @@ class Accounts extends React.Component<IProps, IState> {
   }
 
   private getUserList() {
-    const {getBEMClassNames} = this
     const {
       usersStore: {
         users,
@@ -181,10 +173,10 @@ class Accounts extends React.Component<IProps, IState> {
     } = this.injectedProps
     return (
       <>
-        <h2 className={getBEMClassNames('title', {}, { title: true })}>
+        <h2 className="title">
           Manage accounts
         </h2>
-        <div className={getBEMClassNames('user-list-container', {}, { container: true })}>
+        <div className={classnames(styles.userListContainer, 'container')}>
           <List
             dataSource={users}
             renderItem={(user: IUser) => (

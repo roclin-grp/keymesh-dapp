@@ -7,8 +7,9 @@ import {
 } from 'antd'
 const Panel = Collapse.Panel
 import ErrorPage from '../ErrorPage'
+
 // style
-import './index.css'
+import * as styles from './index.css'
 
 import metaMaskLockedScreenshot from './meta-mask-screenshot-locked.png'
 
@@ -27,11 +28,6 @@ import {
   UsersStore,
 } from '../../stores/UsersStore'
 
-// helper
-import {
-  getBEMClassNamesMaker,
-} from '../../utils/classNames'
-
 @inject(({
   metaMaskStore,
   usersStore
@@ -41,22 +37,19 @@ import {
 }))
 @observer
 class MetaMaskConnectFailPage extends React.Component {
-  public static readonly blockName = 'meta-mask-connect-fail-page'
-
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
-  private readonly getBEMClassNames = getBEMClassNamesMaker(MetaMaskConnectFailPage.blockName, this.props)
 
   public render() {
     const {
       hasNoMetaMask,
       isLocked,
     } = this.injectedProps.metaMaskStore
+    const iconWarningClass = styles.iconWarning
     switch (true) {
       case hasNoMetaMask: {
         return (
           <>
-            <Icon type="exclamation-circle-o" className={this.getBEMClassNames('icon-warning')} />
+            <Icon type="exclamation-circle-o" className={iconWarningClass} />
             <h1>
               You need to install
               <a target="_blank" href="https://metamask.io/">MetaMask</a>
@@ -68,11 +61,11 @@ class MetaMaskConnectFailPage extends React.Component {
       case isLocked: {
         return (
           <>
-            <Icon type="lock" className={this.getBEMClassNames('icon-warning')} />
+            <Icon type="lock" className={iconWarningClass} />
             <h1>You need to unlock MetaMask.</h1>
-            <Collapse bordered={false} className={this.getBEMClassNames('collapse')}>
+            <Collapse bordered={false} className={styles.collapse}>
               <Panel header={<h3>Why is MetaMask locked?</h3>} key="unlock-metamask">
-                <div className={this.getBEMClassNames('collapse-content')}>
+                <div className={styles.collapseContent}>
                   <p>
                     MetaMask locks your account after a certain period of time automatically.
                     To unlock simply click on the MetaMask extension and type in your password.
@@ -80,7 +73,7 @@ class MetaMaskConnectFailPage extends React.Component {
                   <img
                     src={metaMaskLockedScreenshot}
                     alt="Screenshot of locked MetaMask interface"
-                    className={this.getBEMClassNames('locked-meta-mask-screenshot')}
+                    className={styles.lockedMetaMaskScreenshot}
                   />
                 </div>
               </Panel>

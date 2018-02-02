@@ -1,6 +1,7 @@
 import * as React from 'react'
 
-import './index.css'
+import * as classnames from 'classnames'
+import * as styles from './index.css'
 
 import {
   MESSAGE_TYPE,
@@ -48,7 +49,7 @@ class Message extends React.Component<IProps> {
       }`
 
     if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
-      return <li className="close-session-msg">
+      return <li>
         Session had been closed by {contact.userAddress} at {timeStr}</li>
     }
 
@@ -57,17 +58,17 @@ class Message extends React.Component<IProps> {
       statusStr = MESSAGE_STATUS_STR[status]
     }
 
-    return <li className={`message${isFromYourself ? ' message--self' : ''}`}>
-      <div className="meta-info">
+    return <li className={classnames(styles.message, {[styles.messageSelf]: isFromYourself})}>
+      <div className={styles.metaInfo}>
         <span
           title={`${contact.userAddress}`}
-          className="sender"
+          className={styles.sender}
         >
           {isFromYourself ? 'me' : contact.userAddress}
         </span>
-        <span className="time">{timeStr}</span>
+        <span className={styles.time}>{timeStr}</span>
       </div>
-      <p className="content">{plainText}</p>
+      <p className={styles.content}>{plainText}</p>
       {statusStr ? statusStr : null}
     </li>
   }

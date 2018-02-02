@@ -62,8 +62,6 @@ import { storeLogger } from '../../utils/loggers'
 }))
 @observer
 class Header extends React.Component<IProps, IState> {
-  public static readonly blockName = 'header'
-
   public readonly state = Object.freeze({
     hidden: false,
     hasShadow: false,
@@ -80,9 +78,7 @@ class Header extends React.Component<IProps, IState> {
 
   public render() {
     return (
-      <header
-        className={styles.header}
-      >
+      <header className={styles.header}>
         <div className={classnames(styles.content, 'container')}>
           <h1 className={styles.logo}>
             <Link tabIndex={0} className={styles.logoText} to="/">

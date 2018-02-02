@@ -15,7 +15,7 @@ import {
 import HashAvatar from '../../components/HashAvatar'
 
 // style
-import './index.css'
+import * as styles from './index.css'
 
 // state management
 import {
@@ -39,10 +39,6 @@ import {
 
 // helper
 import {
-  getBEMClassNamesMaker,
-  IExtendableClassNamesProps
-} from '../../utils/classNames'
-import {
   storeLogger
 } from '../../utils/loggers'
 
@@ -55,8 +51,6 @@ import {
 }))
 @observer
 class AccountListItem extends React.Component<IProps, IState> {
-  public static readonly blockName = 'account-list-item'
-
   public readonly state = Object.freeze({
     status: REGISTER_STATUS.PENDING,
     helpMessage: '',
@@ -64,8 +58,6 @@ class AccountListItem extends React.Component<IProps, IState> {
   })
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
-  private readonly getBEMClassNames = getBEMClassNamesMaker(AccountListItem.blockName, this.props)
 
   private userStore = this.injectedProps.usersStore.createUserStore(this.props.user)
 
@@ -88,7 +80,6 @@ class AccountListItem extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const {getBEMClassNames} = this
     const {
       avatarHash,
       user
@@ -103,13 +94,12 @@ class AccountListItem extends React.Component<IProps, IState> {
       >
         <List.Item.Meta
           avatar={<HashAvatar
-            className={getBEMClassNames('user-avatar')}
             shape="circle"
             hash={avatarHash}
           />}
           title={<Link to={`/profile${isCurrentUser(user) ? '' : `/${user.userAddress}`}`}>{user.userAddress}</Link>}
         />
-        <div className={getBEMClassNames('list-content')}>
+        <div className={styles.listContent}>
           {this.getListContent()}
         </div>
       </List.Item>
@@ -186,7 +176,6 @@ class AccountListItem extends React.Component<IProps, IState> {
   }
 
   private getListContent = () => {
-    const {getBEMClassNames} = this
     const {
       user
     } = this.props
@@ -201,8 +190,7 @@ class AccountListItem extends React.Component<IProps, IState> {
       isCurrentUser,
     } = this.injectedProps.usersStore
 
-    const statusSummaryClassNames = getBEMClassNames('status-summary')
-    const statusIconClassNames = getBEMClassNames('status-icon')
+    const statusIconClassNames = styles.statusIcon
 
     switch (status) {
       case REGISTER_STATUS.PENDING:
@@ -211,12 +199,12 @@ class AccountListItem extends React.Component<IProps, IState> {
         return (
           <Tooltip title={helpMessage} placement="bottom">
             <a
-              className={getBEMClassNames('transaction-link')}
+              className={styles.transactionLink}
               target="_blank"
               href={`${ETHEREUM_NETWORK_TX_URL_PREFIX[currentEthereumNetwork!]}${user.identityTransactionHash}`}
             >
               <Icon className={statusIconClassNames} type={REGISTER_STATUS_ICON_TYPE[status]} />
-              <span className={statusSummaryClassNames}>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
+              <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
             </a>
           </Tooltip>
         )
@@ -228,7 +216,7 @@ class AccountListItem extends React.Component<IProps, IState> {
         return (
           <Tooltip title={helpMessage} placement="bottom">
             <Icon className={statusIconClassNames} type={REGISTER_STATUS_ICON_TYPE[status]} />
-            <span className={statusSummaryClassNames}>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
+            <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
           </Tooltip>
         )
       default:
@@ -400,8 +388,9 @@ const REGISTER_STATUS_ICON_TYPE = Object.freeze({
 }
 
 // typing
-interface IProps extends IExtendableClassNamesProps {
+interface IProps {
   user: IUser
+  className?: string
 }
 
 interface IInjectedProps extends IProps {

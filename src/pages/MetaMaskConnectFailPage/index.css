@@ -1,21 +1,18 @@
-.meta-mask-connect-fail-page__icon-warning {
+.iconWarning {
   font-size: 3rem;
   margin-bottom: 1rem;
-}
-
-.meta-mask-connect-fail-page__icon-warning {
   color: #faad14;
 }
 
-.meta-mask-connect-fail-page__collapse {
+.collapse {
   width: 60vw;
 }
 
-.meta-mask-connect-fail-page__collapse-content {
+.collapseContent {
   margin-left: 1.5rem;
   padding-right: 1.5rem;
 }
 
-.meta-mask-connect-fail-page__locked-meta-mask-screenshot {
+.lockedMetaMaskScreenshot {
   width: 100%;
 }

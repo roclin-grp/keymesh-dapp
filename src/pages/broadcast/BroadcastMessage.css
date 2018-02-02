@@ -1,12 +1,12 @@
-.broadcast-message {
+.broadcastMessage {
   display: flex;
 }
 
-.broadcast-message__avatar {
+.avatar {
   margin-right: 14px;
 }
 
-.broadcast-message__address_and_time {
+.addressAndTime {
   font-size: 12px;
   color: grey;
 }

@@ -2,11 +2,6 @@ import * as React from 'react'
 
 import { sha3 } from 'trustbase'
 
-import {
-  getBEMClassNamesMaker,
-  IExtendableClassNamesProps
-} from '../../utils/classNames'
-
 import HashAvatar from '../../components/HashAvatar'
 
 import {
@@ -14,43 +9,36 @@ import {
   USER_STATUS,
 } from '../../stores/UserStore'
 
-import './index.css'
+import * as styles from './index.css'
 
-interface IProps extends IExtendableClassNamesProps {
+interface IProps {
   user: IUser
   onSelect: (user: IUser) => void
+  className?: string
 }
 
 interface IState {
   showNetworks: boolean
 }
 class SwitchUserOption extends React.Component<IProps, IState> {
-  public static readonly blockName = 'switch-user-option'
-
-  private readonly getBEMClassNames = getBEMClassNamesMaker(SwitchUserOption.blockName, this.props)
-
   public render() {
     const {
-      getBEMClassNames,
-      props: {
-        user
-      }
-    } = this
+      user
+    } = this.props
     return (
       <a
-        className={getBEMClassNames()}
         title={user.userAddress}
         onClick={this.handleClick}
       >
         <HashAvatar
-          className={getBEMClassNames('user-avatar')}
+          className={styles.userAvatar}
           size="small"
           hash={user.status !== USER_STATUS.PENDING
             ? sha3(`${user.userAddress}${user.blockHash}`)
             : ''
           }
         />
-        <span className={getBEMClassNames('user-address')}>
+        <span>
           {user.userAddress.slice(0, 8)}...
         </span>
       </a>

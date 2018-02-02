@@ -1,8 +1,8 @@
-.menu-body__content {
+.content {
   display: flex;
   width: 90%;
 }
-.menu-body__menu {
+.menu {
   margin-right: 12px;
   height: 105px;
 }

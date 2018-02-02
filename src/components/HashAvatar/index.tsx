@@ -2,14 +2,13 @@ import * as React from 'react'
 
 import { Avatar } from 'antd'
 
-import { IExtendableClassNamesProps } from '../../utils/classNames'
-
 const Identicon = require('identicon.js')
 
-interface IProps extends IExtendableClassNamesProps {
+interface IProps {
   hash: string
   size?: 'large' | 'small' | 'default'
   shape?: 'circle' | 'square'
+  className?: string
 }
 
 const SIZE_PX = Object.freeze({
