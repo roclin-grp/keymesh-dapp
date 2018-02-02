@@ -1,0 +1,8 @@
+.menu-body__content {
+  display: flex;
+  width: 90%;
+}
+.menu-body__menu {
+  margin-right: 12px;
+  height: 105px;
+}

@@ -29,6 +29,7 @@ import {
 import {
   UsersStore,
 } from './stores/UsersStore'
+import MenuBody from './containers/MenuBody'
 
 @inject(({
   ethereumStore,
@@ -134,7 +135,9 @@ interface IInjectedProps extends IProps {
 }
 
 function Chat() {
-  return <pre>/chat</pre>
+  return <MenuBody routePath="/chat">
+    <pre>/chat</pre>
+  </MenuBody>
 }
 
 function NotFound() {

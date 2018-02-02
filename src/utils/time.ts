@@ -40,3 +40,45 @@ export function unixToday() {
 export function getUnixDay(javaScriptTimestamp: number) {
   return Math.floor(javaScriptTimestamp / 1000 / 3600 / 24)
 }
+
+export function timeAgo(time: number): string {
+    var now = new Date()
+    var seconds = Math.round((now.getTime() - time) * .001)
+    var minutes = seconds / 60
+    var hours = minutes / 60
+    var days = hours / 24
+    var years = days / 365
+
+    return timeAgoTemplates.prefix + (
+      seconds < 45 && timeAgoTemplate('seconds', seconds) ||
+      seconds < 90 && timeAgoTemplate('minute', 1) ||
+      minutes < 45 && timeAgoTemplate('minutes', minutes) ||
+      minutes < 90 && timeAgoTemplate('hour', 1) ||
+      hours < 24 && timeAgoTemplate('hours', hours) ||
+      hours < 42 && timeAgoTemplate('day', 1) ||
+      days < 30 && timeAgoTemplate('days', days) ||
+      days < 45 && timeAgoTemplate('month', 1) ||
+      days < 365 && timeAgoTemplate('months', days / 30) ||
+      years < 1.5 && timeAgoTemplate('year', 1) ||
+      timeAgoTemplate('years', years)
+    ) + timeAgoTemplates.suffix
+}
+
+const timeAgoTemplates = {
+  prefix: '',
+  suffix: ' ago',
+  seconds: 'less than a minute',
+  minute: 'about a minute',
+  minutes: '%d minutes',
+  hour: 'about an hour',
+  hours: 'about %d hours',
+  day: 'a day',
+  days: '%d days',
+  month: 'about a month',
+  months: '%d months',
+  year: 'about a year',
+  years: '%d years'
+}
+function timeAgoTemplate(t: string, n: number) {
+  return timeAgoTemplates[t] && timeAgoTemplates[t].replace(/%d/i, Math.abs(Math.round(n)))
+}

@@ -1,0 +1,14 @@
+.broadcast-form {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  flex-flow: row wrap;
+}
+
+.broadcast-form__textarea {
+  margin-bottom: 15px;
+}
+
+.broadcast-form__post_button {
+  margin-right: 0;
+}

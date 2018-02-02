@@ -40,6 +40,7 @@ import {
 import {
   Databases,
 } from '../databases'
+import { sha3 } from 'trustbase'
 
 import IndexedDBStore from '../IndexedDBStore'
 import { generatePublicKeyFromHexStr } from '../utils/proteus'
@@ -256,7 +257,12 @@ export class UsersStore {
   }
 
   public getAvatarHashByUserAddress = async (userAddress: string) => {
-    //
+    const {
+      getBlockHash,
+    } = this.ethereumStore
+    const { blockNumber } = await this.getIdentity(userAddress)
+    const blockHash = await getBlockHash(blockNumber)
+    return sha3(`${userAddress}${blockHash}`)
   }
 
   public createUserStore = (user: IUser) => {

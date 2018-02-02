@@ -1,6 +1,13 @@
 import * as React from 'react'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { storeLogger } from '../../utils/loggers'
+
+import './BroadcastForm.css'
+
+import { Input, Button } from 'antd'
+import { getBEMClassNamesMaker } from '../../utils/classNames'
+const { TextArea } = Input
+
 interface IProps {
   broadcastMessagesStore: BroadcastMessagesStore
 }
@@ -17,6 +24,8 @@ export class BroadcastForm extends React.Component<IProps, IState> {
       message: ''
     }
   }
+
+  private readonly getBEMClassNames = getBEMClassNamesMaker('broadcast-form', this.props)
 
   public handlePublish = () => {
     this.props.broadcastMessagesStore.publishBoradcastMessage(this.state.message, {
@@ -37,9 +46,21 @@ export class BroadcastForm extends React.Component<IProps, IState> {
   }
 
   public render() {
-    return <div>
-      <textarea value={this.state.message} onChange={this.handleChange} />
-      <button onClick={this.handlePublish}>Publish</button>
+    return <div className={this.getBEMClassNames()}>
+      <TextArea
+        className={this.getBEMClassNames('textarea')}
+        placeholder="What's happing?"
+        value={this.state.message}
+        onChange={this.handleChange}
+        autosize={{minRows: 5}}
+      />
+      <Button
+        className={this.getBEMClassNames('post_button')}
+        type="primary"
+        onClick={this.handlePublish}
+      >
+        Post
+      </Button>
     </div>
   }
 }

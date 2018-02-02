@@ -6,6 +6,13 @@ import { UsersStore } from '../../stores/UsersStore'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { EthereumStore } from '../../stores/EthereumStore'
 import { BroadcastForm } from './BroadcastForm'
+import  MenuBody  from '../../containers/MenuBody'
+import HashAvatar from '../../components/HashAvatar'
+import { getBEMClassNamesMaker } from '../../utils/classNames'
+
+import './index.css'
+import BroadcastMessage from './BroadcastMessage'
+import { Divider } from 'antd'
 
 interface IProps {
   usersStore: UsersStore
@@ -25,6 +32,8 @@ interface IProps {
 
 @observer
 class Broadcast extends React.Component<IProps> {
+  private readonly getBEMClassNames = getBEMClassNamesMaker('broadcast', this.props)
+
   public componentDidMount() {
     this.props.broadcastMessagesStore.startFetchBroadcastMessages()
   }
@@ -34,27 +43,41 @@ class Broadcast extends React.Component<IProps> {
   }
 
   public render() {
-    const messagesElements = []
-    for (let message of this.props.broadcastMessagesStore.broadcastMessages) {
-      const date = new Date(message.timestamp).toTimeString()
-      messagesElements.push(
-        <div>
-          <p>Message: {message.message}</p>
-          <p>Author: {message.author}  at: {date}</p>
-        </div>
-      )
-    }
-
     let form
     if (this.props.usersStore.hasUser) {
-      form = <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore} />
+      form = <div className={this.getBEMClassNames('post_form')}>
+        {this.userAvatar()}
+        <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore}/>
+      </div>
     }
 
-    return <>
-      <div>Broadcast</div>
-      {form}
-      <div>{messagesElements}</div>
+    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message, index) => {
+      return <>
+        <BroadcastMessage usersStore={this.props.usersStore} message={message} key={index} />
+        <Divider/>
       </>
+    })
+    return <MenuBody routePath="/discover">
+      <div className={this.getBEMClassNames()}>
+        {form}
+        <div className={this.getBEMClassNames('messages_container')}>
+          <Divider/>
+          <div>{messages}</div>
+        </div>
+      </div>
+    </MenuBody>
+  }
+
+  private userAvatar() {
+    const avatarShape = 'circle'
+    const avatarSize = 'default'
+
+    return <HashAvatar
+      className={this.getBEMClassNames('avatar')}
+      shape={avatarShape}
+      size={avatarSize}
+      hash={this.props.usersStore.currentUserStore!.avatarHash}
+    />
   }
 }
 
