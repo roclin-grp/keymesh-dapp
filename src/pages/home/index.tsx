@@ -7,8 +7,8 @@ import {
 } from '../../stores'
 
 import {
-  EthereumStore,
-} from '../../stores/EthereumStore'
+  MetaMaskStore,
+} from '../../stores/MetaMaskStore'
 
 import {
   UsersStore,
@@ -27,7 +27,7 @@ import {
 import './index.css'
 
 interface IInjectedProps {
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
   usersStore: UsersStore
 }
 
@@ -38,10 +38,10 @@ interface IState {
 }
 
 @inject(({
-  ethereumStore,
+  metaMaskStore,
   usersStore
 }: IStores) => ({
-  ethereumStore,
+  metaMaskStore,
   usersStore
 }))
 @observer
@@ -61,7 +61,7 @@ class Home extends React.Component<{}, IState> {
   private removeEthereumConnectStatusChangeListener = noop
   public componentDidMount(isFirstMount: boolean = true) {
     const {
-      ethereumStore: {
+      metaMaskStore: {
         // ethereumConnectStatus,
         // listenForEthereumConnectStatusChange
       },
@@ -102,7 +102,7 @@ class Home extends React.Component<{}, IState> {
 
   public render() {
     const {
-      ethereumStore: {
+      metaMaskStore: {
         isActive,
       },
       usersStore: {

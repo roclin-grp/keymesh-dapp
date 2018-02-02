@@ -8,8 +8,8 @@
 // } from 'mobx-react'
 
 // import {
-//   ETHEREUM_CONNECT_STATUS, EthereumStore,
-// } from '../../stores/EthereumStore'
+//   ETHEREUM_CONNECT_STATUS, MetaMaskStore,
+// } from '../../stores/MetaMaskStore'
 // import {
 //   Isession,
 //   MESSAGE_STATUS,
@@ -35,7 +35,7 @@
 // interface IInjectedProps extends IProps {
 //   usersStore: UsersStore
 //   contractStore: ContractStore
-//   ethereumStore: EthereumStore
+//   metaMaskStore: MetaMaskStore
 // }
 
 // interface IState {
@@ -47,11 +47,11 @@
 // @inject(({
 //   usersStore,
 //   contractStore,
-//   ethereumStore,
+//   metaMaskStore,
 // }: Istores) => ({
 //   usersStore,
 //   contractStore,
-//   ethereumStore,
+//   metaMaskStore,
 // }))
 
 // @observer

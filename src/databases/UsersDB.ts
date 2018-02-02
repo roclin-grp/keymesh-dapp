@@ -11,7 +11,7 @@ import {
 
 import {
   ETHEREUM_NETWORKS,
-} from '../stores/EthereumStore'
+} from '../stores/MetaMaskStore'
 import {
   IUser,
   IContact,
@@ -70,6 +70,7 @@ export class UsersDB {
       const oldUsers = await this.getUsers(networkId)
       await restoreDB(this.dexieDB, data.keymail, () => undefined)
       const users = await this.getUsers(networkId)
+
       const oldUserAddress = oldUsers.reduce(
         (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
         {} as {[userAddress: string]: boolean}
@@ -78,6 +79,7 @@ export class UsersDB {
       if (typeof newUser === 'undefined') {
         throw new Error('Network not match')
       }
+
       return newUser
     })
     delete data.keymail

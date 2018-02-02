@@ -32,8 +32,8 @@ import {
   IStores,
 } from '../../stores'
 import {
-  EthereumStore,
-} from '../../stores/EthereumStore'
+  MetaMaskStore,
+} from '../../stores/MetaMaskStore'
 import {
   UsersStore,
   REGISTER_FAIL_CODE,
@@ -51,10 +51,10 @@ import {
 } from '../../utils/classNames'
 
 @inject(({
-  ethereumStore,
+  metaMaskStore,
   usersStore
 }: IStores) => ({
-  ethereumStore,
+  metaMaskStore,
   usersStore
 }))
 @observer
@@ -79,7 +79,7 @@ class Accounts extends React.Component<IProps, IState> {
   public render() {
     const {getBEMClassNames} = this
     const {
-      ethereumStore: {
+      metaMaskStore: {
         currentEthereumAccount,
       },
       usersStore: {
@@ -259,7 +259,7 @@ class Accounts extends React.Component<IProps, IState> {
     } = this.injectedProps.usersStore
     const {
       currentEthereumAccount,
-    } = this.injectedProps.ethereumStore
+    } = this.injectedProps.metaMaskStore
     useUser(usableUsers.find((user) => user.userAddress === currentEthereumAccount)!)
   }
 
@@ -310,7 +310,7 @@ class Accounts extends React.Component<IProps, IState> {
 type IProps = {}
 
 interface IInjectedProps extends RouteComponentProps<{}> {
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
   usersStore: UsersStore
 }
 

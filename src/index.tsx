@@ -11,7 +11,7 @@ import {
   createStores,
   IStores,
 } from './stores'
-import App from './routes'
+import App from './App'
 
 const isDevelop = process.env.NODE_ENV === 'development'
 

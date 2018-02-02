@@ -29,10 +29,13 @@ import {
   IStores,
 } from '../../stores'
 import {
-  EthereumStore,
+  MetaMaskStore,
   ETHEREUM_NETWORK_NAMES,
-  ETHEREUM_CONNECT_STATUS,
-} from '../../stores/EthereumStore'
+  METAMASK_CONNECT_STATUS,
+} from '../../stores/MetaMaskStore'
+import {
+  ContractStore
+} from '../../stores/ContractStore'
 import {
   UsersStore
 } from '../../stores/UsersStore'
@@ -52,11 +55,13 @@ import {
 import { storeLogger } from '../../utils/loggers'
 
 @inject(({
-  ethereumStore,
-  usersStore
+  metaMaskStore,
+  usersStore,
+  contractStore,
 }: IStores) => ({
-  ethereumStore,
-  usersStore
+  metaMaskStore,
+  usersStore,
+  contractStore,
 }))
 @observer
 class Header extends React.Component<IProps, IState> {
@@ -105,24 +110,24 @@ class Header extends React.Component<IProps, IState> {
   }
 
   private getNetworkStatus() {
-    const {isPending} = this.injectedProps.ethereumStore
+    const {isPending} = this.injectedProps.metaMaskStore
     if (isPending) {
       return null
     }
 
     const {getBEMClassNames} = this
-    const {ethereumConnectStatus} = this.injectedProps.ethereumStore
+    const {connectStatus} = this.injectedProps.metaMaskStore
 
     return (
       <>
-        <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[ethereumConnectStatus]}>
+        <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[connectStatus]}>
           <span
             title="Network status"
             className={getBEMClassNames('network-indicator-wrapper')}
           >
             <span
               className={getBEMClassNames('network-indicator', {
-                [CONNECT_STATUS_INDICATOR_MODIFIER[ethereumConnectStatus]]: true
+                [CONNECT_STATUS_INDICATOR_MODIFIER[connectStatus]]: true
               })}
             />
           </span>
@@ -140,17 +145,17 @@ class Header extends React.Component<IProps, IState> {
 
   private getNetworkText() {
     const {
-      hasError,
-      isMetaMaskLocked,
+      isNotAvailable,
+      isLocked,
       currentEthereumNetwork
-    } = this.injectedProps.ethereumStore
+    } = this.injectedProps.metaMaskStore
 
     return (
       <span
         className={this.getBEMClassNames('network-text')}
         title="Current Ethereum network"
       >
-        {hasError && !isMetaMaskLocked
+        {isNotAvailable && !isLocked
           ? 'No network'
           : (
             ETHEREUM_NETWORK_NAMES[currentEthereumNetwork!]
@@ -164,19 +169,24 @@ class Header extends React.Component<IProps, IState> {
   private getUserMenu() {
     const {
       isPending,
-      hasError,
-    } = this.injectedProps.ethereumStore
+      isActive,
+    } = this.injectedProps.metaMaskStore
     if (isPending) {
       return null
     }
 
     const {
-      usableUsers,
-      isLoadingUsers,
-      hasUser,
-    } = this.injectedProps.usersStore
+      usersStore: {
+        usableUsers,
+        isLoadingUsers,
+        hasUser,
+      },
+      contractStore: {
+        isNotAvailable: contractsNotAvailable
+      },
+    } = this.injectedProps
 
-    if (!hasError && !isLoadingUsers && usableUsers.length === 0) {
+    if (isActive && !contractsNotAvailable && !isLoadingUsers && usableUsers.length === 0) {
       return (
         <Link to="/accounts">
           <Button
@@ -344,16 +354,16 @@ class Header extends React.Component<IProps, IState> {
 
 // constant
 const CONNECT_STATUS_INDICATOR_MODIFIER = Object.freeze({
-  [ETHEREUM_CONNECT_STATUS.PENDING]: 'pending',
-  [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'active',
-  [ETHEREUM_CONNECT_STATUS.ERROR]: 'error'
+  [METAMASK_CONNECT_STATUS.PENDING]: 'pending',
+  [METAMASK_CONNECT_STATUS.ACTIVE]: 'active',
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'no-account'
 }) as {
   [connectStatus: number]: string
 }
 
 const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
-  [ETHEREUM_CONNECT_STATUS.ACTIVE]: 'Active',
-  [ETHEREUM_CONNECT_STATUS.ERROR]: 'Error'
+  [METAMASK_CONNECT_STATUS.ACTIVE]: 'Active',
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'No account'
 }) as {
   [connectStatus: number]: string
 }
@@ -362,8 +372,9 @@ const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
 type IProps = IExtendableClassNamesProps & RouteComponentProps<{}>
 
 interface IInjectedProps extends IProps {
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
   usersStore: UsersStore
+  contractStore: ContractStore
 }
 
 interface IState {

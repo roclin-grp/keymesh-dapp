@@ -5,9 +5,9 @@ import {
   runInAction,
 } from 'mobx'
 import {
-  EthereumStore,
+  MetaMaskStore,
   ETHEREUM_NETWORKS,
-} from './EthereumStore'
+} from './MetaMaskStore'
 import {
   ContractStore,
 } from './ContractStore'
@@ -89,23 +89,23 @@ export class UserStore {
 
   @computed
   public get isCorrespondingEthereumAddressAccount() {
-    return this.user.userAddress === this.ethereumStore.currentEthereumAccount
+    return this.user.userAddress === this.metaMaskStore.currentEthereumAccount
   }
 
   constructor(user: IUser, {
     databases,
-    ethereumStore,
+    metaMaskStore,
     contractStore,
     usersStore,
   }: {
     databases: Databases
-    ethereumStore: EthereumStore
+    metaMaskStore: MetaMaskStore
     contractStore: ContractStore
     usersStore: UsersStore
   }) {
     this.user = this.userRef = user
     this.databases = databases
-    this.ethereumStore = ethereumStore
+    this.metaMaskStore = metaMaskStore
     this.contractStore = contractStore
     this.usersStore = usersStore
     this.sessionsStore = new SessionsStore({
@@ -135,7 +135,7 @@ export class UserStore {
 
   private userRef: IUser
   private databases: Databases
-  private ethereumStore: EthereumStore
+  private metaMaskStore: MetaMaskStore
   private contractStore: ContractStore
   private usersStore: UsersStore
   private indexedDBStore: IndexedDBStore
@@ -156,7 +156,7 @@ export class UserStore {
     const {
       web3,
       getBlockHash,
-    } = this.ethereumStore
+    } = this.metaMaskStore
     const { identitiesContract } = this.contractStore
     const {
       networkId,

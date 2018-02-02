@@ -4,7 +4,7 @@ import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores/index'
 import { UsersStore } from '../../stores/UsersStore'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
-import { EthereumStore } from '../../stores/EthereumStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { BroadcastForm } from './BroadcastForm'
 import  MenuBody  from '../../containers/MenuBody'
 import HashAvatar from '../../components/HashAvatar'
@@ -16,17 +16,17 @@ import { Divider } from 'antd'
 
 interface IProps {
   usersStore: UsersStore
-  ethereumStore: EthereumStore,
+  metaMaskStore: MetaMaskStore,
   broadcastMessagesStore: BroadcastMessagesStore
 }
 
 @inject(({
   usersStore,
-  ethereumStore,
+  metaMaskStore,
   broadcastMessagesStore,
 }: IStores) => ({
   usersStore,
-  ethereumStore,
+  metaMaskStore,
   broadcastMessagesStore,
 }))
 

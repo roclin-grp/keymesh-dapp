@@ -16,11 +16,17 @@ import {
 const blockName = 'loading-page'
 const getBEMClassNames = getBEMClassNamesMaker(blockName)
 
-export default function Loading() {
+export default function Loading({
+  message
+}: IProps) {
   return (
     <>
       <Icon type="loading" className={getBEMClassNames('icon-loading')} />
-      <p>Loading...</p>
+      <p>{message}</p>
     </>
   )
+}
+
+interface IProps {
+  message: string
 }

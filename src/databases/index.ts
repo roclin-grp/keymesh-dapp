@@ -14,7 +14,7 @@ import {
 
 import {
   ETHEREUM_NETWORKS,
-} from '../stores/EthereumStore'
+} from '../stores/MetaMaskStore'
 import {
   IUser,
 } from '../stores/UserStore'

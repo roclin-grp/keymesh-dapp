@@ -59,8 +59,8 @@
 .header__network-indicator--active {
   background-color: chartreuse;
 }
-.header__network-indicator--error {
-  background-color: rgb(255, 58, 58);
+.header__network-indicator--no-account {
+  background-color: #faad14;
 }
 
 .header__network-text {

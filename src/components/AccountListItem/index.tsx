@@ -26,9 +26,9 @@ import {
   IStores,
 } from '../../stores'
 import {
-  EthereumStore,
+  MetaMaskStore,
   ETHEREUM_NETWORK_TX_URL_PREFIX,
-} from '../../stores/EthereumStore'
+} from '../../stores/MetaMaskStore'
 import {
   UsersStore,
   REGISTER_FAIL_CODE,
@@ -48,10 +48,10 @@ import {
 
 @inject(({
   usersStore,
-  ethereumStore,
+  metaMaskStore,
 }: IStores) => ({
   usersStore,
-  ethereumStore,
+  metaMaskStore,
 }))
 @observer
 class AccountListItem extends React.Component<IProps, IState> {
@@ -196,7 +196,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     } = this.state
     const {
       currentEthereumNetwork,
-    } = this.injectedProps.ethereumStore
+    } = this.injectedProps.metaMaskStore
     const {
       isCurrentUser,
     } = this.injectedProps.usersStore
@@ -405,7 +405,7 @@ interface IProps extends IExtendableClassNamesProps {
 }
 
 interface IInjectedProps extends IProps {
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
   usersStore: UsersStore
 }
 

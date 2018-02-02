@@ -11,8 +11,8 @@ import {
 import HashAvatar from '../../components/HashAvatar'
 
 import {
-  EthereumStore,
-} from '../../stores/EthereumStore'
+  MetaMaskStore,
+} from '../../stores/MetaMaskStore'
 
 import { Icon } from 'antd'
 import {
@@ -32,17 +32,17 @@ interface IParams {
 interface IProps extends RouteComponentProps<IParams> {
   usersStore: UsersStore
   contractStore: ContractStore
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
 }
 
 @inject(({
   usersStore,
   contractStore,
-  ethereumStore,
+  metaMaskStore,
 }: IStores) => ({
   usersStore,
   contractStore,
-  ethereumStore,
+  metaMaskStore,
 }))
 
 @observer
@@ -52,7 +52,7 @@ class Profile extends React.Component<IProps> {
   constructor(props: IProps) {
     super(props)
     const {
-      ethereumStore: {
+      metaMaskStore: {
         getBlockHash,
       },
       usersStore,

@@ -1,5 +1,7 @@
 import {
   reaction,
+  observable,
+  computed,
 } from 'mobx'
 
 import {
@@ -10,25 +12,31 @@ import {
 } from 'trustbase'
 
 import {
-  EthereumStore, ETHEREUM_CONNECT_ERROR_CODE,
-} from './EthereumStore'
+  MetaMaskStore,
+} from './MetaMaskStore'
 
 export class ContractStore {
-  public identitiesContract: Identities
-  public messagesContract: Messages
-  public broadcastMessagesContract: BroadcastMessages
-  public boundSocialsContract: BoundSocials
+  @observable.ref public identitiesContract: Identities
+  @observable.ref public messagesContract: Messages
+  @observable.ref public broadcastMessagesContract: BroadcastMessages
+  @observable.ref public boundSocialsContract: BoundSocials
+  @observable public instantiationError: Error | undefined
+
+  @computed
+  public get isNotAvailable() {
+    return typeof this.instantiationError !== 'undefined'
+  }
 
   constructor({
-    ethereumStore
+    metaMaskStore
   }: {
-    ethereumStore: EthereumStore
+    metaMaskStore: MetaMaskStore
   }) {
-    this.ethereumStore = ethereumStore
+    this.metaMaskStore = metaMaskStore
     reaction(
       () => ({
-        isActive: this.ethereumStore.isActive,
-        networkId: this.ethereumStore.currentEthereumNetwork
+        isActive: this.metaMaskStore.isActive,
+        networkId: this.metaMaskStore.currentEthereumNetwork
       }),
       ({
         networkId,
@@ -40,9 +48,9 @@ export class ContractStore {
             this.messagesContract = new Messages({ networkId })
             this.broadcastMessagesContract = new BroadcastMessages({ networkId })
             this.boundSocialsContract = new BoundSocials({ networkId })
+            this.instantiationError = undefined
           } catch (err) {
-            // FIXME: this error is not an ethereum connect error.
-            this.ethereumStore.processEthereumConnectError(ETHEREUM_CONNECT_ERROR_CODE.UNKNOWN, err)
+            this.instantiationError = err
           }
         } else {
           delete this.identitiesContract
@@ -54,7 +62,7 @@ export class ContractStore {
     )
   }
 
-  private ethereumStore: EthereumStore
+  private metaMaskStore: MetaMaskStore
 }
 
 export interface ITransactionLifecycle {

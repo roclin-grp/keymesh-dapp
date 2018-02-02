@@ -30,7 +30,7 @@ export default abstract class ProvingState {
     const userAddress = this.usersStore.currentUserStore!.user.userAddress
     const {
       publicKey: identityFingerprint
-    } = await this.usersStore.getIdentity(userAddress)
+    } = await this.usersStore.getIdentityByUserAddress(userAddress)
     if (Number(identityFingerprint) === 0) {
       return
     }

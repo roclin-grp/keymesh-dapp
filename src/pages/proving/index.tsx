@@ -25,7 +25,7 @@ import {
 } from '../../stores'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { EthereumStore } from '../../stores/EthereumStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { SOCIAL_MEDIA_PLATFORMS } from '../../stores/BoundSocialsStore'
 
 interface IParams {
@@ -34,17 +34,17 @@ interface IParams {
 interface IProps extends RouteComponentProps<IParams> {
   usersStore: UsersStore
   contractStore: ContractStore
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
 }
 
 @inject(({
   usersStore,
   contractStore,
-  ethereumStore,
+  metaMaskStore,
 }: IStores) => ({
     usersStore,
     contractStore,
-    ethereumStore,
+    metaMaskStore,
   }))
 
 @observer

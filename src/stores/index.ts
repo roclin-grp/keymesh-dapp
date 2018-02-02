@@ -3,8 +3,8 @@ import {
 } from 'mobx'
 
 import {
-  EthereumStore,
-} from './EthereumStore'
+  MetaMaskStore,
+} from './MetaMaskStore'
 import {
   ContractStore,
 } from './ContractStore'
@@ -23,23 +23,23 @@ useStrict(true)
 
 export function createStores(): IStores {
   const databases = new Databases()
-  const ethereumStore = new EthereumStore()
+  const metaMaskStore = new MetaMaskStore()
+  metaMaskStore.connect()
   const contractStore = new ContractStore({
-    ethereumStore
+    metaMaskStore
   })
   const usersStore = new UsersStore({
-    ethereumStore,
+    metaMaskStore,
     contractStore,
     databases
   })
-  ethereumStore.connect()
   const broadcastMessagesStore = new BroadcastMessagesStore({
     usersStore,
     contractStore,
   })
 
   return {
-    ethereumStore,
+    metaMaskStore,
     contractStore,
     usersStore,
     broadcastMessagesStore,
@@ -47,7 +47,7 @@ export function createStores(): IStores {
 }
 
 export interface IStores {
-  ethereumStore: EthereumStore
+  metaMaskStore: MetaMaskStore
   contractStore: ContractStore
   usersStore: UsersStore
   broadcastMessagesStore: BroadcastMessagesStore

@@ -6,9 +6,9 @@ import {
   runInAction,
 } from 'mobx'
 import {
-  EthereumStore,
+  MetaMaskStore,
   ETHEREUM_NETWORKS,
-} from './EthereumStore'
+} from './MetaMaskStore'
 import {
   ContractStore,
   ITransactionLifecycle,
@@ -65,7 +65,7 @@ export class UsersStore {
   public get hasWalletCorrespondingUsableUser() {
     const {
       currentEthereumAccount
-    } = this.ethereumStore
+    } = this.metaMaskStore
     return typeof this.usableUsers.find((user) => user.userAddress === currentEthereumAccount) !== 'undefined'
   }
 
@@ -74,33 +74,33 @@ export class UsersStore {
     const {
       isActive,
       currentEthereumAccount,
-    } = this.ethereumStore
+    } = this.metaMaskStore
     return isActive
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
 
   constructor({
     databases,
-    ethereumStore,
+    metaMaskStore,
     contractStore,
   }: {
     databases: Databases
-    ethereumStore: EthereumStore
+    metaMaskStore: MetaMaskStore
     contractStore: ContractStore
   }) {
     this.databases = databases
-    this.ethereumStore = ethereumStore
+    this.metaMaskStore = metaMaskStore
     this.contractStore = contractStore
 
     reaction(
-      () => this.ethereumStore.currentEthereumAccount,
+      () => this.metaMaskStore.currentEthereumAccount,
       this.checkChainRegisterRecordByUserAddress
     )
 
     reaction(
       () => ({
-        isActive: this.ethereumStore.isActive,
-        networkId: this.ethereumStore.currentEthereumNetwork
+        isActive: this.metaMaskStore.isActive,
+        networkId: this.metaMaskStore.currentEthereumNetwork
       }),
       async ({
         networkId,
@@ -118,9 +118,6 @@ export class UsersStore {
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
           }
-          // if (typeof user === 'undefined' && this.usableUsers.length > 0) {
-          //   user = this.usableUsers[0]
-          // }
 
           runInAction(() => {
             this.loadUsers(users)
@@ -140,7 +137,7 @@ export class UsersStore {
   }
 
   private databases: Databases
-  private ethereumStore: EthereumStore
+  private metaMaskStore: MetaMaskStore
   private contractStore: ContractStore
   private lastNetworkId: ETHEREUM_NETWORKS | undefined
 
@@ -151,7 +148,7 @@ export class UsersStore {
 
     const {
       publicKey: identityFingerprint
-    } = await this.getIdentity(userAddress)
+    } = await this.getIdentityByUserAddress(userAddress)
     if (Number(identityFingerprint) === 0) {
       return undefined
     }
@@ -159,7 +156,7 @@ export class UsersStore {
     return generatePublicKeyFromHexStr(identityFingerprint.slice(2))
   }
 
-  public getIdentity(userAddress: string) {
+  public getIdentityByUserAddress(userAddress: string) {
     return this.contractStore.identitiesContract.getIdentity(userAddress)
   }
 
@@ -174,16 +171,16 @@ export class UsersStore {
     }
 
     // cache enviorment
-    const ethereumAddress = this.ethereumStore.currentEthereumAccount!
-    const ethereumNetworkId = this.ethereumStore.currentEthereumNetwork!
+    const ethereumAddress = this.metaMaskStore.currentEthereumAccount!
+    const ethereumNetworkId = this.metaMaskStore.currentEthereumNetwork!
     const identitiesContract = this.contractStore.identitiesContract
 
     // check if registered, avoid unnecessary transaction
     const {
       publicKey
-    } = await this.getIdentity(ethereumAddress)
+    } = await this.getIdentityByUserAddress(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
-      if (ethereumAddress === this.ethereumStore.currentEthereumAccount) {
+      if (ethereumAddress === this.metaMaskStore.currentEthereumAccount) {
         runInAction(() => {
           this.hasNoRegisterRecordOnChain = false
         })
@@ -234,7 +231,7 @@ export class UsersStore {
     const user = await usersDB.getUser(networkId, userAddress)
     if (typeof user !== 'undefined') {
       await usersDB.deleteUser(user)
-      if (this.ethereumStore.currentEthereumNetwork === networkId) {
+      if (this.metaMaskStore.currentEthereumNetwork === networkId) {
         this.removeUser(user)
       }
     }
@@ -247,7 +244,7 @@ export class UsersStore {
 
   public importUser = async (stringifyData: string) => {
     const user = await this.databases.usersDB.restoreUserFromExportedData(
-      this.ethereumStore.currentEthereumNetwork!,
+      this.metaMaskStore.currentEthereumNetwork!,
       JSON.parse(stringifyData)
     )
     runInAction(() => {
@@ -268,7 +265,7 @@ export class UsersStore {
   public createUserStore = (user: IUser) => {
     return new UserStore(user, {
       databases: this.databases,
-      ethereumStore: this.ethereumStore,
+      metaMaskStore: this.metaMaskStore,
       contractStore: this.contractStore,
       usersStore: this
     })
@@ -285,7 +282,7 @@ export class UsersStore {
   }
 
   private checkChainRegisterRecordByUserAddress = async (userAddress: string) => {
-    if (typeof userAddress !== 'undefined') {
+    if (typeof userAddress !== 'undefined' && !this.contractStore.isNotAvailable) {
       const {
         publicKey
       } = await this.contractStore.identitiesContract.getIdentity(userAddress)
@@ -309,7 +306,6 @@ export class UsersStore {
 
   @action
   private removeUser = (user: IUser) => {
-    // const remainUsers =
     this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
 
     if (
@@ -317,9 +313,6 @@ export class UsersStore {
       && this.currentUserStore!.user.userAddress === user.userAddress
     ) {
       this.unsetUser()
-      // if (remainUsers.length > 0) {
-      //   this.useUser(remainUsers[0])
-      // }
     }
   }
 

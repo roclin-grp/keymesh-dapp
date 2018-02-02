@@ -68,7 +68,7 @@ export class ProfileState {
 
   public set userAddress(userAddress: string) {
     this._userAddress = userAddress
-    this.usersStore.getIdentity(this._userAddress)
+    this.usersStore.getIdentityByUserAddress(this._userAddress)
       .then(({ blockNumber }) => {
         return this.getBlockHash(blockNumber)
       }).then(blockHash => {
