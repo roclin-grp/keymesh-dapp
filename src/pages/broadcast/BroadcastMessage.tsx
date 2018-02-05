@@ -5,14 +5,15 @@ import { observer } from 'mobx-react'
 
 import HashAvatar from '../../components/HashAvatar'
 import Address from '../../components/Address'
-import { IReceviedBroadcastMessage } from '../../stores/BroadcastMessagesStore'
+import { IBroadcastMessage } from '../../stores/BroadcastMessagesStore'
 import { UsersStore } from '../../stores/UsersStore'
 
 import * as styles from './BroadcastMessage.css'
 import { timeAgo } from '../../utils/time'
+import { MESSAGE_STATUS_STR } from '../../stores/SessionStore'
 
 interface IProps {
-  message: IReceviedBroadcastMessage
+  message: IBroadcastMessage
   usersStore: UsersStore
 }
 
@@ -20,8 +21,10 @@ interface IProps {
 export default class BroadcastMessage extends React.Component<IProps> {
   @observable
   private avatarHash: string = ''
+  private time: number
   @observable
-  private time: string = ''
+  private timeText: string = ''
+  private updateTimeTimeout: number
 
   public async componentDidMount() {
     const {
@@ -33,15 +36,25 @@ export default class BroadcastMessage extends React.Component<IProps> {
         timestamp,
       },
     } = this.props
-    const avatarHash = await getAvatarHashByUserAddress(author)
+    const avatarHash = await getAvatarHashByUserAddress(author!)
+    this.time = timestamp
+    this.updateTimeText()
     runInAction(() => {
       this.avatarHash = avatarHash
-      this.time = timeAgo(timestamp)
     })
   }
 
+  public componentWillUnmount() {
+    window.clearTimeout(this.updateTimeTimeout)
+  }
+
   render() {
-    const m = this.props.message
+    const { message } = this.props
+    const content = message.message.trim().split('\n').map((item, key) => {
+      return <>
+        {item}<br/>
+      </>
+    })
     return <div className={styles.broadcastMessage}>
       <HashAvatar
         className={styles.avatar}
@@ -53,10 +66,19 @@ export default class BroadcastMessage extends React.Component<IProps> {
         <p
           className={styles.addressAndTime}
         >
-          Address: <Address address={m.author} /> {this.time}
+          Address: <Address address={message.author!} /> {this.timeText}
         </p>
-        <p>{m.message}</p>
+        <p>{content}</p>
+        <p>{MESSAGE_STATUS_STR[message.status!]}</p>
       </div>
     </div>
+  }
+
+  private updateTimeText() {
+    runInAction(() => {
+      this.timeText = timeAgo(this.time)
+    })
+
+    this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
   }
 }

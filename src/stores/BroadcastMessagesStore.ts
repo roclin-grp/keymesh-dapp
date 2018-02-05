@@ -1,6 +1,6 @@
 import { runInAction, observable } from 'mobx'
 import { noop } from '../utils/'
-import { ISendingLifecycle } from './SessionStore'
+import { ISendingLifecycle, MESSAGE_STATUS } from './SessionStore'
 import { UsersStore } from './UsersStore'
 import { utf8ToHex, hexToUtf8, sodiumFromHex } from '../utils/hex'
 import { BlockType } from 'trustbase/typings/web3'
@@ -9,7 +9,7 @@ import { storeLogger } from '../utils/loggers'
 import { ContractStore } from './ContractStore'
 
 export class BroadcastMessagesStore {
-  @observable.ref public broadcastMessages: IReceviedBroadcastMessage[] = []
+  @observable.ref public broadcastMessages: IBroadcastMessage[] = []
 
   constructor({
     usersStore,
@@ -59,9 +59,21 @@ export class BroadcastMessagesStore {
     }
     const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
     const contract = this.contractStore.broadcastMessagesContract
-    contract.publish(signedMessageHex, currentUserStore!.user.userAddress)
+    const author = currentUserStore!.user.userAddress
+
+    contract.publish(signedMessageHex, author)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
+        runInAction(() => {
+          this.broadcastMessages = [
+            {
+              author,
+              timestamp: Date.now(),
+              message,
+              status: MESSAGE_STATUS.DELIVERING,
+            } as IBroadcastMessage].concat(this.broadcastMessages)
+        })
+        this.broadcastMessagesSignatures.push(signature)
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
         if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
@@ -153,16 +165,16 @@ export class BroadcastMessagesStore {
         timestamp: Number(signedMessage.timestamp) * 1000,
         author: userAddress,
         isInvalidTimestamp,
-      } as IReceviedBroadcastMessage
+      } as IBroadcastMessage
       if (isInvalidTimestamp) {
         m.blockTimestamp = Number(blockTimestamp) * 1000
       }
       return m
-    }))).filter((m) => m !== null) as IReceviedBroadcastMessage[]
+    }))).filter((m) => m !== null) as IBroadcastMessage[]
 
     if (messages.length > 0) {
       runInAction(() => {
-        this.broadcastMessages = this.broadcastMessages.concat(messages)
+        this.broadcastMessages = messages.reverse().concat(this.broadcastMessages)
       })
     }
 
@@ -171,18 +183,16 @@ export class BroadcastMessagesStore {
 }
 
 export interface IBroadcastMessage {
+  author?: string
+  isInvalidTimestamp?: boolean
+  blockTimestamp?: number // if isInvalidTimestamp is true, it will be filled
   message: string
   timestamp: number
+  status?: MESSAGE_STATUS
 }
 
 export interface ISignedBroadcastMessage extends IBroadcastMessage {
   signature: string
 }
 
-export interface IReceviedBroadcastMessage extends ISignedBroadcastMessage {
-  author: string
-  isInvalidTimestamp: boolean
-  blockTimestamp?: number // if isInvalidTimestamp is true, it will be filled
-}
-
-const FETCH_BROADCAST_MESSAGES_INTERVAL = 10000
+const FETCH_BROADCAST_MESSAGES_INTERVAL = 10 * 1000

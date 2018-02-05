@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start": "yarn css-types src -w & node scripts/start.js",
-    "build": "yarn css-types src && node scripts/build.js",
+    "start": "yarn css-types -w & node scripts/start.js",
+    "build": "yarn css-types && node scripts/build.js",
     "test": "node scripts/test.js --env=jsdom",
     "analyze": "source-map-explorer build/static/js/main.*",
-    "css-types": "tcm",
-    "precommit": "lint-staged",
-    "tslint": "tslint"
+    "css-types": "tcm src",
+    "postinstall": "yarn css-types",
+    "precommit": "lint-staged"
   },
   "lint-staged": {
     "ignore": ["src/**/*.d.ts"],
