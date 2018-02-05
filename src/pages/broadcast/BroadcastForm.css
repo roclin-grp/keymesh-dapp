@@ -1,0 +1,14 @@
+.broadcastForm {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  flex-flow: row wrap;
+}
+
+.textarea {
+  margin-bottom: 15px;
+}
+
+.postButton {
+  margin-right: 0;
+}

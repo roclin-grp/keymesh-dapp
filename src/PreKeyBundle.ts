@@ -1,5 +1,5 @@
 import {
-  keys
+  keys,
 } from 'wire-webapp-proteus'
 
 class PreKeyBundle extends keys.PreKeyBundle {

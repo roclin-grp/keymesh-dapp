@@ -1,0 +1,8 @@
+.content {
+  display: flex;
+  width: 90%;
+}
+.menu {
+  margin-right: 12px;
+  height: 105px;
+}

@@ -1,12 +1,19 @@
-.container {
+:global .container {
   padding: 0 1.25rem;
   width: 100%;
 }
 
-.title {
+:global .title {
   font-size: 1.8rem;
 }
 
-.center {
+:global .center {
   text-align: center;
+}
+
+:global .page-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 7.25rem;
 }

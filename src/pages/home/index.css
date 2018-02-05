@@ -1,4 +1,4 @@
-.session-list {
+.sessionList {
   display: flex;
   padding: 0;
   margin: 0;
@@ -10,7 +10,7 @@
   width: 100%;
 }
 
-.new-messages-prompt {
+.newMessagesPrompt {
   z-index: 999;
   cursor: pointer;
   position: fixed;

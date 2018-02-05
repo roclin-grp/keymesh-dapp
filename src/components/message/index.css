@@ -7,7 +7,7 @@
   color: gray;
 }
 
-.message--self {
+.messageSelf {
   margin-left: auto;
 }
 
@@ -22,7 +22,7 @@
   margin-bottom: 14px;
 }
 
-.meta-info {
+.metaInfo {
   width: 100%;
   text-align: start;
   display: flex;
@@ -39,6 +39,7 @@
   margin-top: 0;
 }
 
-.message--self > .content, .message--self .sender {
+.messageSelf > .content,
+.messageSelf .sender {
   margin-left: auto;
 }

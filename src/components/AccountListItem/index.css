@@ -1,0 +1,13 @@
+.transactionLink,
+.transactionLink:hover {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.statusIcon:not(:last-child) {
+  margin-right: 0.625rem;
+}
+
+.listContent {
+  margin-left: 0.625rem;
+  min-width: 1rem;
+}

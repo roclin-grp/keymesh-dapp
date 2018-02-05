@@ -1,4 +1,4 @@
-export interface Itweet {
+export interface ITweet {
   full_text: string
   id_str: string
 }
@@ -19,13 +19,13 @@ export class TwitterResource {
   private consumerKey: string
   private consumerSecret: string
 
-  public getTweet = async (id: string): Promise<Itweet> => {
+  public getTweet = async (id: string): Promise<ITweet> => {
     const uri = `/1.1/statuses/show.json?id=${id}&exclude_replies=true&tweet_mode=extended`
 
     return await this.fetch(uri)
   }
 
-  public getTweetByProofURL = async (url: string): Promise<Itweet | null> => {
+  public getTweetByProofURL = async (url: string): Promise<ITweet | null> => {
     const parts = /[0-9]+$/.exec(url)
     if (parts === null) {
       return null
@@ -37,7 +37,7 @@ export class TwitterResource {
 
   public getUserTimeline = async (
     username: string
-  ): Promise<Itweet[]> => {
+  ): Promise<ITweet[]> => {
     const uri = `/1.1/statuses/user_timeline.json?screen_name=${username}&exclude_replies=true&tweet_mode=extended`
 
     return await this.fetch(uri)
@@ -78,7 +78,7 @@ export class TwitterResource {
       method: 'GET',
       headers: {
         'Authorization': 'Bearer ' + this.accessToken,
-      }
+      },
     }).then((resp) => resp.json())
   }
 }

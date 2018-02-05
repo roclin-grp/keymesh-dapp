@@ -2,58 +2,43 @@ import * as React from 'react'
 
 import { sha3 } from 'trustbase'
 
-import {
-  USER_STATUS
-} from '../../constants'
-
-import {
-  getBEMClassNamesMaker,
-  IextendableClassNamesProps
-} from '../../utils'
-
 import HashAvatar from '../../components/HashAvatar'
 
 import {
-  Iuser
-} from '../../../typings/interface.d'
+  IUser,
+  USER_STATUS,
+} from '../../stores/UserStore'
 
-import './index.css'
+import * as styles from './index.css'
 
-interface Iprops extends IextendableClassNamesProps {
-  user: Iuser
-  onSelect: (user: Iuser) => void
+interface IProps {
+  user: IUser
+  onSelect: (user: IUser) => void
+  className?: string
 }
 
-interface Istate {
+interface IState {
   showNetworks: boolean
 }
-class SwitchUserOption extends React.Component<Iprops, Istate> {
-  public static readonly blockName = 'switch-user-option'
-
-  private readonly getBEMClassNames = getBEMClassNamesMaker(SwitchUserOption.blockName, this.props)
-
+class SwitchUserOption extends React.Component<IProps, IState> {
   public render() {
     const {
-      getBEMClassNames,
-      props: {
-        user
-      }
-    } = this
+      user,
+    } = this.props
     return (
       <a
-        className={getBEMClassNames()}
         title={user.userAddress}
         onClick={this.handleClick}
       >
         <HashAvatar
-          className={getBEMClassNames('user-avatar')}
+          className={styles.userAvatar}
           size="small"
           hash={user.status !== USER_STATUS.PENDING
             ? sha3(`${user.userAddress}${user.blockHash}`)
             : ''
           }
         />
-        <span className={getBEMClassNames('user-address')}>
+        <span>
           {user.userAddress.slice(0, 8)}...
         </span>
       </a>

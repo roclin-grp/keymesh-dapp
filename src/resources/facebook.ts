@@ -1,13 +1,13 @@
-import { IsignedFacebookClaim } from '../../typings/proof.interface'
+import { ISignedFacebookClaim } from '../stores/BoundSocialsStore'
 
-interface Ipost {
+interface IPost {
   message: string
   created_time: string
   id: string
 }
 
 export class FacebookResource {
-  static getPosts(userID: string, accessToken: string): Promise<Ipost[]> {
+  static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
     const init = {
       method: 'GET',
       mode: 'cors',
@@ -22,7 +22,7 @@ export class FacebookResource {
       })
   }
 
-  static async getClaimByPostURL(url: string): Promise<IsignedFacebookClaim|null> {
+  static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim|null> {
     const init = {
       method: 'GET',
       mode: 'cors',
@@ -51,7 +51,7 @@ export class FacebookResource {
         userAddress: parts[1],
         publicKey: parts[2],
       },
-      signature: parts[3]
-    } as IsignedFacebookClaim
+      signature: parts[3],
+    } as ISignedFacebookClaim
   }
 }

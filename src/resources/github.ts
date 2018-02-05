@@ -1,4 +1,4 @@
-interface Igist {
+interface IGist {
   files: {
     [filename: string]: {
       raw_url: string
@@ -8,7 +8,7 @@ interface Igist {
 }
 
 export class GithubResource {
-  static getGists(username: string): Promise<Igist[]> {
+  static getGists(username: string): Promise<IGist[]> {
     const init = {
       method: 'GET',
       mode: 'cors',
@@ -18,7 +18,7 @@ export class GithubResource {
       .then((resp) => resp.json())
   }
 
-  static getGist(id: string): Promise<Igist> {
+  static getGist(id: string): Promise<IGist> {
     const init = {
       method: 'GET',
       mode: 'cors',

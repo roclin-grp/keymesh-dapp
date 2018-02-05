@@ -1,80 +1,80 @@
 import * as React from 'react'
 
-import CommonHeaderPage from '../../containers/CommonHeaderPage'
 import { inject, observer } from 'mobx-react'
-import { Store } from '../../store'
+import { IStores } from '../../stores/index'
+import { UsersStore } from '../../stores/UsersStore'
+import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
+import { BroadcastForm } from './BroadcastForm'
+import MenuBody from '../../containers/MenuBody'
+import HashAvatar from '../../components/HashAvatar'
 
-import { storeLogger } from '../../utils'
+import * as styles from './index.css'
+import BroadcastMessage from './BroadcastMessage'
+import { Divider } from 'antd'
 
-interface Iprops {
-  store: Store
+interface IProps {
+  usersStore: UsersStore
+  metaMaskStore: MetaMaskStore,
+  broadcastMessagesStore: BroadcastMessagesStore
 }
 
-interface Istate {
-  message: string
-}
+@inject(({
+  usersStore,
+  metaMaskStore,
+  broadcastMessagesStore,
+}: IStores) => ({
+  usersStore,
+  metaMaskStore,
+  broadcastMessagesStore,
+}))
 
-class BroadcastForm extends React.Component<Iprops, Istate> {
-  constructor(props: Iprops) {
-    super(props)
-
-    this.state = {
-      message: ''
-    }
+@observer
+class Broadcast extends React.Component<IProps> {
+  public componentDidMount() {
+    this.props.broadcastMessagesStore.startFetchBroadcastMessages()
   }
 
-  public handlePublish = () => {
-    this.props.store.publishBoradcastMessage(this.state.message, {
-      transactionDidCreate: () => {
-        this.setState({message: ''})
-      },
-      sendingDidComplete: () => {
-        storeLogger.log('completed')
-      },
-      sendingDidFail: (err: Error) => {
-        storeLogger.error(err)
-      }
+  public componentWillUnmount() {
+    this.props.broadcastMessagesStore.stopFetchBroadcastMessages()
+  }
+
+  public render() {
+    let form
+    if (this.props.usersStore.hasUser) {
+      form = <div className={styles.postForm}>
+        {this.userAvatar()}
+        <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore}/>
+      </div>
+    }
+
+    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message, index) => {
+      return <>
+        <BroadcastMessage usersStore={this.props.usersStore} message={message} key={index} />
+        <Divider/>
+      </>
     })
-  }
-
-  public handleChange = (event: any) => {
-    this.setState({message: event.target.value})
-  }
-
-  public render() {
-    return <div>
-      <textarea value={this.state.message} onChange={this.handleChange} />
-      <button onClick={this.handlePublish}>Publish</button>
-    </div>
-  }
-}
-
-@inject('store') @observer
-class Broadcast extends React.Component<Iprops> {
-  public componentDidMount(isFirstMount: boolean = true) {
-    const {
-      startFetchBroadcast,
-    } = this.props.store
-
-    window.setTimeout(startFetchBroadcast, 1000)
-  }
-
-  public render() {
-    const messagesElements = []
-    for (let message of this.props.store.broadcastMessages) {
-      const date = new Date(message.timestamp).toTimeString()
-      messagesElements.push(
-        <div>
-          <p>Message: {message.message}</p>
-          <p>Author: {message.author}  at: {date}</p>
+    return <MenuBody routePath="/discover">
+      <div className={styles.broadcast}>
+        {form}
+        <div className={styles.messagesContainer}>
+          <Divider/>
+          <div>{messages}</div>
         </div>
-      )
-    }
+      </div>
+    </MenuBody>
+  }
 
-    return <CommonHeaderPage><div>Broadcast</div>
-      <BroadcastForm store={this.props.store} />
-      <div>{messagesElements}</div>
-    </CommonHeaderPage>
+  private userAvatar() {
+    const avatarShape = 'circle'
+    const avatarSize = 'default'
+
+    return <HashAvatar
+      className={styles.avatar}
+      shape={avatarShape}
+      size={avatarSize}
+      hash={this.props.usersStore.currentUserStore!.avatarHash}
+    />
   }
 }
 

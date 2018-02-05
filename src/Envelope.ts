@@ -1,19 +1,16 @@
 import {
   keys,
-  message
+  message,
 } from 'wire-webapp-proteus'
 
 import * as CBOR from 'wire-webapp-cbor'
 
 const sodium = require('libsodium-wrappers-sumo')
 
-import {
-  IenvelopeHeader
-} from '../typings/interface.d'
-
 import { Buffer } from 'buffer'
+import { sodiumFromHex } from './utils/hex'
 
-class Envelope {
+export class Envelope {
   public static decode(d: CBOR.Decoder) {
     const header = {}
     let cipherMessage
@@ -21,7 +18,7 @@ class Envelope {
     for (let i = 0; i <= nprops - 1; i += 1) {
       switch (d.u8()) {
         case 0: {
-          (header as IenvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
+          (header as IEnvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
           break
         }
         case 1: {
@@ -29,7 +26,7 @@ class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).mac = new Uint8Array(d.bytes())
+                (header as IEnvelopeHeader).mac = new Uint8Array(d.bytes())
                 break
               default:
                 d.skip()
@@ -38,7 +35,7 @@ class Envelope {
           break
         }
         case 2: {
-          (header as IenvelopeHeader).baseKey = keys.PublicKey.decode(d)
+          (header as IEnvelopeHeader).baseKey = keys.PublicKey.decode(d)
           break
         }
         case 3: {
@@ -46,7 +43,7 @@ class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).sessionTag = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
+                (header as IEnvelopeHeader).sessionTag = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
                 break
               default:
                 d.skip()
@@ -55,7 +52,7 @@ class Envelope {
           break
         }
         case 4: {
-          (header as IenvelopeHeader).isPreKeyMessage = d.bool()
+          (header as IEnvelopeHeader).isPreKeyMessage = d.bool()
           break
         }
         case 5: {
@@ -63,7 +60,7 @@ class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IenvelopeHeader).messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
+                (header as IEnvelopeHeader).messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
                 break
               default:
                 d.skip()
@@ -80,7 +77,7 @@ class Envelope {
         }
       }
     }
-    return new Envelope((header as IenvelopeHeader), cipherMessage as message.CipherMessage)
+    return new Envelope((header as IEnvelopeHeader), cipherMessage as message.CipherMessage)
   }
 
   public static deserialize(buf: ArrayBuffer) {
@@ -97,7 +94,7 @@ class Envelope {
     ).buffer)
   }
 
-  constructor(public header: IenvelopeHeader, public cipherMessage: message.CipherMessage) {
+  constructor(public header: IEnvelopeHeader, public cipherMessage: message.CipherMessage) {
     this.header = header
     this.cipherMessage = cipherMessage
   }
@@ -126,7 +123,7 @@ class Envelope {
       baseKey,
       sessionTag,
       isPreKeyMessage,
-      messageByteLength
+      messageByteLength,
     } = this.header
 
     e.object(7)
@@ -141,7 +138,7 @@ class Envelope {
     e.u8(3)
     e.object(1)
     e.u8(0)
-    e.bytes(sodium.from_hex(sessionTag.slice(2)))
+    e.bytes(sodiumFromHex(sessionTag, true))
     e.u8(4)
     e.bool(Number(isPreKeyMessage))
     e.u8(5)
@@ -153,4 +150,11 @@ class Envelope {
   }
 }
 
-export default Envelope
+export interface IEnvelopeHeader {
+  senderIdentity: keys.IdentityKey
+  mac: Uint8Array
+  baseKey: keys.PublicKey
+  sessionTag: string
+  isPreKeyMessage: boolean
+  messageByteLength: number
+}

@@ -1,4 +1,4 @@
-.session--unexpand {
+.sessionUnexpand {
   position: relative;
   cursor: pointer;
   background: white;
@@ -10,7 +10,7 @@
   display: flex;
 }
 
-.session-expanded {
+.sessionExpanded {
   position: relative;
   background: white;
   font-size: 16px;
@@ -21,11 +21,11 @@
   margin: 40px 0;
 }
 
-.session-expanded:first-child {
+.sessionExpanded:first-child {
   margin-top: 0;
 }
 
-.session-header {
+.header {
   font-size: 18px;
   font-weight: bold;
   padding: 10px;
@@ -33,7 +33,8 @@
   display: flex;
 }
 
-.subject, .hide-button {
+.subject,
+.hideButton {
   margin-right: auto;
 }
 
@@ -41,15 +42,16 @@
   margin-left: auto;
 }
 
-.hide-button {
+.hideButton {
   cursor: pointer;
 }
 
-.subject--empty {
+.subjectEmpty {
   color: rgb(155, 155, 155)
 }
 
-.session--unexpand::before, .session-expanded::before {
+.sessionUnexpand::before,
+.sessionExpanded::before {
   bottom: 0;
   box-shadow: 0 -1px 0 #e0e0e0, 0 0 2px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.14);
   content: '';
@@ -61,17 +63,17 @@
   top: 0;
 }
 
-.session--unexpand > .subject {
+.sessionUnexpand > .subject {
   margin: 0;
 }
 
-.session--unexpand > .subject::after {
+.sessionUnexpand > .subject::after {
   color: black;
   content: '\2013';
   margin: 0 5px;
 }
 
-.unread-msg-count {
+.unreadMessageCount {
   background: orangered;
   border-radius: 4px;
   padding: 0 10px;
@@ -86,7 +88,7 @@
   margin-right: 40px;
 }
 
-.last-update-time {
+.lastUpdateTime {
   font-size: 14px;
   margin-left: auto;
 }
@@ -101,6 +103,6 @@
   color: #a8a8a8
 }
 
-.summary--closed {
+.summaryClosed {
   color: rgb(255, 131, 131)
 }

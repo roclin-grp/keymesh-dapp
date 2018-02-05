@@ -1,24 +1,27 @@
 import * as React from 'react'
 
+import * as classnames from 'classnames'
+import * as styles from './index.css'
+
 import {
   MESSAGE_TYPE,
   MESSAGE_STATUS,
   MESSAGE_STATUS_STR,
-} from '../../constants'
+} from '../../stores/SessionStore'
+import {
+  IContact,
+} from '../../stores/UserStore'
 
-import './index.css'
-import { Icontact } from '../../../typings/interface'
-
-interface Iprops {
+interface IProps {
   messageType: MESSAGE_TYPE
   timestamp: number
   isFromYourself: boolean
-  contact: Icontact
+  contact: IContact
   plainText?: string
   status: MESSAGE_STATUS
 }
 
-class Message extends React.Component<Iprops> {
+class Message extends React.Component<IProps> {
   public render() {
     const {
       isFromYourself,
@@ -46,7 +49,7 @@ class Message extends React.Component<Iprops> {
       }`
 
     if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
-      return <li className="close-session-msg">
+      return <li>
         Session had been closed by {contact.userAddress} at {timeStr}</li>
     }
 
@@ -55,17 +58,17 @@ class Message extends React.Component<Iprops> {
       statusStr = MESSAGE_STATUS_STR[status]
     }
 
-    return <li className={`message${isFromYourself ? ' message--self' : ''}`}>
-      <div className="meta-info">
+    return <li className={classnames(styles.message, {[styles.messageSelf]: isFromYourself})}>
+      <div className={styles.metaInfo}>
         <span
           title={`${contact.userAddress}`}
-          className="sender"
+          className={styles.sender}
         >
           {isFromYourself ? 'me' : contact.userAddress}
         </span>
-        <span className="time">{timeStr}</span>
+        <span className={styles.time}>{timeStr}</span>
       </div>
-      <p className="content">{plainText}</p>
+      <p className={styles.content}>{plainText}</p>
       {statusStr ? statusStr : null}
     </li>
   }

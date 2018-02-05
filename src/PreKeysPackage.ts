@@ -1,11 +1,8 @@
 import * as CBOR from 'wire-webapp-cbor'
+import { sodiumFromHex } from './utils/hex'
 const sodium = require('libsodium-wrappers-sumo')
 
-import {
-  IpreKeyPublicKeys
-} from '../typings/interface.d'
-
-class PreKeysPackage {
+export class PreKeysPackage {
   public static deserialize(buf: ArrayBuffer) {
     const d = new CBOR.Decoder(buf)
     return PreKeysPackage.decode(d)
@@ -15,7 +12,7 @@ class PreKeysPackage {
     const nprops = d.object()
     let interval: number = 0
     let lastPrekeysDate: number = 0
-    const preKeyPublicKeys: IpreKeyPublicKeys = {}
+    const preKeyPublicKeys: IPreKeyPublicKeys = {}
     for (let i = 0; i < nprops; i += 1) {
       switch (d.u8()) {
         case 0: {
@@ -52,7 +49,7 @@ class PreKeysPackage {
   }
 
   constructor(
-    public preKeyPublicKeys: IpreKeyPublicKeys,
+    public preKeyPublicKeys: IPreKeyPublicKeys,
     public interval: number,
     public lastPrekeyDate: number
   ) {
@@ -78,9 +75,11 @@ class PreKeysPackage {
     Object.keys(this.preKeyPublicKeys).forEach((preKeyId) => {
       e.object(1)
       e.u16(Number(preKeyId))
-      e.bytes(sodium.from_hex(this.preKeyPublicKeys[preKeyId].slice(2)))
+      e.bytes(sodiumFromHex(this.preKeyPublicKeys[preKeyId], true))
     })
   }
 }
 
-export default PreKeysPackage
+export interface IPreKeyPublicKeys {
+  [preKeyId: string]: string
+}
