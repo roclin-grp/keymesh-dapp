@@ -20,7 +20,7 @@ export class BroadcastForm extends React.Component<IProps, IState> {
     super(props)
 
     this.state = {
-      message: ''
+      message: '',
     }
   }
 
@@ -34,7 +34,7 @@ export class BroadcastForm extends React.Component<IProps, IState> {
       },
       sendingDidFail: (err: Error) => {
         storeLogger.error(err)
-      }
+      },
     })
   }
 

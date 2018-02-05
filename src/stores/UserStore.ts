@@ -172,7 +172,7 @@ export class UserStore {
         if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
           const {
             blockNumber,
-            publicKey: registeredIdentityFingerprint
+            publicKey: registeredIdentityFingerprint,
           } = await identitiesContract.getIdentity(userAddress)
           if (!registeredIdentityFingerprint || isHexZeroValue(registeredIdentityFingerprint)) {
             // we have receipt but found no identity, retry
@@ -189,7 +189,7 @@ export class UserStore {
                 user,
                 {
                   blockHash,
-                  status: USER_STATUS.IDENTITY_UPLOADED
+                  status: USER_STATUS.IDENTITY_UPLOADED,
                 }
               )
               runInAction(() => {
@@ -232,7 +232,7 @@ export class UserStore {
     {
       preKeysDidUpload = noop,
       preKeysUploadDidFail = noop,
-      isRegister = false
+      isRegister = false,
     }: IUploadPreKeysOptions = {}
   ) => {
     const interval = 1
@@ -240,7 +240,7 @@ export class UserStore {
 
     const preKeysPublicKeys: IPreKeyPublicKeys = preKeys.reduce(
       (result, preKey) => Object.assign(result, {
-        [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`
+        [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`,
       }),
       {}
     )
@@ -294,7 +294,7 @@ export class UserStore {
     data.keymail = [
       { table: 'users', rows: [user], },
       { table: 'sessions', rows: await sessionsDB.getSessions(user)},
-      { table: 'messages', rows: await messagesDB.getMessagesOfUser(user)}
+      { table: 'messages', rows: await messagesDB.getMessagesOfUser(user)},
     ]
     const cryptobox = await dumpCryptobox(user)
     data[cryptobox.dbname] = cryptobox.tables
@@ -306,7 +306,7 @@ export class UserStore {
       user: {
         networkId,
         userAddress,
-      }
+      },
     } = this
     const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${networkId}@${userAddress}`)
     const box = this.box = new Cryptobox(indexedDBStore as any, 0)
@@ -357,7 +357,7 @@ export interface IUser extends IUserIdentityKeys {
 export enum USER_STATUS {
   PENDING = 0,
   IDENTITY_UPLOADED = 1,
-  OK = 2
+  OK = 2,
 }
 
 export interface IContact {

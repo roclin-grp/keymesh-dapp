@@ -14,7 +14,7 @@ interface IProps {
 const SIZE_PX = Object.freeze({
   large: 40,
   small: 24,
-  default: 32
+  default: 32,
 })
 
 function HashAvatar({size = 'default', hash, shape = 'square', className}: IProps) {

@@ -61,7 +61,7 @@ export class MessagesDB {
   public deleteMessagesOfUser(
     {
       networkId,
-      userAddress
+      userAddress,
     }: IUser,
     timestampBefore?: number
   ) {
@@ -73,7 +73,7 @@ export class MessagesDB {
 
   public deleteMessagesOfSession(
     {
-      sessionTag
+      sessionTag,
     }: ISession,
     timestampBefore?: number
   ) {
@@ -156,7 +156,7 @@ export class MessagesDB {
   public updateMessage(
     {
       messageId,
-      userAddress
+      userAddress,
     }: IMessage,
     IupdateMessageArgs: IUpdateMessageOptions = {}
   ) {
@@ -170,7 +170,7 @@ export class MessagesDB {
 
   public deleteMessage({
     messageId,
-    userAddress
+    userAddress,
   }: IMessage) {
     return this.tables.tableMessages
       .delete([messageId, userAddress])

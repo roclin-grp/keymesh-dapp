@@ -8,7 +8,18 @@
     "build": "yarn css-types src && node scripts/build.js",
     "test": "node scripts/test.js --env=jsdom",
     "analyze": "source-map-explorer build/static/js/main.*",
-    "css-types": "tcm"
+    "css-types": "tcm",
+    "precommit": "lint-staged",
+    "tslint": "tslint"
+  },
+  "lint-staged": {
+    "ignore": ["src/**/*.d.ts"],
+    "linters": {
+      "*.{ts,tsx}": [
+        "tslint --fix",
+        "git add"
+      ]
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.0.0-beta.36",
@@ -31,7 +42,9 @@
     "file-loader": "^1.1.6",
     "fs-extra": "^5.0.0",
     "html-webpack-plugin": "^2.30.1",
+    "husky": "^0.14.3",
     "jest": "^22.0.4",
+    "lint-staged": "^6.1.0",
     "object-assign": "^4.1.1",
     "postcss-flexbugs-fixes": "^3.2.0",
     "postcss-loader": "^2.0.9",
@@ -46,6 +59,7 @@
     "ts-jest": "^22.0.0",
     "ts-loader": "^3.2.0",
     "tslint": "^5.8.0",
+    "tslint-eslint-rules": "^4.1.1",
     "tslint-loader": "^3.5.3",
     "tslint-react": "^3.2.0",
     "typed-css-modules": "^0.3.1",

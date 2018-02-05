@@ -6,7 +6,7 @@ import { UsersStore } from '../../stores/UsersStore'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { BroadcastForm } from './BroadcastForm'
-import  MenuBody  from '../../containers/MenuBody'
+import MenuBody from '../../containers/MenuBody'
 import HashAvatar from '../../components/HashAvatar'
 
 import * as styles from './index.css'

@@ -1,8 +1,8 @@
 import {
-  observable
+  observable,
 } from 'mobx'
 import {
-  ITransactionLifecycle
+  ITransactionLifecycle,
 } from './ContractStore'
 import {
   UserStore,
@@ -11,7 +11,7 @@ import {
 } from './UserStore'
 
 import {
-  keys
+  keys,
 } from 'wire-webapp-proteus'
 
 import {
@@ -24,7 +24,7 @@ export class SessionStore {
 
   constructor(session: ISession, {
     databases,
-    userStore
+    userStore,
   }: {
     databases: Databases,
     userStore: UserStore
@@ -61,13 +61,13 @@ export interface IMessage extends IUserIdentityKeys {
 export enum MESSAGE_TYPE {
   HELLO = 0,
   NORMAL = 1,
-  CLOSE_SESSION = 2
+  CLOSE_SESSION = 2,
 }
 
 export enum MESSAGE_STATUS {
   DELIVERING = 0,
   DELIVERED = 1,
-  FAILED = 2
+  FAILED = 2,
 }
 
 export const MESSAGE_STATUS_STR = Object.freeze({

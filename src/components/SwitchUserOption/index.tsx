@@ -23,7 +23,7 @@ interface IState {
 class SwitchUserOption extends React.Component<IProps, IState> {
   public render() {
     const {
-      user
+      user,
     } = this.props
     return (
       <a

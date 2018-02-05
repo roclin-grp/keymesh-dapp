@@ -71,7 +71,7 @@ class App extends React.Component<IProps> {
       },
       contractStore: {
         isNotAvailable: isContractsNotAvailable,
-        instantiationError
+        instantiationError,
       },
     } = this.injectedProps
 

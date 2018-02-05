@@ -21,7 +21,7 @@ import {
 // import Session from '../../containers/session'
 
 import {
-  noop
+  noop,
 } from '../../utils'
 
 import './index.css'
@@ -39,20 +39,20 @@ interface IState {
 
 @inject(({
   metaMaskStore,
-  usersStore
+  usersStore,
 }: IStores) => ({
   metaMaskStore,
-  usersStore
+  usersStore,
 }))
 @observer
 class Home extends React.Component<{}, IState> {
   public readonly state = Object.freeze({
     isSending: false,
     sendingProgress: '',
-    showCompose: false
+    showCompose: false,
   })
 
-  private readonly injectedProps=  this.props as Readonly<IInjectedProps>
+  private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   // private unmounted = false
   private toInput: HTMLInputElement | null
@@ -107,13 +107,13 @@ class Home extends React.Component<{}, IState> {
       },
       usersStore: {
         // currentUserStore,
-        hasUser
-      }
+        hasUser,
+      },
       // currentUserSessions,
       // newMessageCount
     } = this.injectedProps
     const {
-      showCompose
+      showCompose,
     } = this.state
     return (
       <>
@@ -216,7 +216,7 @@ class Home extends React.Component<{}, IState> {
   private toggleCompose = () => {
     this.setState({
       showCompose: !this.state.showCompose,
-      sendingProgress: ''
+      sendingProgress: '',
     })
   }
 

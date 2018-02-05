@@ -57,7 +57,7 @@ export class SessionsStore {
   public selectSession = async (session: ISession) => {
     this.currentSessionStore = new SessionStore(session, {
       databases: this.databases,
-      userStore: this.userStore
+      userStore: this.userStore,
     })
   }
 

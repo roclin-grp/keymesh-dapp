@@ -34,7 +34,7 @@ import {
   storeLogger,
 } from '../utils/loggers'
 import {
-  isHexZeroValue
+  isHexZeroValue,
 } from '../utils/hex'
 
 import {
@@ -64,7 +64,7 @@ export class UsersStore {
   @computed
   public get hasWalletCorrespondingUsableUser() {
     const {
-      currentEthereumAccount
+      currentEthereumAccount,
     } = this.metaMaskStore
     return typeof this.usableUsers.find((user) => user.userAddress === currentEthereumAccount) !== 'undefined'
   }
@@ -100,11 +100,11 @@ export class UsersStore {
     reaction(
       () => ({
         isActive: this.metaMaskStore.isActive,
-        networkId: this.metaMaskStore.currentEthereumNetwork
+        networkId: this.metaMaskStore.currentEthereumNetwork,
       }),
       async ({
         networkId,
-        isActive
+        isActive,
       }) => {
         if (
           isActive
@@ -113,7 +113,7 @@ export class UsersStore {
           this.isLoadingUsers = true
           const users = await databases.usersDB.getUsers(networkId!)
 
-          let userAddress = getNetworkLastUsedUserAddress(networkId!)
+          const userAddress = getNetworkLastUsedUserAddress(networkId!)
           let user: IUser | undefined
           if (userAddress !== '') {
             user = users.find((_user) => _user.userAddress === userAddress)
@@ -147,7 +147,7 @@ export class UsersStore {
     }
 
     const {
-      publicKey: identityFingerprint
+      publicKey: identityFingerprint,
     } = await this.getIdentityByUserAddress(userAddress)
     if (Number(identityFingerprint) === 0) {
       return undefined
@@ -163,7 +163,7 @@ export class UsersStore {
   public register = async ({
     transactionWillCreate = noop,
     transactionDidCreate = noop,
-    registerDidFail = noop
+    registerDidFail = noop,
   }: IRegisterLifecycle = {}) => new Promise(async (resolve, reject) => {
     if (!this.hasNoRegisterRecordOnLocal) {
       storeLogger.error(new Error('BUG: Trying to invoke `register` when it should not be invoked'))
@@ -177,7 +177,7 @@ export class UsersStore {
 
     // check if registered, avoid unnecessary transaction
     const {
-      publicKey
+      publicKey,
     } = await this.getIdentityByUserAddress(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
       if (ethereumAddress === this.metaMaskStore.currentEthereumAccount) {
@@ -205,7 +205,7 @@ export class UsersStore {
             {
               networkId: ethereumNetworkId,
               userAddress: ethereumAddress,
-              identityTransactionHash: transactionHash
+              identityTransactionHash: transactionHash,
             }
           )
 
@@ -267,7 +267,7 @@ export class UsersStore {
       databases: this.databases,
       metaMaskStore: this.metaMaskStore,
       contractStore: this.contractStore,
-      usersStore: this
+      usersStore: this,
     })
   }
 
@@ -284,7 +284,7 @@ export class UsersStore {
   private checkChainRegisterRecordByUserAddress = async (userAddress: string) => {
     if (typeof userAddress !== 'undefined' && !this.contractStore.isNotAvailable) {
       const {
-        publicKey
+        publicKey,
       } = await this.contractStore.identitiesContract.getIdentity(userAddress)
 
       runInAction(() => {
@@ -324,7 +324,7 @@ export class UsersStore {
 
 function setNetworkLastUsedUserAddress({
   networkId,
-  userAddress
+  userAddress,
 }: IUser) {
   localStorage.setItem(`keymail@'${networkId}@last-used-user`, userAddress)
 }

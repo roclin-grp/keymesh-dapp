@@ -8,7 +8,7 @@ import {
   Identities,
   Messages,
   BroadcastMessages,
-  BoundSocials
+  BoundSocials,
 } from 'trustbase'
 
 import {
@@ -28,7 +28,7 @@ export class ContractStore {
   }
 
   constructor({
-    metaMaskStore
+    metaMaskStore,
   }: {
     metaMaskStore: MetaMaskStore
   }) {
@@ -36,11 +36,11 @@ export class ContractStore {
     reaction(
       () => ({
         isActive: this.metaMaskStore.isActive,
-        networkId: this.metaMaskStore.currentEthereumNetwork
+        networkId: this.metaMaskStore.currentEthereumNetwork,
       }),
       ({
         networkId,
-        isActive
+        isActive,
       }) => {
         if (isActive) {
           try {

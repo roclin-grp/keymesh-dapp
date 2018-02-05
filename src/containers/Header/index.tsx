@@ -35,13 +35,13 @@ import {
   METAMASK_CONNECT_STATUS,
 } from '../../stores/MetaMaskStore'
 import {
-  ContractStore
+  ContractStore,
 } from '../../stores/ContractStore'
 import {
-  UsersStore
+  UsersStore,
 } from '../../stores/UsersStore'
 import {
-  IUser
+  IUser,
 } from '../../stores/UserStore'
 
 // helper
@@ -130,7 +130,7 @@ class Header extends React.Component<IProps, IState> {
     const {
       isNotAvailable,
       isLocked,
-      currentEthereumNetwork
+      currentEthereumNetwork,
     } = this.injectedProps.metaMaskStore
 
     return (
@@ -165,7 +165,7 @@ class Header extends React.Component<IProps, IState> {
         hasUser,
       },
       contractStore: {
-        isNotAvailable: contractsNotAvailable
+        isNotAvailable: contractsNotAvailable,
       },
     } = this.injectedProps
 
@@ -301,11 +301,11 @@ class Header extends React.Component<IProps, IState> {
 
   private handleExport = async () => {
     this.setState({
-      isExporting: true
+      isExporting: true,
     })
     try {
       const {
-        exportUser
+        exportUser,
       } = this.injectedProps.usersStore.currentUserStore!
       await exportUser()
     } catch (err) {
@@ -316,7 +316,7 @@ class Header extends React.Component<IProps, IState> {
     } finally {
       if (!this.isUnmounted) {
         this.setState({
-          isExporting: false
+          isExporting: false,
         })
       }
     }
@@ -336,14 +336,14 @@ class Header extends React.Component<IProps, IState> {
 const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
   [METAMASK_CONNECT_STATUS.PENDING]: '',
   [METAMASK_CONNECT_STATUS.ACTIVE]: styles.networkIndicatorActive,
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable,
 }) as {
   [connectStatus: number]: string
 }
 
 const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [METAMASK_CONNECT_STATUS.ACTIVE]: 'Active',
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'No account'
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'No account',
 }) as {
   [connectStatus: number]: string
 }

@@ -32,7 +32,7 @@ export class GithubProvingState extends ProvingState {
 
     let proofURL: string = ''
     let proofRawURL: string = ''
-    for (let gist of gists) {
+    for (const gist of gists) {
       if (Object.keys(gist.files).includes(GITHUB_GIST_FILENAME)) {
         proofURL = gist.html_url
         proofRawURL = gist.files[GITHUB_GIST_FILENAME].raw_url
@@ -56,7 +56,7 @@ export class GithubProvingState extends ProvingState {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: signedClaim,
       proofURL: proofURL,
-      username: signedClaim.claim.service.username
+      username: signedClaim.claim.service.username,
     }
     this.usersStore.currentUserStore!.boundSocialsStore.addGithubBindingSocial(bindingSocial)
 

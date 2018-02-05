@@ -9,12 +9,12 @@ import { sodiumFromHex } from './hex'
 const CRYPTOBOX_SCHEMA = Object.freeze({
   keys: '',
   prekeys: '',
-  sessions: ''
+  sessions: '',
 })
 
 export async function dumpCryptobox({
   networkId,
-  userAddress
+  userAddress,
 }: IUser
 ) {
   const dbname = `cryptobox@${networkId}@${userAddress}`

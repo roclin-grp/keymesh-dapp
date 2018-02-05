@@ -39,7 +39,7 @@ import {
 
 // helper
 import {
-  storeLogger
+  storeLogger,
 } from '../../utils/loggers'
 
 @inject(({
@@ -54,7 +54,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   public readonly state = Object.freeze({
     status: REGISTER_STATUS.PENDING,
     helpMessage: '',
-    isDeleting: false
+    isDeleting: false,
   })
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
@@ -74,7 +74,7 @@ class AccountListItem extends React.Component<IProps, IState> {
       this.handleCheckRegisterStatus()
     } else {
       this.setState({
-        status: REGISTER_STATUS.DONE
+        status: REGISTER_STATUS.DONE,
       })
     }
   }
@@ -82,7 +82,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   public render() {
     const {
       avatarHash,
-      user
+      user,
     } = this.userStore
     const {
       isCurrentUser,
@@ -152,7 +152,7 @@ class AccountListItem extends React.Component<IProps, IState> {
           >
             Switch
           </Button>,
-          deleteButton
+          deleteButton,
         ]
       case REGISTER_STATUS.TIMEOUT:
       case REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL:
@@ -166,7 +166,7 @@ class AccountListItem extends React.Component<IProps, IState> {
           >
             Retry
           </Button>,
-          deleteButton
+          deleteButton,
         ]
       default:
         return [
@@ -177,7 +177,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
   private getListContent = () => {
     const {
-      user
+      user,
     } = this.props
     const {
       status,
@@ -233,17 +233,17 @@ class AccountListItem extends React.Component<IProps, IState> {
       networkId,
     } = this.props.user
     this.setState({
-      isDeleting: true
+      isDeleting: true,
     })
     await this.injectedProps.usersStore.deleteUser(networkId, userAddress)
     this.setState({
-      isDeleting: false
+      isDeleting: false,
     })
   }
 
   private handleSwitchUser = () => {
     const {
-      useUser
+      useUser,
     } = this.injectedProps.usersStore
 
     useUser(this.props.user)
@@ -256,7 +256,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     checkIdentityUploadStatus({
       checkRegisterWillStart: this.checkRegisterWillStart,
       identityDidUpload: this.identityDidUpload,
-      registerDidFail: this.registerDidFail
+      registerDidFail: this.registerDidFail,
     }).catch(this.registerDidFail)
   }
 
@@ -267,7 +267,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADING,
-      helpMessage: 'Waiting for confirmation (click to see transaction)'
+      helpMessage: 'Waiting for confirmation (click to see transaction)',
     })
   }
 
@@ -279,12 +279,12 @@ class AccountListItem extends React.Component<IProps, IState> {
     this.userStore.uploadPreKeys({
       preKeysDidUpload: this.preKeysDidUpload,
       preKeysUploadDidFail: this.preKeysUploadDidFail,
-      isRegister: true
+      isRegister: true,
     }).catch(this.preKeysUploadDidFail)
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADED,
-      helpMessage: 'Uploading pre-keys to cloud server.'
+      helpMessage: 'Uploading pre-keys to cloud server.',
     })
   }
 
@@ -295,7 +295,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     const {
       users,
-      useUser
+      useUser,
     } = this.injectedProps.usersStore
 
     if (users.length === 1) {
@@ -303,7 +303,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     }
 
     this.setState({
-      status: REGISTER_STATUS.DONE
+      status: REGISTER_STATUS.DONE,
     })
   }
 
@@ -316,7 +316,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     this.setState({
       status: REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL,
-      helpMessage: 'Can not upload your public keys to our server, please check your internet connection and retry.'
+      helpMessage: 'Can not upload your public keys to our server, please check your internet connection and retry.',
     })
   }
 
@@ -342,7 +342,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     }
     this.setState({
       status,
-      helpMessage
+      helpMessage,
     })
   }
 }

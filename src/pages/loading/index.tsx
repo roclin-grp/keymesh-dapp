@@ -2,14 +2,14 @@ import * as React from 'react'
 
 // component
 import {
-  Icon
+  Icon,
 } from 'antd'
 
 // style
 import * as styles from './index.css'
 
 export default function Loading({
-  message
+  message,
 }: IProps) {
   return (
     <>

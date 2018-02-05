@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import {
   ITables,
-  Databases
+  Databases,
 } from './'
 
 import {
@@ -22,7 +22,7 @@ export class SessionsDB {
   public getSessions(
     {
       networkId,
-      userAddress
+      userAddress,
     }: IUser,
     {
       contact,
@@ -53,12 +53,12 @@ export class SessionsDB {
     user: IUser,
     {
       lastUpdateBefore,
-      contact
+      contact,
     }: IDeleteSessionsOptions = {}
   ) {
     const {
       networkId,
-      userAddress
+      userAddress,
     } = user
     const {
       tableUsers,
@@ -70,7 +70,7 @@ export class SessionsDB {
         .where(Object.assign(
           {
             networkId,
-            userAddress
+            userAddress,
           },
           contact ? {contact} : null)
         )
@@ -98,7 +98,7 @@ export class SessionsDB {
   ) {
     const {
       networkId,
-      userAddress
+      userAddress,
     } = user
     const {
       tableUsers,
@@ -121,7 +121,7 @@ export class SessionsDB {
             summary: '',
             lastUpdate: 0,
             unreadCount: 0,
-            isClosed: false
+            isClosed: false,
           })
 
         const session = await this.getSession(sessionTag, userAddress)
@@ -158,12 +158,12 @@ export class SessionsDB {
   public updateSession(
     {
       sessionTag,
-      userAddress
+      userAddress,
     }: ISession,
     updateSessionOptions: IUpdateSessionOptions = {}
   ) {
     const {
-      tableSessions
+      tableSessions,
     } = this.tables
     return tableSessions
       .update([sessionTag, userAddress], updateSessionOptions)
@@ -213,7 +213,7 @@ export class SessionsDB {
     return this.dexieDB.transaction('rw', tableSessions, tableMessages, async () => {
       await Promise.all([
         tableSessions.clear(),
-        tableMessages.clear()
+        tableMessages.clear(),
       ])
     })
   }

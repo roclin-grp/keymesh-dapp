@@ -51,7 +51,7 @@ export class FacebookResource {
         userAddress: parts[1],
         publicKey: parts[2],
       },
-      signature: parts[3]
+      signature: parts[3],
     } as ISignedFacebookClaim
   }
 }

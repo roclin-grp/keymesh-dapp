@@ -31,7 +31,7 @@ export class ProfileState {
   } = {
       github: VERIFY_SOCIAL_STATUS.NOT_FOUND,
       twitter: VERIFY_SOCIAL_STATUS.NOT_FOUND,
-      facebook: VERIFY_SOCIAL_STATUS.NOT_FOUND
+      facebook: VERIFY_SOCIAL_STATUS.NOT_FOUND,
     }
 
   @observable public userBoundSocials: IBoundSocials = {}
@@ -117,7 +117,7 @@ export class ProfileState {
 
     const {
       lastBlock,
-      bindEvents
+      bindEvents,
     } = await this.getBindEvents(this.userLastFetchBlock, this._userAddress)
 
     runInAction(() => {
@@ -278,8 +278,8 @@ export class ProfileState {
     return this.contractStore.boundSocialsContract.getBindEvents({
       fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
       filter: {
-        userAddress
-      }
+        userAddress,
+      },
     })
   }
 }

@@ -31,7 +31,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
       message: {
         author,
         timestamp,
-      }
+      },
     } = this.props
     const avatarHash = await getAvatarHashByUserAddress(author)
     runInAction(() => {

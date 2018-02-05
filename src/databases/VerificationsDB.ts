@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import {
   ITables,
-  Databases
+  Databases,
 } from './'
 
 import {
@@ -30,7 +30,7 @@ export class VerificationsDB {
     userAddress,
   }: IUser) {
     const {
-      tableVerifications
+      tableVerifications,
     } = this.tables
     return tableVerifications
       .add(
@@ -59,12 +59,12 @@ export class VerificationsDB {
   public updateVerifications(
     {
       networkId,
-      userAddress
+      userAddress,
     }: IVerifications,
     updateVerificationsOptions: IUpdateVerificationsOptions = {}
   ) {
     const {
-      tableVerifications
+      tableVerifications,
     } = this.tables
     return this.tables.tableVerifications
       .update(
@@ -76,7 +76,7 @@ export class VerificationsDB {
 
   public deleteVerifications({
     networkId,
-    userAddress
+    userAddress,
   }: IVerifications) {
     return this.tables.tableVerifications
       .delete([networkId, userAddress])
@@ -84,7 +84,7 @@ export class VerificationsDB {
 
   public deleteVerificationsOfUser({
     networkId,
-    userAddress
+    userAddress,
   }: IUser) {
     return this.tables.tableVerifications
       .delete([networkId, userAddress])

@@ -201,13 +201,13 @@ interface IAsyncProvider {
 export enum METAMASK_CONNECT_STATUS {
   PENDING = 0,
   ACTIVE,
-  NOT_AVAILABLE
+  NOT_AVAILABLE,
 }
 
 export enum METAMASK_CONNECT_FAIL_CODE {
   NO_METAMASK = 0,
   LOCKED,
-  UNKNOWN
+  UNKNOWN,
 }
 
 export enum ETHEREUM_NETWORKS {
@@ -216,7 +216,7 @@ export enum ETHEREUM_NETWORKS {
   MORDEN = 2,
   ROPSTEN = 3,
   RINKEBY = 4,
-  KOVAN = 42
+  KOVAN = 42,
 }
 
 export const ETHEREUM_NETWORK_NAMES = Object.freeze({
@@ -225,7 +225,7 @@ export const ETHEREUM_NETWORK_NAMES = Object.freeze({
   [ETHEREUM_NETWORKS.MORDEN]: 'Morden',
   [ETHEREUM_NETWORKS.ROPSTEN]: 'Ropsten',
   [ETHEREUM_NETWORKS.RINKEBY]: 'Rinkeby',
-  [ETHEREUM_NETWORKS.KOVAN]: 'Kovan'
+  [ETHEREUM_NETWORKS.KOVAN]: 'Kovan',
 }) as {
   [networkID: number]: string
 }
@@ -236,7 +236,7 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.MAINNET]: 'https://etherscan.io/tx/',
   [ETHEREUM_NETWORKS.ROPSTEN]: 'https://ropsten.etherscan.io/tx/',
   [ETHEREUM_NETWORKS.RINKEBY]: 'https://rinkeby.etherscan.io/tx/',
-  [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/'
+  [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
 }) as {
   [networkID: number]: string
 }

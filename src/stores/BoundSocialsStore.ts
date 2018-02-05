@@ -126,19 +126,19 @@ export class BoundSocialsStore {
 
   private persistBindingSocials() {
     return this.databases.verificationsDB.updateVerifications(this.verifications, {
-      bindingSocials: this.bindingSocials
+      bindingSocials: this.bindingSocials,
     })
   }
 
   private persistBoundSocials() {
     return this.databases.verificationsDB.updateVerifications(this.verifications, {
-      boundSocials: this.boundSocials
+      boundSocials: this.boundSocials,
     })
   }
 
   private async init() {
     const {
-      user
+      user,
     } = this.userStore
     let verifications = await this.databases.verificationsDB.getVerificationsOfUser(user)
 
@@ -164,7 +164,7 @@ export interface IVerifications extends IUserIdentityKeys {
 
 export enum UPLOADING_FAIL_CODE {
   UNKNOWN = 0,
-  NO_NEW_BINDING
+  NO_NEW_BINDING,
 }
 
 interface IUploadingLifecycle extends ITransactionLifecycle {

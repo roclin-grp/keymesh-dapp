@@ -26,12 +26,12 @@ export function createStores(): IStores {
   const metaMaskStore = new MetaMaskStore()
   metaMaskStore.connect()
   const contractStore = new ContractStore({
-    metaMaskStore
+    metaMaskStore,
   })
   const usersStore = new UsersStore({
     metaMaskStore,
     contractStore,
-    databases
+    databases,
   })
   const broadcastMessagesStore = new BroadcastMessagesStore({
     usersStore,

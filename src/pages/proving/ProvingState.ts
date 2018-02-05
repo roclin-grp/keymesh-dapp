@@ -29,7 +29,7 @@ export default abstract class ProvingState {
   public continueHandler = async () => {
     const userAddress = this.usersStore.currentUserStore!.user.userAddress
     const {
-      publicKey: identityFingerprint
+      publicKey: identityFingerprint,
     } = await this.usersStore.getIdentityByUserAddress(userAddress)
     if (Number(identityFingerprint) === 0) {
       return

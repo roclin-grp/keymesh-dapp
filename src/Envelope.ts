@@ -1,6 +1,6 @@
 import {
   keys,
-  message
+  message,
 } from 'wire-webapp-proteus'
 
 import * as CBOR from 'wire-webapp-cbor'
@@ -123,7 +123,7 @@ export class Envelope {
       baseKey,
       sessionTag,
       isPreKeyMessage,
-      messageByteLength
+      messageByteLength,
     } = this.header
 
     e.object(7)

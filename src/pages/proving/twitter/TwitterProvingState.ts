@@ -33,7 +33,7 @@ export class TwitterProvingState extends ProvingState {
 
     const _claimText = getTwitterClaim(claim)
     let claimTweet: ITweet|undefined
-    for (let tweet of tweets) {
+    for (const tweet of tweets) {
       if (tweet.full_text === _claimText) {
         claimTweet = tweet
         break

@@ -1,5 +1,8 @@
 {
-    "extends": ["tslint-react"],
+    "extends": [
+        "tslint-react",
+        "tslint-eslint-rules"
+    ],
     "rules": {
         "align": [
             true,
@@ -14,7 +17,7 @@
             "check-space"
         ],
         "curly": true,
-        "eofline": false,
+        "eofline": true,
         "forin": true,
         "indent": [ true, "spaces" ],
         "interface-name": [true],
@@ -40,6 +43,8 @@
                 ]
             }
         ],
+        "no-multi-spaces": true,
+        "no-var-keyword": true,
         "no-any": false,
         "no-arg": true,
         "no-bitwise": true,
@@ -77,7 +82,19 @@
         "semicolon": [true, "never"],
         "switch-default": true,
 
-        "trailing-comma": [false],
+        "trailing-comma": [
+            true,
+            {
+                "multiline": {
+                    "imports": "always",
+                    "objects": "always",
+                    "arrays": "always",
+                    "functions": "ignore",
+                    "typeLiterals": "ignore"
+                },
+                "esSpecCompliant": true
+            }
+        ],
 
         "triple-equals": [ true, "allow-null-check" ],
         "typedef": [
@@ -103,8 +120,11 @@
             "check-module",
             "check-operator",
             "check-separator",
+            "check-rest-spread",
             "check-type",
-            "check-typecast"
-        ]
+            "check-typecast",
+            "check-type-operator"
+        ],
+        "prefer-const": true
     }
 }

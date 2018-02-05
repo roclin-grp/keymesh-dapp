@@ -40,7 +40,7 @@ export class FacebookProvingState extends ProvingState {
     const text = getFacebookClaim(this.claim)
     const proofPost = await FacebookResource.getPosts(this.facebookUserID, this.facebookAccessToken)
       .then(posts => {
-        for (let post of posts) {
+        for (const post of posts) {
           if (!post.hasOwnProperty('message')) {
             continue
           }

@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import {
   ITables,
-  Databases
+  Databases,
 } from './'
 import {
   restoreDB,
@@ -120,7 +120,7 @@ export class UsersDB {
     return this.updateUser(
       user,
       {
-        contacts: user.contacts.concat(contact)
+        contacts: user.contacts.concat(contact),
       }
     )
   }
@@ -133,7 +133,7 @@ export class UsersDB {
     return this.updateUser(
       user,
       {
-        contacts: user.contacts.filter((_contact) => _contact.userAddress !== contact.userAddress)
+        contacts: user.contacts.filter((_contact) => _contact.userAddress !== contact.userAddress),
       }
     )
   }

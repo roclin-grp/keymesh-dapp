@@ -78,7 +78,7 @@ export class TwitterResource {
       method: 'GET',
       headers: {
         'Authorization': 'Bearer ' + this.accessToken,
-      }
+      },
     }).then((resp) => resp.json())
   }
 }

@@ -87,7 +87,7 @@ class Profile extends React.Component<IProps> {
 
   private get socials() {
     const socialsElements = []
-    for (let social of SOCIAL_MEDIAS) {
+    for (const social of SOCIAL_MEDIAS) {
       const boundSocial = this.data.userBoundSocials[social.platform]
       let stateText = null
 

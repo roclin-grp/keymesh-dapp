@@ -39,7 +39,7 @@ export class BroadcastMessagesStore {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
       sendingDidComplete = noop,
-      sendingDidFail = noop
+      sendingDidFail = noop,
     }: ISendingLifecycle = {},
   ) => {
     const {
@@ -121,12 +121,12 @@ export class BroadcastMessagesStore {
   private fetchNewBroadcastMessages = async () => {
     const {
       lastBlock,
-      broadcastMessages
+      broadcastMessages,
     } = await this.contractStore.broadcastMessagesContract.getBroadcastMessages({
-      fromBlock: this.lastFetchBlock > 0 ? this.lastFetchBlock : 0
+      fromBlock: this.lastFetchBlock > 0 ? this.lastFetchBlock : 0,
     })
 
-    let messages = (await Promise.all(broadcastMessages.map(async (message: any) => {
+    const messages = (await Promise.all(broadcastMessages.map(async (message: any) => {
       const userAddress = message.userAddress
       const blockTimestamp = message.timestamp
       const signedMessage = JSON.parse(hexToUtf8(message.signedMessage.slice(2))) as ISignedBroadcastMessage

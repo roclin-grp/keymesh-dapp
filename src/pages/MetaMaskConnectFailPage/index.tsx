@@ -30,10 +30,10 @@ import {
 
 @inject(({
   metaMaskStore,
-  usersStore
+  usersStore,
 }: IStores) => ({
   metaMaskStore,
-  usersStore
+  usersStore,
 }))
 @observer
 class MetaMaskConnectFailPage extends React.Component {

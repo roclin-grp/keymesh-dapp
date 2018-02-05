@@ -17,7 +17,7 @@ import {
   UploadFile,
 } from 'antd/lib/upload/interface.d'
 const {
-  Dragger
+  Dragger,
 } = Upload
 
 // style
@@ -40,7 +40,7 @@ import {
   REGISTER_FAIL_CODE,
 } from '../../stores/UsersStore'
 import {
-  IUser
+  IUser,
 } from '../../stores/UserStore'
 
 // helper
@@ -50,17 +50,17 @@ import {
 
 @inject(({
   metaMaskStore,
-  usersStore
+  usersStore,
 }: IStores) => ({
   metaMaskStore,
-  usersStore
+  usersStore,
 }))
 @observer
 class Accounts extends React.Component<IProps, IState> {
   public readonly state = Object.freeze({
     registerButtonContent: 'Register',
     isCreatingTransaction: false,
-    isImporting: false
+    isImporting: false,
   })
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
@@ -191,7 +191,7 @@ class Accounts extends React.Component<IProps, IState> {
   private handleRegister = () => {
     this.setState({
       isCreatingTransaction: true,
-      registerButtonContent: 'Checking...'
+      registerButtonContent: 'Checking...',
     })
 
     this.injectedProps.usersStore.register({
@@ -207,7 +207,7 @@ class Accounts extends React.Component<IProps, IState> {
       return
     }
     this.setState({
-      registerButtonContent: 'Please confirm the transaction...'
+      registerButtonContent: 'Please confirm the transaction...',
     })
   }
 
@@ -217,7 +217,7 @@ class Accounts extends React.Component<IProps, IState> {
     }
     this.setState({
       registerButtonContent: 'Register',
-      isCreatingTransaction: false
+      isCreatingTransaction: false,
     })
   }
 
@@ -240,7 +240,7 @@ class Accounts extends React.Component<IProps, IState> {
     })())
     this.setState({
       registerButtonContent: 'Register',
-      isCreatingTransaction: false
+      isCreatingTransaction: false,
     })
   }
 
@@ -260,7 +260,7 @@ class Accounts extends React.Component<IProps, IState> {
       return false
     }
     this.setState({
-      isImporting: true
+      isImporting: true,
     })
     const file: File = files[0] as any
     const reader = new FileReader()
@@ -289,7 +289,7 @@ class Accounts extends React.Component<IProps, IState> {
           return
         }
         this.setState({
-          isImporting: false
+          isImporting: false,
         })
       }
     }

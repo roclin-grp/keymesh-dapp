@@ -1,15 +1,15 @@
 import Dexie from 'dexie'
 import {
-  UsersDB
+  UsersDB,
 } from './UsersDB'
 import {
-  SessionsDB
+  SessionsDB,
 } from './SessionsDB'
 import {
-  MessagesDB
+  MessagesDB,
 } from './MessagesDB'
 import {
-  VerificationsDB
+  VerificationsDB,
 } from './VerificationsDB'
 
 import {
