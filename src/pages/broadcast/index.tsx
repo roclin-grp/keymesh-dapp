@@ -8,9 +8,8 @@ import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { BroadcastForm } from './BroadcastForm'
 import  MenuBody  from '../../containers/MenuBody'
 import HashAvatar from '../../components/HashAvatar'
-import { getBEMClassNamesMaker } from '../../utils/classNames'
 
-import './index.css'
+import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
 
@@ -32,8 +31,6 @@ interface IProps {
 
 @observer
 class Broadcast extends React.Component<IProps> {
-  private readonly getBEMClassNames = getBEMClassNamesMaker('broadcast', this.props)
-
   public componentDidMount() {
     this.props.broadcastMessagesStore.startFetchBroadcastMessages()
   }
@@ -45,7 +42,7 @@ class Broadcast extends React.Component<IProps> {
   public render() {
     let form
     if (this.props.usersStore.hasUser) {
-      form = <div className={this.getBEMClassNames('post_form')}>
+      form = <div className={styles.postForm}>
         {this.userAvatar()}
         <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore}/>
       </div>
@@ -58,9 +55,9 @@ class Broadcast extends React.Component<IProps> {
       </>
     })
     return <MenuBody routePath="/discover">
-      <div className={this.getBEMClassNames()}>
+      <div className={styles.broadcast}>
         {form}
-        <div className={this.getBEMClassNames('messages_container')}>
+        <div className={styles.messagesContainer}>
           <Divider/>
           <div>{messages}</div>
         </div>
@@ -73,7 +70,7 @@ class Broadcast extends React.Component<IProps> {
     const avatarSize = 'default'
 
     return <HashAvatar
-      className={this.getBEMClassNames('avatar')}
+      className={styles.avatar}
       shape={avatarShape}
       size={avatarSize}
       hash={this.props.usersStore.currentUserStore!.avatarHash}

@@ -5,14 +5,13 @@ import { observer } from 'mobx-react'
 
 import HashAvatar from '../../components/HashAvatar'
 import Address from '../../components/Address'
-import { getBEMClassNamesMaker, IExtendableClassNamesProps } from '../../utils/classNames'
 import { IReceviedBroadcastMessage } from '../../stores/BroadcastMessagesStore'
 import { UsersStore } from '../../stores/UsersStore'
 
-import './BroadcastMessage.css'
+import * as styles from './BroadcastMessage.css'
 import { timeAgo } from '../../utils/time'
 
-interface IProps extends IExtendableClassNamesProps {
+interface IProps {
   message: IReceviedBroadcastMessage
   usersStore: UsersStore
 }
@@ -24,7 +23,6 @@ export default class BroadcastMessage extends React.Component<IProps> {
   @observable
   private time: string = ''
 
-  private readonly getBEMClassNames = getBEMClassNamesMaker('broadcast-message', this.props)
   public async componentDidMount() {
     const {
       usersStore: {
@@ -44,16 +42,16 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   render() {
     const m = this.props.message
-    return <div className={this.getBEMClassNames()}>
+    return <div className={styles.broadcastMessage}>
       <HashAvatar
-        className={this.getBEMClassNames('avatar')}
+        className={styles.avatar}
         shape="circle"
         size="large"
         hash={this.avatarHash}
       />
       <div>
         <p
-          className={this.getBEMClassNames('address_and_time')}
+          className={styles.addressAndTime}
         >
           Address: <Address address={m.author} /> {this.time}
         </p>

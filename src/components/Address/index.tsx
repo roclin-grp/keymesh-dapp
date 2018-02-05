@@ -1,18 +1,15 @@
 import * as React from 'react'
 
-import './index.css'
-import { IExtendableClassNamesProps, getBEMClassNamesMaker } from '../../utils/classNames'
+import * as styles from './index.css'
 
-interface IProps extends IExtendableClassNamesProps {
+interface IProps {
   length?: number
   address: string
 }
 
-function Address({length = 17, address, className, prefixClass}: IProps) {
+function Address({length = 17, address }: IProps) {
   const addressText = address.slice(0, length) + '...'
-  const getBEMClassNames = getBEMClassNamesMaker('address', {className, prefixClass})
-
-  return <span className={getBEMClassNames()} title={address}>{addressText}</span>
+  return <span className={styles.address} title={address}>{addressText}</span>
 }
 
 export default Address
