@@ -10,7 +10,8 @@ import { UsersStore } from '../../stores/UsersStore'
 
 import * as styles from './BroadcastMessage.css'
 import { timeAgo } from '../../utils/time'
-import { MESSAGE_STATUS_STR } from '../../stores/SessionStore'
+import { MESSAGE_STATUS_STR, MESSAGE_STATUS } from '../../stores/SessionStore'
+import * as classnames from 'classnames'
 
 interface IProps {
   message: IBroadcastMessage
@@ -50,11 +51,6 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   render() {
     const { message } = this.props
-    const content = message.message.trim().split('\n').map((item, key) => {
-      return <>
-        {item}<br/>
-      </>
-    })
     return <div className={styles.broadcastMessage}>
       <HashAvatar
         className={styles.avatar}
@@ -62,14 +58,21 @@ export default class BroadcastMessage extends React.Component<IProps> {
         size="large"
         hash={this.avatarHash}
       />
-      <div>
+      <div className={styles.body}>
         <p
           className={styles.addressAndTime}
         >
           Address: <Address address={message.author!} /> {this.timeText}
         </p>
-        <p>{content}</p>
-        <p>{MESSAGE_STATUS_STR[message.status!]}</p>
+        <p className={styles.content}>{message.message}</p>
+        {
+          message.status! !== MESSAGE_STATUS.DELIVERING ? null :
+          <p className={classnames(styles.status, styles.delivering)}>{MESSAGE_STATUS_STR[message.status!]}</p>
+        }
+        {
+          message.status! !== MESSAGE_STATUS.FAILED ? null :
+          <p className={classnames(styles.status, styles.failed)}>{MESSAGE_STATUS_STR[message.status!]}</p>
+        }
       </div>
     </div>
   }

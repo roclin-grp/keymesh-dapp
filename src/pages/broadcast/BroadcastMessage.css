@@ -10,3 +10,24 @@
   font-size: 12px;
   color: grey;
 }
+
+.status {
+  text-align: center;
+  font-size: 12px;
+}
+
+.delivering {
+  color: grey;
+}
+
+.failed {
+  color: red;
+}
+
+.body {
+  width: 100%;
+}
+
+.content {
+  white-space: pre-wrap;
+}

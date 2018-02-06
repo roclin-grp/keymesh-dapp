@@ -97,7 +97,7 @@ export class Databases {
   }
 
   public async restoreDB(data: IDumpedDatabases) {
-    await restoreDB(this.dexieDB, data.keymail, (tablename: string): string[]|undefined => {
+    await restoreDB(this.dexieDB, data.keymail, (tablename: string): string[] | undefined => {
       return undefined
     })
 

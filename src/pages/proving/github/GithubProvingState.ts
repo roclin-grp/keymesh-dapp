@@ -43,7 +43,7 @@ export class GithubProvingState extends ProvingState {
       return VERIFY_SOCIAL_STATUS.NOT_FOUND
     }
 
-    const signedClaim: ISignedGithubClaim|null = await getGithubClaimByRawURL(proofRawURL)
+    const signedClaim: ISignedGithubClaim | null = await getGithubClaimByRawURL(proofRawURL)
     if (signedClaim === null) {
       return VERIFY_SOCIAL_STATUS.INVALID
     }

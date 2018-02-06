@@ -32,7 +32,7 @@ export class TwitterProvingState extends ProvingState {
     const tweets = await this.twitterResource.getUserTimeline(this.username)
 
     const _claimText = getTwitterClaim(claim)
-    let claimTweet: ITweet|undefined
+    let claimTweet: ITweet | undefined
     for (const tweet of tweets) {
       if (tweet.full_text === _claimText) {
         claimTweet = tweet

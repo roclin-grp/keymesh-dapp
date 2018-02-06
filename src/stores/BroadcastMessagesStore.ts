@@ -33,7 +33,7 @@ export class BroadcastMessagesStore {
     [userAddress: string]: keys.PublicKey
   } = {}
 
-  public publishBoradcastMessage = (
+  public publishBroadcastMessage = (
     message: string,
     {
       transactionWillCreate = noop,
@@ -51,11 +51,11 @@ export class BroadcastMessagesStore {
     }
 
     const signature = currentUserStore!.sign(message)
-    const timestamp = Math.floor(Date.now() / 1000)
+    const timestamp = Date.now()
     const signedMessage: ISignedBroadcastMessage = {
         message,
         signature,
-        timestamp,
+        timestamp: Math.floor(timestamp / 1000),
     }
     const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
     const contract = this.contractStore.broadcastMessagesContract
@@ -68,7 +68,7 @@ export class BroadcastMessagesStore {
           this.broadcastMessages = [
             {
               author,
-              timestamp: Date.now(),
+              timestamp,
               message,
               status: MESSAGE_STATUS.DELIVERING,
             } as IBroadcastMessage].concat(this.broadcastMessages)
@@ -77,10 +77,33 @@ export class BroadcastMessagesStore {
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
         if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+          const isCurrentMessage = (_message: IBroadcastMessage) => {
+            return _message.author === author &&
+              _message.timestamp === timestamp &&
+              _message.message === message
+          }
           if (!receipt.events) {
+            const _messages = this.broadcastMessages.map((_message) => {
+              if (isCurrentMessage(_message)) {
+                _message.status = MESSAGE_STATUS.FAILED
+              }
+              return _message
+            })
+            runInAction(() => {
+              this.broadcastMessages = _messages
+            })
             sendingDidFail(new Error('Unknown error'))
             return
           }
+          const messages = this.broadcastMessages.map((_message) => {
+            if (isCurrentMessage(_message)) {
+              _message.status = MESSAGE_STATUS.DELIVERED
+            }
+            return _message
+          })
+          runInAction(() => {
+            this.broadcastMessages = messages
+          })
           sendingDidComplete()
         }
       })

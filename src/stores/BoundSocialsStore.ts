@@ -227,7 +227,7 @@ export async function getGithubClaimByProofURL(url: string): Promise<ISignedGith
   return await getGithubClaimByRawURL(gist.files[GITHUB_GIST_FILENAME].raw_url)
 }
 
-export async function getGithubClaimByRawURL(rawURL: string): Promise<ISignedGithubClaim|null> {
+export async function getGithubClaimByRawURL(rawURL: string): Promise<ISignedGithubClaim | null> {
   return await GithubResource.getRawContent(rawURL)
     .then((resp) => resp.text())
     .then((text) => {
@@ -296,7 +296,7 @@ export interface ISignedFacebookClaim {
 }
 
 export interface IBindingSocial extends IBoundSocial {
-  signedClaim: ISignedGithubClaim|ISignedTwitterClaim|ISignedFacebookClaim
+  signedClaim: ISignedGithubClaim | ISignedTwitterClaim | ISignedFacebookClaim
   status: BINDING_SOCIAL_STATUS
 }
 

@@ -37,7 +37,7 @@ export function restoreCryptobox(dbname: string, tables: IDumpedTable[]) {
     return t
   })
 
-  return restoreDB(db, tables, (tablename: string): string[]|undefined => {
+  return restoreDB(db, tables, (tablename: string): string[] | undefined => {
     const t = tables.find((_t) => _t.table === tablename)
     if (t === undefined) {
       return undefined

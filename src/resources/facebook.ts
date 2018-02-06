@@ -22,7 +22,7 @@ export class FacebookResource {
       })
   }
 
-  static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim|null> {
+  static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim | null> {
     const init = {
       method: 'GET',
       mode: 'cors',

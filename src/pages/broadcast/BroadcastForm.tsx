@@ -25,7 +25,11 @@ export class BroadcastForm extends React.Component<IProps, IState> {
   }
 
   public handlePublish = () => {
-    this.props.broadcastMessagesStore.publishBoradcastMessage(this.state.message, {
+    const message = this.state.message.replace(/\n*$/, '')
+    this.setState({
+      message: message,
+    })
+    this.props.broadcastMessagesStore.publishBroadcastMessage(message, {
       transactionDidCreate: () => {
         this.setState({message: ''})
       },
