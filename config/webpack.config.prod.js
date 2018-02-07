@@ -46,59 +46,38 @@ const extractTextPluginOptions = shouldUseRelativeAssetPaths
     { publicPath: Array(cssFilename.split('/').length).join('../') }
   : {};
 
-// The notation here is somewhat confusing.
-// "postcss" loader applies autoprefixer to our CSS.
-// "css" loader resolves paths in CSS and adds assets as dependencies.
-// "style" loader normally turns CSS into JS modules injecting <style>,
-// but unlike in development configuration, we do something different.
-// `ExtractTextPlugin` first applies the "postcss" and "css" loaders
-// (second argument), then grabs the result CSS and puts it into a
-// separate file in our build process. This way we actually ship
-// a single CSS file in production instead of JS code injecting <style>
-// tags. If you use code splitting, however, any async bundles will still
-// use the "style" loader inside the async code so CSS from them won't be
-// in the main CSS file.
+
 const styleLoaders = {
-  test: /\.css$/,
-  loader: ExtractTextPlugin.extract(
-    Object.assign(
-      {
-        fallback: require.resolve('style-loader'),
-        use: [
-          {
-            loader: require.resolve('css-loader'),
-            options: {
-              importLoaders: 1,
-              minimize: true,
-              sourceMap: shouldUseSourceMap,
-            },
-          },
-          {
-            loader: require.resolve('postcss-loader'),
-            options: {
-              // Necessary for external CSS imports to work
-              // https://github.com/facebookincubator/create-react-app/issues/2677
-              ident: 'postcss',
-              plugins: () => [
-                require('postcss-flexbugs-fixes'),
-                autoprefixer({
-                  browsers: [
-                    '>1%',
-                    'last 4 versions',
-                    'Firefox ESR',
-                    'not ie < 9', // React doesn't support IE8 anyway
-                  ],
-                  flexbox: 'no-2009',
-                }),
-              ],
-            },
-          },
+  fallback: {
+    loader: require.resolve('style-loader'),
+    options: {
+      hmr: false,
+    },
+  },
+  use: [
+    {
+      loader: require.resolve('css-loader'),
+      options: {
+        importLoaders: 1,
+        minimize: true,
+        sourceMap: shouldUseSourceMap,
+      },
+    },
+    {
+      loader: require.resolve('postcss-loader'),
+      options: {
+        // Necessary for external CSS imports to work
+        // https://github.com/facebookincubator/create-react-app/issues/2677
+        ident: 'postcss',
+        plugins: () => [
+          require('postcss-flexbugs-fixes'),
+          autoprefixer({
+            flexbox: 'no-2009',
+          }),
         ],
       },
-      extractTextPluginOptions
-    )
-  ),
-  // Note: this won't work without `new ExtractTextPlugin()` in `plugins`.
+    },
+  ],
 }
 
 // This is the production configuration.
@@ -245,22 +224,53 @@ module.exports = {
               })
             }
           },
-          // use css-modules
-          Object.assign({}, styleLoaders, {
+          // The notation here is somewhat confusing.
+          // "postcss" loader applies autoprefixer to our CSS.
+          // "css" loader resolves paths in CSS and adds assets as dependencies.
+          // "style" loader normally turns CSS into JS modules injecting <style>,
+          // but unlike in development configuration, we do something different.
+          // `ExtractTextPlugin` first applies the "postcss" and "css" loaders
+          // (second argument), then grabs the result CSS and puts it into a
+          // separate file in our build process. This way we actually ship
+          // a single CSS file in production instead of JS code injecting <style>
+          // tags. If you use code splitting, however, any async bundles will still
+          // use the "style" loader inside the async code so CSS from them won't be
+          // in the main CSS file.
+          {
             exclude: /node_modules/,
-            use: (() => {
-              const copiedUse = styleLoaders.use.slice()
-              // change css-loader options
-              const cssLoader = copiedUse[1]
-              copiedUse[1] = Object.assign({}, cssLoader, {
-                options: Object.assign({}, cssLoader.options, {
-                  modules: true,
-                })
-              })
-              return copiedUse
-            })()}
-          ),
-          Object.assign({}, styleLoaders, { include: /node_modules/ }),
+            test: /\.css$/,
+            loader: ExtractTextPlugin.extract(
+              Object.assign(
+                // use css-modules
+                Object.assign({}, styleLoaders, {
+                  use: (() => {
+                    const copiedUse = styleLoaders.use.slice()
+                    // change css-loader options
+                    const cssLoader = copiedUse[0]
+                    copiedUse[0] = Object.assign({}, cssLoader, {
+                      options: Object.assign({}, cssLoader.options, {
+                        modules: true,
+                      })
+                    })
+                    return copiedUse
+                  })()}
+                ),
+                extractTextPluginOptions
+              )
+            ),
+            // Note: this won't work without `new ExtractTextPlugin()` in `plugins`.
+          },
+          {
+            include: /node_modules/,
+            test: /\.css$/,
+            loader: ExtractTextPlugin.extract(
+              Object.assign(
+                styleLoaders,
+                extractTextPluginOptions
+              )
+            ),
+            // Note: this won't work without `new ExtractTextPlugin()` in `plugins`.
+          },
           // "file" loader makes sure assets end up in the `build` folder.
           // When you `import` an asset, you get its filename.
           // This loader don't uses a "test" so it will catch all modules

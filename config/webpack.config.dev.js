@@ -47,12 +47,6 @@ const styleLoaders = {
         plugins: () => [
           require('postcss-flexbugs-fixes'),
           autoprefixer({
-            browsers: [
-              '>1%',
-              'last 4 versions',
-              'Firefox ESR',
-              'not ie < 9', // React doesn't support IE8 anyway
-            ],
             flexbox: 'no-2009',
           }),
         ],
@@ -215,7 +209,7 @@ module.exports = {
               copiedUse[1] = Object.assign({}, cssLoader, {
                 options: Object.assign({}, cssLoader.options, {
                   modules: true,
-                  localIdentName: '[name]__[local]___[hash:base64:5]'
+                  localIdentName: '[path]__[name]___[local]'
                 })
               })
               return copiedUse
