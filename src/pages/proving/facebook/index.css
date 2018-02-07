@@ -1,0 +1,30 @@
+.authorizeNotice {
+  margin: 14px 0 20px;
+}
+
+.iconContainer {
+  width: 100%;
+  margin: 40px 0 25px;
+}
+
+.icon {
+  font-size: 50px;
+  color: #4267b2;
+}
+
+.cancelLinkContainer {
+  margin-top: 14px;
+}
+
+.cancelLink {
+  color: grey;
+}
+
+.cancel {
+  margin-right: 25px;
+}
+
+.notice {
+  font-size: 18px;
+  font-weight: bold;
+}

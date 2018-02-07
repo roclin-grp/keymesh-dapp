@@ -27,6 +27,17 @@ export class GithubProvingState extends ProvingState {
     return SOCIAL_MEDIA_PLATFORMS.GITHUB
   }
 
+  protected init() {
+    runInAction(() => {
+      this.steps = [
+        'Enter username',
+        'Create a gist',
+        'Upload infomations',
+        'Done',
+      ]
+    })
+  }
+
   protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
     const gists = await GithubResource.getGists(this.username)
 

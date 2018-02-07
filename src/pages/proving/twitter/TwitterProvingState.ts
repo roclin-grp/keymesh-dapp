@@ -27,6 +27,17 @@ export class TwitterProvingState extends ProvingState {
       process.env.REACT_APP_TWITTER_SECRET_KEY!
     )
 
+  protected init() {
+    runInAction(() => {
+      this.steps = [
+        'Enter username',
+        'Tweet',
+        'Upload infomations',
+        'Done',
+      ]
+    })
+  }
+
   protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
     const claim: ISignedTwitterClaim = this.claim
     const tweets = await this.twitterResource.getUserTimeline(this.username)

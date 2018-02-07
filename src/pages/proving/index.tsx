@@ -1,14 +1,15 @@
 import * as React from 'react'
 
+import { runInAction } from 'mobx'
 import { inject, observer } from 'mobx-react'
+import { Steps } from 'antd'
+const Step = Steps.Step
 
 import {
   Link,
   Redirect,
   RouteComponentProps,
 } from 'react-router-dom'
-
-import { Icon } from 'antd'
 
 import ProvingState from './ProvingState'
 
@@ -26,7 +27,9 @@ import {
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
-import { SOCIAL_MEDIA_PLATFORMS } from '../../stores/BoundSocialsStore'
+import { SOCIAL_MEDIA_PLATFORMS, SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
+
+import * as styles from './index.css'
 
 interface IParams {
   platform: string
@@ -82,6 +85,7 @@ class Proving extends React.Component<IProps> {
     const {
       isFinished,
       platform,
+      currentStep,
     } = this.data
 
     let provingComponent
@@ -96,12 +100,44 @@ class Proving extends React.Component<IProps> {
     if (isFinished) {
       return <Redirect to="/profile" />
     }
-    return <>
-      <div style={{ marginBottom: '8px' }}>
-        <Icon type={platform} style={{ fontSize: 60 }} />
-        {provingComponent}
+
+    let body
+    if (currentStep === 3) {
+      window.setTimeout(
+        () => {
+          runInAction(() => {
+            this.data.isFinished = true
+          })
+        },
+        2000
+      )
+
+      body = <div>
+        <p className={styles.congratulations}>Congratulations!</p>
       </div>
-      </>
+    } else {
+      body = <div className={styles.provingComponentContainer}>
+          {provingComponent}
+        </div>
+    }
+
+    let label = ''
+    for (const sm of SOCIAL_MEDIAS) {
+      if (platform === sm.platform) {
+        label = sm.label
+        break
+      }
+    }
+
+    return <div className={styles.content}>
+      <h3 className={styles.provingNotice}>Prove your {label} identity</h3>
+
+      <Steps size="small" current={this.data.currentStep}>
+        {this.data.steps.map(item => <Step key={item} title={item} />)}
+      </Steps>
+
+      {body}
+    </div>
   }
 
   private getSocialProvingState(platform: SOCIAL_MEDIA_PLATFORMS): ProvingState {

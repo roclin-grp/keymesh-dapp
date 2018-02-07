@@ -4,6 +4,9 @@ import { observer } from 'mobx-react'
 import ProvingTextarea from '../../../components/ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
 import { FacebookProvingState , getFacebookClaim } from './FacebookProvingState'
+import { Icon, Button } from 'antd'
+
+import * as styles from './index.css'
 
 import {
   Link,
@@ -16,21 +19,20 @@ interface IProps {
 @observer
 class FacebookProving extends React.Component<IProps> {
   public render() {
-    const label = 'Facebook'
     const {
       username,
       isProving,
       claim,
       checkProof,
-      uploadBindingProof,
       loginCallback,
       platform,
+      checkProofButtonDisabled,
+      checkProofButtonContent,
     } = this.props.state
 
     if (!isProving) {
       return <div>
-        <h3>Prove your {label} identity</h3>
-        <p>Please login and authorize</p>
+        <p className={styles.authorizeNotice}>Please login and authorize</p>
         <FacebookLogin
           appId={process.env.REACT_APP_FACEBOOK_APP_ID!}
           autoLoad={false}
@@ -38,16 +40,17 @@ class FacebookProving extends React.Component<IProps> {
           scope="user_posts"
           callback={loginCallback}
         />
-        <br />
-        <Link to="/profile">Cancel</Link>
+        <p className={styles.cancelLinkContainer}><Link className={styles.cancelLink} to="/profile">Cancel</Link></p>
       </div>
     }
 
     const text = getFacebookClaim(claim)
     const postURL = 'https://www.facebook.com/'
     return <div>
+        <div className={styles.iconContainer}>
+          <Icon type={platform} className={styles.icon} />
+        </div>
       <p>{username}</p>
-      <p>@{platform}</p>
       <p>
         Finally, post your proof to Facebook.
             We'll ask for permission to read your posts,
@@ -55,21 +58,21 @@ class FacebookProving extends React.Component<IProps> {
           </p>
       <p>
         This is really important
-            -- <b>the text must be the same as below, and make sure your post is public, like this</b>
+            -- <span className={styles.notice}>
+          the text must be the same as below, and make sure your post is public.
+            </span>
       </p>
       <ProvingTextarea value={text} />
 
-      <br />
-      <a href={postURL} target="_blank">Post it now</a>
-
-      <br />
-      <Link to="/profile">Cancel</Link>
-
-      <br />
-      <a onClick={checkProof}>OK posted! Check for it!</a>
-
-      <br />
-      <a onClick={uploadBindingProof}>Upload the proof to blockchain!</a>
+      <p>
+        <a href={postURL} target="_blank">Post it now</a>
+      </p>
+      <div>
+        <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
+        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+          {checkProofButtonContent}
+        </Button>
+      </div>
     </div>
   }
 }

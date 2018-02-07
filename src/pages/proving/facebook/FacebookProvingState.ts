@@ -36,6 +36,17 @@ export class FacebookProvingState extends ProvingState {
     this.continueHandler()
   }
 
+  protected init() {
+    runInAction(() => {
+      this.steps = [
+        'Authroize',
+        'Publish a public post',
+        'Upload infomations',
+        'Done',
+      ]
+    })
+  }
+
   protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
     const text = getFacebookClaim(this.claim)
     const proofPost = await FacebookResource.getPosts(this.facebookUserID, this.facebookAccessToken)

@@ -10,6 +10,9 @@ import {
 
 import HashAvatar from '../../components/HashAvatar'
 
+import * as styles from './index.css'
+import * as classnames from 'classnames'
+
 import {
   MetaMaskStore,
 } from '../../stores/MetaMaskStore'
@@ -22,7 +25,7 @@ import {
 import { ProfileState } from './ProfileState'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
+import { SOCIAL_MEDIAS, VERIFY_SOCIAL_STATUS } from '../../stores/BoundSocialsStore'
 
 interface IParams {
   userAddress?: string
@@ -79,38 +82,72 @@ class Profile extends React.Component<IProps> {
   }
 
   public render() {
-    return <>
-      {this.getUserAvatar()}
-      {this.socials}
-    </>
+    return <div className={classnames(styles.flex, styles.container)}>
+      <div className={styles.flex}>
+        {this.getUserAvatar()}
+        {this.getSocials()}
+      </div>
+    </div>
   }
 
-  private get socials() {
+  private getSocials() {
     const socialsElements = []
     for (const social of SOCIAL_MEDIAS) {
       const boundSocial = this.data.userBoundSocials[social.platform]
       let stateText = null
+      let statusIcon = null
+      let icon = null
+      let element = null
 
       if (typeof boundSocial !== 'undefined') {
-        stateText = <a>{boundSocial.username}@{social.platform} {this.data.verifyStatus[social.platform]}</a>
+        icon = <Icon type={social.platform} className={styles.platformIcon} />
+        if (this.data.verifyStatus[social.platform] === VERIFY_SOCIAL_STATUS.VALID) {
+          stateText = <a>
+          <span className={styles.blue}>{boundSocial.username}</span>
+          <span className={styles.grey}> @{social.platform}</span>
+          </a>
+          statusIcon = <Icon className={styles.blue} type="check-circle"/>
+        } else if (this.data.verifyStatus[social.platform] === VERIFY_SOCIAL_STATUS.INVALID) {
+          stateText = <a className={styles.red}>
+            {boundSocial.username}
+            <span className={styles.grey}> @{social.platform}</span>
+          </a>
+          statusIcon = <Icon type="cross-circle"/>
+        } else {
+          stateText = <a className={styles.grey}>{boundSocial.username} @{social.platform}</a>
+          statusIcon = <Icon className={styles.grey} type="clock-circle"/>
+        }
+        element = <li key={social.platform} className={classnames(styles.li)}>
+          <div>
+            {icon}
+            {stateText}
+          </div>
+          <div>{statusIcon}</div>
+        </li>
       } else if (this.data.isSelf) {
-        stateText = <Link to={`/proving/${social.platform}`}>Prove your {social.label}</Link>
+        icon = <Icon className={styles.platformIcon} type={social.platform}/>
+        stateText = <>Prove your {social.label}</>
+        statusIcon = <Icon type="right" />
+        element = <Link to={`/proving/${social.platform}`}>
+          <li key={social.platform} className={classnames(styles.flex, styles.li)}>
+            <div>
+              {icon}
+              {stateText}
+            </div>
+            <div>{statusIcon}</div>
+          </li>
+        </Link>
       }
 
       if (stateText !== null) {
-        socialsElements.push(
-          <li key={social.platform}>
-            <Icon type={social.platform} style={{ marginRight: '5px' }} />
-            {stateText}
-          </li>
-        )
+        socialsElements.push(element)
       }
     }
-    return <ul>{socialsElements}</ul>
+    return <ul className={styles.ul}>{socialsElements}</ul>
   }
 
   private getUserAvatar() {
-    const avatarShape = 'square'
+    const avatarShape = 'circle'
     const avatarSize = 'large'
 
     return <HashAvatar

@@ -5,9 +5,6 @@ import {
   action,
 } from 'mobx'
 
-import {
-  noop,
- } from '../../utils'
 import { UsersStore } from '../../stores/UsersStore'
 import { storeLogger } from '../../utils/loggers'
 import {
@@ -18,12 +15,22 @@ import {
 
 useStrict(true)
 
+const defaultCheckProofButtonContent = 'OK posted! Check for it!'
 export default abstract class ProvingState {
   @observable public isFinished: boolean
   @observable public isProving: boolean
   @observable public username: string
+  @observable
+  public currentStep: number = 0
+  @observable.ref
+  public steps: string[] = []
+  @observable
+  public checkProofButtonContent = defaultCheckProofButtonContent
+  @observable
+  public checkProofButtonDisabled = false
 
   constructor( protected usersStore: UsersStore) {
+    this.init()
   }
 
   public continueHandler = async () => {
@@ -38,18 +45,36 @@ export default abstract class ProvingState {
     const username = this.username
 
     this.setClaim(username, userAddress, identityFingerprint)
+    runInAction(() => {
+      this.currentStep = 1
+    })
   }
 
   public checkProof = async () => {
+    runInAction(() => {
+      this.checkProofButtonContent = 'Checking...'
+      this.checkProofButtonDisabled = true
+    })
     const verifyStatus = await this._checkProof()
     switch (verifyStatus) {
       case VERIFY_SOCIAL_STATUS.VALID:
-        alert('Congratulations! the claim is verified')
+        runInAction(() => {
+          this.currentStep = 2
+        })
+        this.uploadBindingProof()
         break
       case VERIFY_SOCIAL_STATUS.INVALID:
+        runInAction(() => {
+          this.checkProofButtonContent = defaultCheckProofButtonContent
+          this.checkProofButtonDisabled = false
+        })
         alert('The claim is invalid')
         break
       case VERIFY_SOCIAL_STATUS.NOT_FOUND:
+        runInAction(() => {
+          this.checkProofButtonContent = defaultCheckProofButtonContent
+          this.checkProofButtonDisabled = false
+        })
         alert('Cloud not found claim')
         break
       default:
@@ -63,14 +88,22 @@ export default abstract class ProvingState {
     } = this.usersStore.currentUserStore!.boundSocialsStore
     if (isVerificationsLoaded) {
       uploadBindingSocials({
-        transactionWillCreate: noop,
+        transactionWillCreate: () => {
+          runInAction(() => {
+            this.checkProofButtonContent = 'Please confirm the transaction...'
+            this.currentStep = 2
+          })
+        },
         transactionDidCreate: () => {
+          runInAction(() => {
+            this.checkProofButtonContent = 'Uploading...'
+          })
           storeLogger.log('created')
         },
         uploadingDidComplete: () => {
           storeLogger.log('completed')
           runInAction(() => {
-            this.isFinished = true
+            this.currentStep = 3
           })
         },
         uploadingDidFail: this.uploadingDidFail,
@@ -84,6 +117,7 @@ export default abstract class ProvingState {
   }
   public abstract get platform(): SOCIAL_MEDIA_PLATFORMS
 
+  protected abstract init(): void
   protected abstract setClaim(username: string, userAddress: string, publicKey: string): void
   protected async abstract _checkProof(): Promise<VERIFY_SOCIAL_STATUS>
 
@@ -91,9 +125,10 @@ export default abstract class ProvingState {
     if (code === UPLOADING_FAIL_CODE.NO_NEW_BINDING) {
       storeLogger.error('no new binding')
       runInAction(() => {
-        this.isFinished = true
+        this.currentStep = 3
       })
     }
     storeLogger.error('sending did fail')
+
   }
 }

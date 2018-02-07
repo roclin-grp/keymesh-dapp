@@ -1,0 +1,34 @@
+.flex, .li {
+  display: flex;
+}
+
+.container {
+  flex-flow: wrap;
+}
+
+.ul {
+  list-style-type: none;
+  padding: 0;
+  margin-left: 24px;
+  min-width: 250px;
+}
+
+.li {
+  justify-content: space-between;
+}
+
+.grey, .platformIcon {
+  color: #CCCCCC;
+}
+
+.red {
+  color: #FF3A3A;
+}
+
+.blue {
+  color: #1890FF;
+}
+
+.platformIcon {
+  margin-right: 5px;
+}

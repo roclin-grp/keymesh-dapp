@@ -7,6 +7,8 @@ import ProvingTextarea from '../../../components/ProvingTextarea'
 import {
   Link,
 } from 'react-router-dom'
+import { Icon, Button, Input } from 'antd'
+import * as styles from './index.css'
 
 interface IProps {
   state: TwitterProvingState
@@ -23,43 +25,51 @@ class TwitterProving extends React.Component<IProps> {
       isProving,
       claim,
       checkProof,
-      uploadBindingProof,
       platform,
+      checkProofButtonContent,
+      checkProofButtonDisabled,
     } = this.props.state
 
     if (!isProving) {
-      return <div>
-        <h3>Prove your {label} identity</h3>
-        <input
-          value={username}
-          onChange={(e: any) => updateUsername(e.target.value)}
-          placeholder={`Your ${label} username`}
-        />
-        <br />
-        <Link to="/profile">Cancel</Link>
-        <a onClick={continueHandler}>Continue</a>
+      return <div className={styles.container}>
+        <div className={styles.iconContainer}>
+          <Icon type={platform} className={styles.icon} />
+        </div>
+        <div className={styles.inputContainer}>
+          <Input
+            value={username}
+            onChange={(e: any) => updateUsername(e.target.value)}
+            placeholder={`Your ${label} username`}
+            onPressEnter={continueHandler}
+          />
+        </div>
+
+        <div className={styles.buttonsContainer}>
+          <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
+          <Button type="primary" onClick={continueHandler}>Continue</Button>
+        </div>
       </div>
     }
 
     const twitterClaimText = getTwitterClaim(claim)
     const tweetClaimURL = 'https://twitter.com/home?status=' + encodeURI(twitterClaimText)
     return <div>
-      <p>{username}</p>
-      <p>@{platform}</p>
-      <p>Please tweet the text below exactly as it appears.</p>
+      <div className={styles.iconContainer}>
+        <Icon type={platform} className={styles.icon} />
+      </div>
+      <p><a href={'https://twitter.com/' + username} target="_blank">{username}</a></p>
+      <p className={styles.notice}>Please tweet the text below exactly as it appears.</p>
       <ProvingTextarea value={twitterClaimText}/>
 
-      <br />
-      <a href={tweetClaimURL} target="_blank">Tweet it now</a>
-
-      <br />
-      <Link to="/profile">Cancel</Link>
-
-      <br />
-      <a onClick={checkProof}>OK posted! Check for it!</a>
-
-      <br />
-      <a onClick={uploadBindingProof}>Upload the proof to blockchain!</a>
+      <div className={styles.tweetContainer}>
+        <a href={tweetClaimURL} target="_blank">Tweet it now</a>
+      </div>
+      <div>
+        <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
+        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+          {checkProofButtonContent}
+        </Button>
+      </div>
     </div>
   }
 }

@@ -9,6 +9,9 @@ import {
 } from 'react-router-dom'
 import { GITHUB_GIST_FILENAME } from '../../../stores/BoundSocialsStore'
 
+import { Icon, Button, Input } from 'antd'
+import * as styles from './index.css'
+
 interface IProps {
   state: GithubProvingState
 }
@@ -24,40 +27,51 @@ class GithubProving extends React.Component<IProps> {
       isProving,
       claim,
       checkProof,
-      uploadBindingProof,
+      checkProofButtonContent,
+      checkProofButtonDisabled,
+      platform,
     } = this.props.state
 
     if (!isProving) {
-      return <div>
-        <h3>Prove your {label} identity</h3>
-        <input
-          value={username}
-          onChange={(e: any) => updateUsername(e.target.value)}
-          placeholder={`Your ${label} username`}
-        />
-        <br />
-        <Link to="/profile">Cancel</Link>
-        <a onClick={continueHandler}>Continue</a>
+      return <div className={styles.container}>
+        <div className={styles.iconContainer}>
+          <Icon type={platform} className={styles.icon} />
+        </div>
+
+        <div className={styles.inputContainer}>
+          <Input
+            value={username}
+            onChange={(e: any) => updateUsername(e.target.value)}
+            placeholder={`Your ${label} username`}
+            onPressEnter={continueHandler}
+          />
+        </div>
+
+        <div className={styles.buttonsContainer}>
+          <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
+          <Button type="primary" onClick={continueHandler}>Continue</Button>
+        </div>
       </div>
     }
 
     return <div>
       <p>{username}</p>
       <p>@{label}</p>
-      <p>Login to GitHub and paste the text below into a public gist called {GITHUB_GIST_FILENAME}.</p>
+      <p className={styles.notice}>
+        Login to GitHub and paste the text below into a public gist called {GITHUB_GIST_FILENAME}.
+      </p>
       <ProvingTextarea value={getGithubClaim(claim)} />
 
-      <br />
-      <a href="https://gist.github.com/" target="_blank">Create gist now</a>
+      <p>
+        <a href="https://gist.github.com/" target="_blank">Create gist now</a>
+      </p>
+      <div>
+        <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
+        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+          {checkProofButtonContent}
+        </Button>
+      </div>
 
-      <br />
-      <Link to="/profile">Cancel</Link>
-
-      <br />
-      <a onClick={checkProof}>OK posted! Check for it!</a>
-
-      <br />
-      <a onClick={uploadBindingProof}>Upload the proof to blockchain!</a>
     </div>
   }
 }
