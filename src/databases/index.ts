@@ -8,9 +8,6 @@ import {
 import {
   MessagesDB,
 } from './MessagesDB'
-import {
-  VerificationsDB,
-} from './VerificationsDB'
 
 import {
   ETHEREUM_NETWORKS,
@@ -22,9 +19,7 @@ import {
   ISession,
   IMessage,
 } from '../stores/SessionStore'
-import {
-  IVerifications,
-} from '../stores/BoundSocialsStore'
+import { IUserCaches } from '../stores/UserCachesStore'
 
 import {
   dumpDB,
@@ -33,12 +28,13 @@ import {
   restoreCryptobox,
   IDumpedDatabases,
 } from '../utils/data'
+import { UserCachesDB } from './UserCachesDB'
 
 export class Databases {
   public usersDB: UsersDB
   public sessionsDB: SessionsDB
   public messagesDB: MessagesDB
-  public verificationsDB: VerificationsDB
+  public userCachesDB: UserCachesDB
 
   public constructor() {
     if (typeof indexedDB === 'undefined') {
@@ -52,12 +48,12 @@ export class Databases {
       tableUsers: this.tableUsers,
       tableSessions: this.tableSessions,
       tableMessages: this.tableMessages,
-      tableVerifications: this.tableVerifications,
+      tableUserCaches: this.tableUserCaches,
     }
     this.usersDB = new UsersDB(tables, dexieDB, this)
     this.sessionsDB = new SessionsDB(tables, dexieDB, this)
     this.messagesDB = new MessagesDB(tables, dexieDB, this)
-    this.verificationsDB = new VerificationsDB(tables, dexieDB, this)
+    this.userCachesDB = new UserCachesDB(tables)
   }
 
   private readonly dexieDB: Dexie
@@ -70,8 +66,8 @@ export class Databases {
   private get tableMessages(): TypeTableMessages {
     return (this.dexieDB as any)[TABLE_NAMES.MESSAGES]
   }
-  private get tableVerifications(): TypeTableVerifications {
-    return (this.dexieDB as any)[TABLE_NAMES.VERIFICATIONS]
+  private get tableUserCaches(): TypeTableUserCaches {
+    return (this.dexieDB as any)[TABLE_NAMES.USER_CACHES]
   }
 
   public async dumpDB() {
@@ -113,7 +109,7 @@ enum TABLE_NAMES {
   USERS = 'users',
   SESSIONS = 'sessions',
   MESSAGES = 'messages',
-  VERIFICATIONS = 'verifications',
+  USER_CACHES = 'user_caches',
 }
 
 /**
@@ -128,17 +124,17 @@ const SCHEMA_V1 = Object.freeze({
   [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
   [TABLE_NAMES.MESSAGES]:
     '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
-  [TABLE_NAMES.VERIFICATIONS]: '[networkId+userAddress]',
+  [TABLE_NAMES.USER_CACHES]: '[networkId+userAddress]',
 })
 
 type TypeTableUsers = Dexie.Table<IUser, [ETHEREUM_NETWORKS, string]>
 type TypeTableSessions = Dexie.Table<ISession, [string, string]>
 type TypeTableMessages = Dexie.Table<IMessage, [string, string]>
-type TypeTableVerifications = Dexie.Table<IVerifications, [ETHEREUM_NETWORKS, string]>
+type TypeTableUserCaches = Dexie.Table<IUserCaches, [ETHEREUM_NETWORKS, string]>
 
 export interface ITables {
   tableUsers: TypeTableUsers
   tableSessions: TypeTableSessions
   tableMessages: TypeTableMessages
-  tableVerifications: TypeTableVerifications
+  tableUserCaches: TypeTableUserCaches
 }

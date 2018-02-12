@@ -27,7 +27,7 @@ import {
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
-import { SOCIAL_MEDIA_PLATFORMS, SOCIAL_MEDIAS } from '../../stores/BoundSocialsStore'
+import { SOCIALS, SOCIAL_LABELS } from '../../stores/BoundSocialsStore'
 
 import * as styles from './index.css'
 
@@ -58,10 +58,10 @@ class Proving extends React.Component<IProps> {
     super(props)
 
     const platform = props.match.params.platform
-    const isValidPlatform = Object.values(SOCIAL_MEDIA_PLATFORMS).includes(platform)
+    const isValidPlatform = Object.values(SOCIALS).includes(platform)
     this.isValidPlatform = isValidPlatform
     if (isValidPlatform) {
-      this.data = this.getSocialProvingState(platform as SOCIAL_MEDIA_PLATFORMS)
+      this.data = this.getSocialProvingState(platform as SOCIALS)
     }
   }
 
@@ -89,11 +89,11 @@ class Proving extends React.Component<IProps> {
     } = this.data
 
     let provingComponent
-    if (platform === SOCIAL_MEDIA_PLATFORMS.GITHUB) {
+    if (platform === SOCIALS.GITHUB) {
       provingComponent = <GithubProving state={this.data as GithubProvingState} />
-    } else if (platform === SOCIAL_MEDIA_PLATFORMS.TWITTER) {
+    } else if (platform === SOCIALS.TWITTER) {
       provingComponent = <TwitterProving state={this.data as TwitterProvingState} />
-    } else if (platform === SOCIAL_MEDIA_PLATFORMS.FACEBOOK) {
+    } else if (platform === SOCIALS.FACEBOOK) {
       provingComponent = <FacebookProving state={this.data as FacebookProvingState} />
     }
 
@@ -121,13 +121,7 @@ class Proving extends React.Component<IProps> {
         </div>
     }
 
-    let label = ''
-    for (const sm of SOCIAL_MEDIAS) {
-      if (platform === sm.platform) {
-        label = sm.label
-        break
-      }
-    }
+    const label = SOCIAL_LABELS[platform]
 
     return <div className={styles.content}>
       <h3 className={styles.provingNotice}>Prove your {label} identity</h3>
@@ -140,13 +134,13 @@ class Proving extends React.Component<IProps> {
     </div>
   }
 
-  private getSocialProvingState(platform: SOCIAL_MEDIA_PLATFORMS): ProvingState {
+  private getSocialProvingState(platform: SOCIALS): ProvingState {
     switch (platform) {
-      case SOCIAL_MEDIA_PLATFORMS.GITHUB:
+      case SOCIALS.GITHUB:
         return new GithubProvingState(this.props.usersStore)
-      case SOCIAL_MEDIA_PLATFORMS.TWITTER:
+      case SOCIALS.TWITTER:
         return new TwitterProvingState(this.props.usersStore)
-      case SOCIAL_MEDIA_PLATFORMS.FACEBOOK:
+      case SOCIALS.FACEBOOK:
         return new FacebookProvingState(this.props.usersStore)
       default:
         throw new Error('unknown platform')

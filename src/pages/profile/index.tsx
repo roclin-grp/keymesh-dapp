@@ -1,6 +1,5 @@
 import * as React from 'react'
 
-import { runInAction } from 'mobx'
 import { inject, observer } from 'mobx-react'
 
 import {
@@ -25,7 +24,9 @@ import {
 import { ProfileState } from './ProfileState'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { SOCIAL_MEDIAS, VERIFY_SOCIAL_STATUS } from '../../stores/BoundSocialsStore'
+import { SOCIAL_LABELS, SOCIALS } from '../../stores/BoundSocialsStore'
+import { UserCachesStore } from '../../stores/UserCachesStore'
+import { VerifiedItem } from './VerifiedItem'
 
 interface IParams {
   userAddress?: string
@@ -35,6 +36,7 @@ interface IProps extends RouteComponentProps<IParams> {
   usersStore: UsersStore
   contractStore: ContractStore
   metaMaskStore: MetaMaskStore
+  userCachesStore: UserCachesStore
 }
 
 @inject(({
@@ -54,99 +56,98 @@ class Profile extends React.Component<IProps> {
   constructor(props: IProps) {
     super(props)
     const {
-      metaMaskStore: {
-        getBlockHash,
-      },
       usersStore,
       contractStore,
+      match: {
+        params: {
+          userAddress: _userAddress,
+        },
+      },
     } = this.props
 
-    this.data = new ProfileState({ usersStore, contractStore, getBlockHash })
-    runInAction(() => {
-      if (typeof this.props.match.params.userAddress !== 'undefined') {
-        this.data.userAddress = this.props.match.params.userAddress
-      } else {
-        this.data.userAddress = usersStore.currentUserStore!.user.userAddress
-      }
-    })
+    const userAddress = _userAddress ? _userAddress : usersStore.currentUserStore!.user.userAddress
+    this.data = new ProfileState({ usersStore, contractStore, userAddress})
   }
 
   public componentDidMount() {
     this.data.startFetchingUserProofs()
-    this.data.startVerifyingUserProofs()
   }
 
   public componentWillUnmount() {
     this.data.stopFetchingUserProofs()
-    this.data.stopVerifyingUserProofs()
   }
 
   public render() {
     return <div className={classnames(styles.flex, styles.container)}>
       <div className={styles.flex}>
-        {this.getUserAvatar()}
-        {this.getSocials()}
+        {this.renderUserAvatar()}
+        {this.renderSocials()}
       </div>
     </div>
   }
 
-  private getSocials() {
-    const socialsElements = []
-    for (const social of SOCIAL_MEDIAS) {
-      const boundSocial = this.data.userBoundSocials[social.platform]
-      let stateText = null
-      let statusIcon = null
-      let icon = null
-      let element = null
-
-      if (typeof boundSocial !== 'undefined') {
-        icon = <Icon type={social.platform} className={styles.platformIcon} />
-        if (this.data.verifyStatus[social.platform] === VERIFY_SOCIAL_STATUS.VALID) {
-          stateText = <a>
-          <span className={styles.blue}>{boundSocial.username}</span>
-          <span className={styles.grey}> @{social.platform}</span>
-          </a>
-          statusIcon = <Icon className={styles.blue} type="check-circle"/>
-        } else if (this.data.verifyStatus[social.platform] === VERIFY_SOCIAL_STATUS.INVALID) {
-          stateText = <a className={styles.red}>
-            {boundSocial.username}
-            <span className={styles.grey}> @{social.platform}</span>
-          </a>
-          statusIcon = <Icon type="cross-circle"/>
-        } else {
-          stateText = <a className={styles.grey}>{boundSocial.username} @{social.platform}</a>
-          statusIcon = <Icon className={styles.grey} type="clock-circle"/>
-        }
-        element = <li key={social.platform} className={classnames(styles.li)}>
-          <div>
-            {icon}
-            {stateText}
-          </div>
-          <div>{statusIcon}</div>
-        </li>
-      } else if (this.data.isSelf) {
-        icon = <Icon className={styles.platformIcon} type={social.platform}/>
-        stateText = <>Prove your {social.label}</>
-        statusIcon = <Icon type="right" />
-        element = <Link to={`/proving/${social.platform}`}>
-          <li key={social.platform} className={classnames(styles.flex, styles.li)}>
-            <div>
-              {icon}
-              {stateText}
-            </div>
-            <div>{statusIcon}</div>
-          </li>
-        </Link>
+  private renderSocials() {
+    const {
+      userBoundSocials,
+      isSelf,
+      verifyStatuses,
+      verifyFacebook,
+      verifyTwitter,
+      verifyGithub,
+      isVerifying,
+    } = this.data
+    return <ul className={styles.ul}>
+      {
+        userBoundSocials.twitter ?
+          <VerifiedItem
+            platform={SOCIALS.TWITTER}
+            isSelf={isSelf}
+            isVerifying={isVerifying[SOCIALS.TWITTER]}
+            boundSocial={userBoundSocials.twitter!}
+            verifyStatus={verifyStatuses.twitter}
+            verify={verifyTwitter}
+          /> :
+          isSelf ? this.renderProvingEntry(SOCIALS.TWITTER) : null
       }
-
-      if (stateText !== null) {
-        socialsElements.push(element)
+      {
+        userBoundSocials.github ?
+          <VerifiedItem
+            platform={SOCIALS.GITHUB}
+            isSelf={isSelf}
+            isVerifying={isVerifying[SOCIALS.GITHUB]}
+            boundSocial={userBoundSocials.github!}
+            verifyStatus={verifyStatuses.github}
+            verify={verifyGithub}
+          /> :
+          isSelf ? this.renderProvingEntry(SOCIALS.GITHUB) : null
       }
-    }
-    return <ul className={styles.ul}>{socialsElements}</ul>
+      {
+        userBoundSocials.facebook ?
+          <VerifiedItem
+            platform={SOCIALS.FACEBOOK}
+            isSelf={isSelf}
+            isVerifying={isVerifying[SOCIALS.FACEBOOK]}
+            boundSocial={userBoundSocials.facebook!}
+            verifyStatus={verifyStatuses.facebook}
+            verify={verifyFacebook}
+          /> :
+          isSelf ? this.renderProvingEntry(SOCIALS.FACEBOOK) : null
+      }
+    </ul>
+  }
+  private renderProvingEntry(platform: SOCIALS) {
+    return <Link to={`/proving/${platform}`}>
+      <li className={styles.li}>
+        <div>
+          <Icon className={styles.platformIcon} type={platform} />
+          Prove your {SOCIAL_LABELS[platform]}
+        </div>
+        <div><Icon type="right" /></div>
+      </li>
+    </Link>
   }
 
-  private getUserAvatar() {
+  private renderUserAvatar() {
     const avatarShape = 'circle'
     const avatarSize = 'large'
 

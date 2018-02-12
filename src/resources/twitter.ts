@@ -1,3 +1,5 @@
+import { ISignedTwitterClaim } from '../stores/BoundSocialsStore'
+
 export interface ITweet {
   full_text: string
   id_str: string
@@ -23,6 +25,26 @@ export class TwitterResource {
     const uri = `/1.1/statuses/show.json?id=${id}&exclude_replies=true&tweet_mode=extended`
 
     return await this.fetch(uri)
+  }
+
+  public async getSignedTwitterClaimByProofURL(url: string): Promise<ISignedTwitterClaim | null> {
+    const tweet = await this.getTweetByProofURL(url)
+    if (tweet === null) {
+      return null
+    }
+
+    const parts = /addr: (\w+)\s+public key: (\w+)\s+sig: (\w+)/.exec(tweet.full_text)
+    if (parts === null) {
+      return null
+    }
+
+    return {
+      claim: {
+        userAddress: parts[1],
+        publicKey: parts[2],
+      },
+      signature: parts[3],
+    }
   }
 
   public getTweetByProofURL = async (url: string): Promise<ITweet | null> => {

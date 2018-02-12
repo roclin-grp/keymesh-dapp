@@ -9,9 +9,7 @@ import { FacebookResource } from '../../../resources/facebook'
 import { storeLogger } from '../../../utils/loggers'
 import {
   ISignedFacebookClaim,
-  SOCIAL_MEDIA_PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
-  IBindingSocial,
+  SOCIALS,
   BINDING_SOCIAL_STATUS,
   IFacebookClaim,
 } from '../../../stores/BoundSocialsStore'
@@ -20,7 +18,7 @@ useStrict(true)
 
 export class FacebookProvingState extends ProvingState {
   @observable public claim: ISignedFacebookClaim
-  public platform = SOCIAL_MEDIA_PLATFORMS.FACEBOOK
+  public platform = SOCIALS.FACEBOOK
 
   private facebookAccessToken: string
   private facebookUserID: string
@@ -47,7 +45,7 @@ export class FacebookProvingState extends ProvingState {
     })
   }
 
-  protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
+  protected async getBindingSocial() {
     const text = getFacebookClaim(this.claim)
     const proofPost = await FacebookResource.getPosts(this.facebookUserID, this.facebookAccessToken)
       .then(posts => {
@@ -59,23 +57,21 @@ export class FacebookProvingState extends ProvingState {
             return post
           }
         }
-        return null
+        return
       })
-    if (proofPost === null) {
-      return VERIFY_SOCIAL_STATUS.NOT_FOUND
+    if (!proofPost) {
+      return
     }
 
     const parts = proofPost.id.split('_')
     const postID = parts[1]
-    const bindingSocial: IBindingSocial = {
+    return {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: this.claim,
       proofURL: `https://www.facebook.com/${this.facebookUserID}/posts/${postID}`,
       username: this.username,
+      platform: this.platform,
     }
-
-    this.usersStore.currentUserStore!.boundSocialsStore.addFacebookBindingSocial(bindingSocial)
-    return VERIFY_SOCIAL_STATUS.VALID
   }
 
   protected setClaim(username: string, userAddress: string, publicKey: string): void {

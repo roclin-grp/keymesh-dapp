@@ -44,6 +44,7 @@ import { sha3 } from 'trustbase'
 
 import IndexedDBStore from '../IndexedDBStore'
 import { generatePublicKeyFromHexStr } from '../utils/proteus'
+import { UserCachesStore } from './UserCachesStore'
 
 export class UsersStore {
   @observable.ref public users: IUser[] = []
@@ -79,6 +80,8 @@ export class UsersStore {
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) === -1)
   }
 
+  public userCachesStore: UserCachesStore
+
   constructor({
     databases,
     metaMaskStore,
@@ -91,6 +94,11 @@ export class UsersStore {
     this.databases = databases
     this.metaMaskStore = metaMaskStore
     this.contractStore = contractStore
+    this.userCachesStore = new UserCachesStore({
+      databases,
+      usersStore: this,
+      metaMaskStore,
+    })
 
     reaction(
       () => this.metaMaskStore.currentEthereumAccount,

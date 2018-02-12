@@ -9,11 +9,9 @@ import ProvingState from '../ProvingState'
 import { GithubResource } from '../../../resources/github'
 import {
   ISignedGithubClaim,
-  SOCIAL_MEDIA_PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
+  SOCIALS,
   GITHUB_GIST_FILENAME,
   getGithubClaimByRawURL,
-  IBindingSocial,
   BINDING_SOCIAL_STATUS,
   IGithubClaim,
 } from '../../../stores/BoundSocialsStore'
@@ -24,7 +22,7 @@ export class GithubProvingState extends ProvingState {
   @observable public claim: ISignedGithubClaim
 
   public get platform() {
-    return SOCIAL_MEDIA_PLATFORMS.GITHUB
+    return SOCIALS.GITHUB
   }
 
   protected init() {
@@ -38,7 +36,7 @@ export class GithubProvingState extends ProvingState {
     })
   }
 
-  protected async _checkProof(): Promise<VERIFY_SOCIAL_STATUS> {
+  protected async getBindingSocial() {
     const gists = await GithubResource.getGists(this.username)
 
     let proofURL: string = ''
@@ -51,27 +49,25 @@ export class GithubProvingState extends ProvingState {
       }
     }
     if (proofURL === '') {
-      return VERIFY_SOCIAL_STATUS.NOT_FOUND
+      return
     }
 
     const signedClaim: ISignedGithubClaim | null = await getGithubClaimByRawURL(proofRawURL)
     if (signedClaim === null) {
-      return VERIFY_SOCIAL_STATUS.INVALID
+      return
     }
 
     if (JSON.stringify(this.claim) !== JSON.stringify(signedClaim)) {
-      return VERIFY_SOCIAL_STATUS.INVALID
+      return
     }
 
-    const bindingSocial: IBindingSocial = {
+    return {
       status: BINDING_SOCIAL_STATUS.CHECKED,
       signedClaim: signedClaim,
       proofURL: proofURL,
       username: signedClaim.claim.service.username,
+      platform: this.platform,
     }
-    this.usersStore.currentUserStore!.boundSocialsStore.addGithubBindingSocial(bindingSocial)
-
-    return VERIFY_SOCIAL_STATUS.VALID
   }
 
   protected setClaim(username: string, userAddress: string, publicKey: string): void {
@@ -85,7 +81,7 @@ export class GithubProvingState extends ProvingState {
     const claim: IGithubClaim = {
       userAddress,
       service: {
-        name: SOCIAL_MEDIA_PLATFORMS.GITHUB,
+        name: SOCIALS.GITHUB,
         username,
       },
       ctime: Math.floor(Date.now() / 1000),

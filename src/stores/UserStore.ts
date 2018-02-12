@@ -113,9 +113,9 @@ export class UserStore {
       userStore: this,
     })
     this.boundSocialsStore = new BoundSocialsStore({
-      databases,
       userStore: this,
       contractStore: this.contractStore,
+      userCachesStore: this.usersStore.userCachesStore,
     })
     this.loadDataFromLocal()
 

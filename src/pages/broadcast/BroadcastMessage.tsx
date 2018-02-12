@@ -30,7 +30,9 @@ export default class BroadcastMessage extends React.Component<IProps> {
   public async componentDidMount() {
     const {
       usersStore: {
-        getAvatarHashByUserAddress,
+        userCachesStore: {
+          getAvatarHashByUserAddress,
+        },
       },
       message: {
         author,

@@ -1,10 +1,5 @@
 import {
-  runInAction,
-  observable,
-} from 'mobx'
-import {
   UserStore,
-  IUserIdentityKeys,
 } from './UserStore'
 import {
   ContractStore,
@@ -19,44 +14,31 @@ import {
 } from '../utils/hex'
 
 import {
-  Databases,
-} from '../databases'
-// import {
-//   Iverifications,
-// } from '../DB/VerificationsDB'
-
-import {
   GithubResource,
 } from '../resources/github'
+import { UserCachesStore } from './UserCachesStore'
 
 export class BoundSocialsStore {
-  @observable isVerificationsLoaded = false
-
   constructor({
-    databases,
     userStore,
     contractStore,
+    userCachesStore,
   }: {
-    databases: Databases
     userStore: UserStore
     contractStore: ContractStore
+    userCachesStore: UserCachesStore
   }) {
     this.userStore = userStore
-    this.databases = databases
     this.contractStore = contractStore
-
-    this.init()
+    this.userCachesStore = userCachesStore
   }
 
-  private databases: Databases
   private userStore: UserStore
   private contractStore: ContractStore
+  private userCachesStore: UserCachesStore
 
-  private bindingSocials: IBindingSocials
-  private boundSocials: IBoundSocials
-  private verifications: IVerifications
-
-  public uploadBindingSocials = async (
+  public uploadBindingSocial = async (
+    social: IBindingSocial,
     {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
@@ -64,13 +46,11 @@ export class BoundSocialsStore {
       uploadingDidFail = noop,
     }: IUploadingLifecycle = {},
   ) => {
-    const filteredBindingSocials = filterUndefinedItem(this.bindingSocials)
-    if ('{}' === JSON.stringify(filteredBindingSocials)) {
-      uploadingDidFail(null, UPLOADING_FAIL_CODE.NO_NEW_BINDING)
-      return
-    }
+    const verification = await this.userCachesStore.getVerification(this.userStore.user.userAddress)
+    const newBoundSocials: IBoundSocials = Object.assign({}, verification.boundSocials)
 
-    const newBoundSocials: IBoundSocials = Object.assign(this.boundSocials, filteredBindingSocials)
+    const { username, proofURL, platform } = social
+    newBoundSocials[platform] = {username, proofURL}
 
     const signature = this.userStore.sign(JSON.stringify(newBoundSocials))
     const signedBoundSocials: ISignedBoundSocials = {signature, socialMedias: newBoundSocials}
@@ -78,13 +58,8 @@ export class BoundSocialsStore {
 
     transactionWillCreate()
     this.contractStore.boundSocialsContract.bind(this.userStore.user.userAddress, signedBoundSocialsHex)
-      .on('transactionHash', (hash) => {
+      .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
-        runInAction(() => {
-          Object.keys(this.bindingSocials)
-            .filter((key) => this.bindingSocials[key] !== undefined)
-            .forEach((key) => this.bindingSocials[key].status = BINDING_SOCIAL_STATUS.TRANSACTION_CREATED)
-        })
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
         if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
@@ -93,13 +68,7 @@ export class BoundSocialsStore {
             return
           }
 
-          runInAction(() => {
-            this.bindingSocials = {}
-            this.boundSocials = Object.assign({}, newBoundSocials)
-          })
-
-          await this.persistBindingSocials()
-          await this.persistBoundSocials()
+          await this.persistBoundSocials(newBoundSocials)
 
           uploadingDidComplete()
         }
@@ -109,57 +78,15 @@ export class BoundSocialsStore {
       })
   }
 
-  public addGithubBindingSocial = (bindingSocial: IBindingSocial) => {
-    this.bindingSocials.github = bindingSocial
-    return this.persistBindingSocials()
+  private async persistBoundSocials(newBoundSocials: IBoundSocials) {
+    newBoundSocials.nonce++
+    const { userAddress } = this.userStore.user
+    const verification = await this.userCachesStore.getVerification(userAddress)
+    verification.boundSocials = newBoundSocials
+    verification.verifyStatues = NewIVerifyStatuses()
+
+    return this.userCachesStore.setVerification(userAddress, verification)
   }
-
-  public addTwitterBindingSocial = (bindingSocial: IBindingSocial) => {
-    this.bindingSocials.twitter = bindingSocial
-    return this.persistBindingSocials()
-  }
-
-  public addFacebookBindingSocial = (bindingSocial: IBindingSocial) => {
-    this.bindingSocials.facebook = bindingSocial
-    return this.persistBindingSocials()
-  }
-
-  private persistBindingSocials() {
-    return this.databases.verificationsDB.updateVerifications(this.verifications, {
-      bindingSocials: this.bindingSocials,
-    })
-  }
-
-  private persistBoundSocials() {
-    return this.databases.verificationsDB.updateVerifications(this.verifications, {
-      boundSocials: this.boundSocials,
-    })
-  }
-
-  private async init() {
-    const {
-      user,
-    } = this.userStore
-    let verifications = await this.databases.verificationsDB.getVerificationsOfUser(user)
-
-    if (typeof verifications === 'undefined') {
-      verifications = await this.databases.verificationsDB.createVerifications(user)
-    }
-
-    this.verifications = verifications
-    this.bindingSocials = verifications.bindingSocials
-    this.boundSocials = verifications.boundSocials
-
-    runInAction(() => {
-      this.isVerificationsLoaded = true
-    })
-  }
-}
-
-export interface IVerifications extends IUserIdentityKeys {
-  bindingSocials: IBindingSocials
-  boundSocials: IBoundSocials
-  lastFetchBlock: number
 }
 
 export enum UPLOADING_FAIL_CODE {
@@ -172,35 +99,17 @@ interface IUploadingLifecycle extends ITransactionLifecycle {
   uploadingDidFail?: (err: Error | null, code?: UPLOADING_FAIL_CODE) => void
 }
 
-function filterUndefinedItem(obj: Object): Object {
-  const ret = {}
-  Object.keys(obj)
-    .filter((key) => obj[key] !== undefined)
-    .forEach((key) => ret[key] = obj[key])
-
-  return ret
-}
-
-export enum SOCIAL_MEDIA_PLATFORMS {
+export enum SOCIALS {
   GITHUB = 'github',
   TWITTER = 'twitter',
   FACEBOOK = 'facebook',
 }
 
-export const SOCIAL_MEDIAS = [
-  {
-    'platform': SOCIAL_MEDIA_PLATFORMS.GITHUB,
-    'label': 'GitHub',
-  },
-  {
-    'platform': SOCIAL_MEDIA_PLATFORMS.TWITTER,
-    'label': 'Twitter',
-  },
-  {
-    'platform': SOCIAL_MEDIA_PLATFORMS.FACEBOOK,
-    'label': 'Facebook',
-  },
-]
+export const SOCIAL_LABELS = Object.freeze({
+  [SOCIALS.GITHUB]: 'Github',
+  [SOCIALS.TWITTER]:  'Twitter',
+  [SOCIALS.FACEBOOK]:  'Facebook',
+})
 
 export enum BINDING_SOCIAL_STATUS {
   CHECKED = 100,
@@ -209,7 +118,6 @@ export enum BINDING_SOCIAL_STATUS {
 }
 
 export enum VERIFY_SOCIAL_STATUS {
-  NOT_FOUND = 0,
   INVALID = 100,
   VALID = 200,
 }
@@ -253,6 +161,7 @@ export interface IBoundSocials {
   twitter?: IBoundSocial
   github?: IBoundSocial
   facebook?: IBoundSocial
+  nonce: number
 }
 
 export interface ISignedBoundSocials {
@@ -298,10 +207,30 @@ export interface ISignedFacebookClaim {
 export interface IBindingSocial extends IBoundSocial {
   signedClaim: ISignedGithubClaim | ISignedTwitterClaim | ISignedFacebookClaim
   status: BINDING_SOCIAL_STATUS
+  platform: SOCIALS
 }
 
 export interface IBindingSocials {
   twitter?: IBindingSocial
   github?: IBindingSocial
   facebook?: IBindingSocial
+}
+
+export interface IVerifyStatus {
+  status: VERIFY_SOCIAL_STATUS
+  lastVerifiedAt: number
+}
+
+export interface IVerifyStatuses {
+    github: IVerifyStatus
+    twitter: IVerifyStatus
+    facebook: IVerifyStatus
+}
+
+export function NewIVerifyStatuses() {
+  return {
+    github: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
+    twitter: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
+    facebook: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
+  } as IVerifyStatuses
 }

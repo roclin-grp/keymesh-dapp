@@ -34,9 +34,8 @@ export class UsersDB {
       tableUsers,
       tableSessions,
       tableMessages,
-      tableVerifications,
     } = this.tables
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, tableVerifications, () => {
+    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, () => {
       return tableUsers
         .where({networkId})
         .each((user) => this.deleteUser(user))
@@ -57,7 +56,7 @@ export class UsersDB {
           lastFetchBlockOfBroadcast: 0,
           lastFetchBlockOfBoundSocials: 0,
           contacts: [],
-          boundSocials: {},
+          boundSocials: {nonce: 0},
           bindingSocials: {},
         },
         user
@@ -143,27 +142,23 @@ export class UsersDB {
       tableUsers,
       tableSessions,
       tableMessages,
-      tableVerifications,
     } = this.tables
     const {
       sessionsDB,
       messagesDB,
-      verificationsDB,
     } = this.dataBases
     const {
       networkId,
       userAddress,
     } = user
 
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, tableVerifications, async () => {
+    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
       await tableUsers
         .delete([networkId, userAddress])
 
       await sessionsDB.deleteSessions(user)
 
       await messagesDB.deleteMessagesOfUser(user)
-
-      await verificationsDB.deleteVerificationsOfUser(user)
     })
   }
 
@@ -172,14 +167,12 @@ export class UsersDB {
       tableUsers,
       tableSessions,
       tableMessages,
-      tableVerifications,
     } = this.tables
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, tableVerifications, async () => {
+    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
       await Promise.all([
         tableUsers.clear(),
         tableSessions.clear(),
         tableMessages.clear(),
-        tableVerifications.clear(),
       ])
     })
   }

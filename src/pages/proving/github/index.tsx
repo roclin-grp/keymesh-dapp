@@ -55,8 +55,10 @@ class GithubProving extends React.Component<IProps> {
     }
 
     return <div>
-      <p>{username}</p>
-      <p>@{label}</p>
+      <div className={styles.iconContainer}>
+        <Icon type={platform} className={styles.icon} />
+      </div>
+      <p><a href={'https://github.com/' + username} target="_blank">{username}</a></p>
       <p className={styles.notice}>
         Login to GitHub and paste the text below into a public gist called {GITHUB_GIST_FILENAME}.
       </p>

@@ -82,3 +82,8 @@ const timeAgoTemplates = {
 function timeAgoTemplate(t: string, n: number) {
   return timeAgoTemplates[t] && timeAgoTemplates[t].replace(/%d/i, Math.abs(Math.round(n)))
 }
+
+export function beforeOneDay(time: number) {
+  const now = new Date().getTime()
+  return now - time >= 86400 * 1000
+}

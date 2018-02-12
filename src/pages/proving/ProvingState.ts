@@ -8,9 +8,9 @@ import {
 import { UsersStore } from '../../stores/UsersStore'
 import { storeLogger } from '../../utils/loggers'
 import {
-  VERIFY_SOCIAL_STATUS,
-  SOCIAL_MEDIA_PLATFORMS,
+  SOCIALS,
   UPLOADING_FAIL_CODE,
+  IBindingSocial,
 } from '../../stores/BoundSocialsStore'
 
 useStrict(true)
@@ -55,71 +55,57 @@ export default abstract class ProvingState {
       this.checkProofButtonContent = 'Checking...'
       this.checkProofButtonDisabled = true
     })
-    const verifyStatus = await this._checkProof()
-    switch (verifyStatus) {
-      case VERIFY_SOCIAL_STATUS.VALID:
-        runInAction(() => {
-          this.currentStep = 2
-        })
-        this.uploadBindingProof()
-        break
-      case VERIFY_SOCIAL_STATUS.INVALID:
-        runInAction(() => {
-          this.checkProofButtonContent = defaultCheckProofButtonContent
-          this.checkProofButtonDisabled = false
-        })
-        alert('The claim is invalid')
-        break
-      case VERIFY_SOCIAL_STATUS.NOT_FOUND:
-        runInAction(() => {
-          this.checkProofButtonContent = defaultCheckProofButtonContent
-          this.checkProofButtonDisabled = false
-        })
-        alert('Cloud not found claim')
-        break
-      default:
+    const bindingSocial = await this.getBindingSocial()
+    if (!bindingSocial) {
+      runInAction(() => {
+        this.checkProofButtonContent = defaultCheckProofButtonContent
+        this.checkProofButtonDisabled = false
+      })
+      return
     }
+
+    runInAction(() => {
+      this.currentStep = 2
+    })
+    this.uploadBindingProof(bindingSocial)
   }
 
-  public uploadBindingProof = async () => {
+  public uploadBindingProof = async (social: IBindingSocial) => {
     const {
-      isVerificationsLoaded,
-      uploadBindingSocials,
+      uploadBindingSocial,
     } = this.usersStore.currentUserStore!.boundSocialsStore
-    if (isVerificationsLoaded) {
-      uploadBindingSocials({
-        transactionWillCreate: () => {
-          runInAction(() => {
-            this.checkProofButtonContent = 'Please confirm the transaction...'
-            this.currentStep = 2
-          })
-        },
-        transactionDidCreate: () => {
-          runInAction(() => {
-            this.checkProofButtonContent = 'Uploading...'
-          })
-          storeLogger.log('created')
-        },
-        uploadingDidComplete: () => {
-          storeLogger.log('completed')
-          runInAction(() => {
-            this.currentStep = 3
-          })
-        },
-        uploadingDidFail: this.uploadingDidFail,
-      }).catch(this.uploadingDidFail)
-    }
+    uploadBindingSocial(social, {
+      transactionWillCreate: () => {
+        runInAction(() => {
+          this.checkProofButtonContent = 'Please confirm the transaction...'
+          this.currentStep = 2
+        })
+      },
+      transactionDidCreate: () => {
+        runInAction(() => {
+          this.checkProofButtonContent = 'Uploading...'
+        })
+        storeLogger.log('created')
+      },
+      uploadingDidComplete: () => {
+        storeLogger.log('completed')
+        runInAction(() => {
+          this.currentStep = 3
+        })
+      },
+      uploadingDidFail: this.uploadingDidFail,
+    }).catch(this.uploadingDidFail)
   }
 
   @action
   public updateUsername = (username: string) => {
     this.username = username
   }
-  public abstract get platform(): SOCIAL_MEDIA_PLATFORMS
+  public abstract get platform(): SOCIALS
 
   protected abstract init(): void
   protected abstract setClaim(username: string, userAddress: string, publicKey: string): void
-  protected async abstract _checkProof(): Promise<VERIFY_SOCIAL_STATUS>
+  protected async abstract getBindingSocial(): Promise<IBindingSocial | undefined>
 
   private uploadingDidFail = (err: Error | null, code = UPLOADING_FAIL_CODE.UNKNOWN) => {
     if (code === UPLOADING_FAIL_CODE.NO_NEW_BINDING) {

@@ -17,18 +17,22 @@
   justify-content: space-between;
 }
 
-.grey, .platformIcon {
+.grey, .platformIcon, .checking {
   color: #CCCCCC;
 }
 
-.red {
+.red, .invalid {
   color: #FF3A3A;
 }
 
-.blue {
+.blue, .valid {
   color: #1890FF;
 }
 
 .platformIcon {
   margin-right: 5px;
+}
+
+.checking, .invalid, .valid {
+  cursor: pointer;
 }

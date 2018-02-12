@@ -48,11 +48,11 @@ class Broadcast extends React.Component<IProps> {
       </div>
     }
 
-    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message, index) => {
-      return <>
-        <BroadcastMessage usersStore={this.props.usersStore} message={message} key={index} />
+    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => {
+      return <div key={message.author + message.message + message.timestamp}>
+        <BroadcastMessage usersStore={this.props.usersStore} message={message}/>
         <Divider/>
-      </>
+      </div>
     })
     return <MenuBody routePath="/discover">
       <div className={styles.broadcast}>

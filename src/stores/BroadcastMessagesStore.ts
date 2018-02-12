@@ -176,8 +176,12 @@ export class BroadcastMessagesStore {
         return null
       }
 
-      if (!userPublicKey.verify(sodiumFromHex(signedMessage.signature.slice(2)), signedMessage.message)) {
-        storeLogger.error(new Error('invalid signature'))
+      try {
+        if (!userPublicKey.verify(sodiumFromHex(signedMessage.signature.slice(2)), signedMessage.message)) {
+          throw new Error('invalid signature')
+        }
+      } catch (e) {
+        storeLogger.warn(e)
         return null
       }
 
