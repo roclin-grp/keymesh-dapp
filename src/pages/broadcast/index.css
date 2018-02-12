@@ -1,7 +1,8 @@
 .broadcast {
   display: flex;
   flex-flow: row wrap;
-  width: 100%;
+  margin: 0 1.25rem;
+  flex-grow: 1;
 }
 
 .postForm {

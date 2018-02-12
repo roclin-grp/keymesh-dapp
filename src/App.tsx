@@ -7,15 +7,15 @@ import {
   RouteProps,
 } from 'react-router-dom'
 
+import Header from './containers/Header'
 import MetaMaskConnectFailPage from './pages/MetaMaskConnectFailPage'
 import ErrorPage from './pages/ErrorPage'
-// import Home from './pages/home'
+import Loading from './pages/Loading'
+import Chat from './pages/chat'
 import Accounts from './pages/accounts'
-import Header from './containers/Header'
 import Broadcast from './pages/broadcast'
 import Profile from './pages/profile'
 import Proving from './pages/proving'
-import Loading from './pages/loading'
 
 import {
   inject,
@@ -113,12 +113,6 @@ class App extends React.Component<IProps> {
           redirectTo="/accounts"
         />
         <ConditionalRoute
-          path="/broadcast"
-          component={Broadcast}
-          predicate={hasUser}
-          redirectTo="/accounts"
-        />
-        <ConditionalRoute
           path="/profile"
           exact={true}
           component={Profile}
@@ -143,10 +137,6 @@ interface IInjectedProps extends IProps {
   metaMaskStore: MetaMaskStore
   usersStore: UsersStore
   contractStore: ContractStore
-}
-
-function Chat() {
-  return <pre>/chat</pre>
 }
 
 function NotFound() {

@@ -1,7 +1,6 @@
 import {
   observable,
   runInAction,
-  useStrict,
   action,
 } from 'mobx'
 
@@ -12,8 +11,9 @@ import {
   UPLOADING_FAIL_CODE,
   IBindingSocial,
 } from '../../stores/BoundSocialsStore'
-
-useStrict(true)
+import {
+  isHexZeroValue,
+} from '../../utils/hex'
 
 const defaultCheckProofButtonContent = 'OK posted! Check for it!'
 export default abstract class ProvingState {
@@ -38,7 +38,7 @@ export default abstract class ProvingState {
     const {
       publicKey: identityFingerprint,
     } = await this.usersStore.getIdentityByUserAddress(userAddress)
-    if (Number(identityFingerprint) === 0) {
+    if (isHexZeroValue(identityFingerprint)) {
       return
     }
 

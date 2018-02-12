@@ -12,7 +12,7 @@ export class PreKeysPackage {
     const nprops = d.object()
     let interval: number = 0
     let lastPrekeysDate: number = 0
-    const preKeyPublicKeys: IPreKeyPublicKeys = {}
+    const preKeyPublicKeys: IPreKeyPublicKeyFingerprints = {}
     for (let i = 0; i < nprops; i += 1) {
       switch (d.u8()) {
         case 0: {
@@ -49,7 +49,7 @@ export class PreKeysPackage {
   }
 
   constructor(
-    public preKeyPublicKeys: IPreKeyPublicKeys,
+    public preKeyPublicKeys: IPreKeyPublicKeyFingerprints,
     public interval: number,
     public lastPrekeyDate: number
   ) {
@@ -80,6 +80,6 @@ export class PreKeysPackage {
   }
 }
 
-export interface IPreKeyPublicKeys {
+export interface IPreKeyPublicKeyFingerprints {
   [preKeyId: string]: string
 }

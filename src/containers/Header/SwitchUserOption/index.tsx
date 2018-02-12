@@ -1,13 +1,14 @@
 import * as React from 'react'
 
-import { sha3 } from 'trustbase'
-
-import HashAvatar from '../../components/HashAvatar'
+import HashAvatar from '../../../components/HashAvatar'
+import UserAddress from '../../../components/UserAddress'
 
 import {
   IUser,
-  USER_STATUS,
-} from '../../stores/UserStore'
+} from '../../../stores/UserStore'
+import {
+  UsersStore,
+} from '../../../stores/UsersStore'
 
 import * as styles from './index.css'
 
@@ -33,14 +34,9 @@ class SwitchUserOption extends React.Component<IProps, IState> {
         <HashAvatar
           className={styles.userAvatar}
           size="small"
-          hash={user.status !== USER_STATUS.PENDING
-            ? sha3(`${user.userAddress}${user.blockHash}`)
-            : ''
-          }
+          hash={UsersStore.getAvatarHashByUser(user)}
         />
-        <span>
-          {user.userAddress.slice(0, 8)}...
-        </span>
+        <UserAddress address={user.userAddress} maxLength={8} />
       </a>
     )
   }

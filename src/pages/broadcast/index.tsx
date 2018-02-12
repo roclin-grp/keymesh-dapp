@@ -12,6 +12,7 @@ import HashAvatar from '../../components/HashAvatar'
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
+import { sha3 } from 'trustbase'
 
 interface IProps {
   usersStore: UsersStore
@@ -40,16 +41,23 @@ class Broadcast extends React.Component<IProps> {
   }
 
   public render() {
-    let form
+    let form: JSX.Element | null = null
     if (this.props.usersStore.hasUser) {
       form = <div className={styles.postForm}>
-        {this.userAvatar()}
-        <BroadcastForm broadcastMessagesStore={this.props.broadcastMessagesStore}/>
+        <HashAvatar
+          className={styles.avatar}
+          shape="circle"
+          hash={this.props.usersStore.currentUserStore!.avatarHash}
+        />
+        <BroadcastForm
+          broadcastMessagesStore={this.props.broadcastMessagesStore}
+          disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
+        />
       </div>
     }
 
     const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => {
-      return <div key={message.author + message.message + message.timestamp}>
+      return <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
         <BroadcastMessage usersStore={this.props.usersStore} message={message}/>
         <Divider/>
       </div>
@@ -63,18 +71,6 @@ class Broadcast extends React.Component<IProps> {
         </div>
       </div>
     </MenuBody>
-  }
-
-  private userAvatar() {
-    const avatarShape = 'circle'
-    const avatarSize = 'default'
-
-    return <HashAvatar
-      className={styles.avatar}
-      shape={avatarShape}
-      size={avatarSize}
-      hash={this.props.usersStore.currentUserStore!.avatarHash}
-    />
   }
 }
 

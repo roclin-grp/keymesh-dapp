@@ -1,40 +1,244 @@
 import {
   observable,
+  runInAction,
+  action,
+  reaction,
+  observe,
+  computed,
+  Lambda,
 } from 'mobx'
 import {
-  ITransactionLifecycle,
-} from './ContractStore'
-import {
-  UserStore,
   IUserIdentityKeys,
   IContact,
 } from './UserStore'
+import {
+  IMessage,
+} from './ChatMessageStore'
+import {
+  SessionsStore,
+} from './SessionsStore'
 
 import {
-  keys,
-} from 'wire-webapp-proteus'
-
-import {
-  Databases,
+  getDatabases,
 } from '../databases'
+import {
+  IUpdateSessionOptions,
+} from '../databases/SessionsDB'
+import {
+  ICreateMessageArgs,
+} from '../databases/MessagesDB'
+
+import { sha3 } from 'trustbase'
 
 export class SessionStore {
   @observable public session: ISession
   @observable.ref public messages: IMessage[] = []
+  @observable public isLoading = true
+  @observable public isLoadingOldMessages = false
+  @observable public newUnreadCount = 0
+  @observable public draftMessage = ''
+
+  @computed
+  public get isCurrentSession() {
+    return this.sessionsStore.isCurrentSession(this.session.userAddress, this.session.sessionTag)
+  }
 
   constructor(session: ISession, {
-    databases,
-    userStore,
+    sessionsStore,
   }: {
-    databases: Databases,
-    userStore: UserStore
+    sessionsStore: SessionsStore
   }) {
-    // this.databases = databases
     this.session = this.sessionRef = session
+    this.sessionsStore = sessionsStore
+
+    reaction(
+      () => ({
+        lastUpdate: this.session.lastUpdate,
+        isClosed: this.session.isClosed,
+        unreadCount: this.session.unreadCount,
+        summary: this.session.summary,
+      }) as IUpdateSessionOptions,
+      (observableUserData) => {
+        Object.assign(this.sessionRef, observableUserData)
+      })
   }
 
   private sessionRef: ISession
-  // private databases: Databases
+  private sessionsStore: SessionsStore
+  private isClearing = false
+  private shouldAddUnread = true
+
+  @action
+  public setDraft(message: string) {
+    this.draftMessage = message
+  }
+
+  public setShouldAddUnread(value: boolean) {
+    this.shouldAddUnread = value
+  }
+
+  public refreshMemorySession = async (): Promise<void> => {
+    const session = await getDatabases().sessionsDB.getSession(this.session.sessionTag, this.session.userAddress)
+    if (typeof session !== 'undefined') {
+      this.updateMemorySession(session)
+      this.sessionsStore.sortSessions()
+    }
+  }
+
+  public listenForNewMessage = (listener: () => void): Lambda => {
+    return observe(
+      this.session,
+      'lastUpdate',
+      ({
+        newValue,
+        oldValue,
+      }) => {
+        if (newValue > oldValue) {
+          listener()
+        }
+      }
+    )
+  }
+
+  public static getAvatarHashByContact = (contract: IContact) => {
+    return sha3(`${contract.userAddress}${contract.blockHash}`)
+  }
+
+  public loadNewMessages = async (limit?: number) => {
+    const loadedMessagesCount = this.messages.length
+    const hasMessages = loadedMessagesCount > 0
+    const lastMessageTimestamp = hasMessages ? this.messages[loadedMessagesCount - 1].timestamp : 0
+    if (lastMessageTimestamp === this.session.lastUpdate) {
+      // no new messages
+      return
+    }
+
+    const {
+      messagesDB,
+    } = getDatabases()
+    runInAction(() => {
+      this.isLoading = true
+    })
+    const newMessages = await messagesDB.getMessagesOfSession(this.session, {
+      timestampAfter: lastMessageTimestamp + 1,
+      limit,
+    })
+    const newMessagesCount = newMessages.length
+    const previousUnreadCount = this.session.unreadCount
+
+    if (previousUnreadCount > 0) {
+      let unreadCount = this.session.unreadCount - newMessagesCount
+      if (unreadCount < 0) {
+        unreadCount = 0
+      }
+
+      await this.updateSession({
+        unreadCount,
+      })
+    }
+
+    runInAction(() => {
+      if (newMessagesCount > 0) {
+        this.messages = this.messages.concat(newMessages)
+      }
+      this.isLoading = false
+    })
+  }
+
+  public loadOldMessages = async (limit?: number) => {
+    const messagesLength = this.messages.length
+    if (messagesLength === 0) {
+       return
+    }
+
+    const {
+      messagesDB,
+    } = getDatabases()
+    runInAction(() => {
+      this.isLoadingOldMessages = true
+    })
+    const oldMessages = await messagesDB.getMessagesOfSession(this.session, {
+      timestampBefore: this.messages[messagesLength - 1].timestamp,
+      limit,
+    })
+    const oldMessagesCount = oldMessages.length
+    const previousUnreadCount = this.session.unreadCount
+
+    if (previousUnreadCount > 0) {
+      let unreadCount = this.session.unreadCount - oldMessagesCount
+      if (unreadCount < 0) {
+        unreadCount = 0
+      }
+
+      await this.updateSession({
+        unreadCount,
+      })
+    }
+
+    runInAction(() => {
+      if (oldMessages.length > 0) {
+        this.messages = oldMessages.concat(this.messages)
+      }
+      this.isLoadingOldMessages = false
+    })
+  }
+
+  public createMessage = async (args: ICreateMessageArgs) => {
+    const message = await getDatabases().messagesDB.createMessage(
+      this.session,
+      Object.assign<{shouldAddUnread: ICreateMessageArgs['shouldAddUnread']}, ICreateMessageArgs>(
+        {
+          shouldAddUnread: this.shouldAddUnread,
+        },
+        args
+      )
+    )
+
+    this.addMessage(message)
+    return message
+  }
+
+  public clearNewUnreadCount = async () => {
+    const {newUnreadCount} = this
+    if (!this.isClearing && newUnreadCount > 0) {
+      this.isClearing = true
+      await this.updateSession({
+        unreadCount: this.session.unreadCount - newUnreadCount,
+      })
+      runInAction(() => {
+        this.newUnreadCount = this.newUnreadCount - newUnreadCount
+      })
+    }
+  }
+
+  public clearUnread = () => {
+    return this.updateSession({
+      unreadCount: 0,
+    })
+  }
+
+  private async updateSession(args: IUpdateSessionOptions) {
+    await getDatabases().sessionsDB.updateSession(this.session, args)
+    this.updateMemorySession(args)
+  }
+
+  @action
+  private updateMemorySession(args: IUpdateSessionOptions) {
+    Object.assign(this.session, args)
+  }
+
+  @action
+  private addMessage = (message: IMessage) => {
+    if (this.isCurrentSession) {
+      this.messages = this.messages.concat(message)
+      if (!message.isFromYourself && this.shouldAddUnread) {
+        this.newUnreadCount++
+      }
+    }
+
+    this.refreshMemorySession()
+    return this.messages
+  }
 }
 
 export interface ISession extends IUserIdentityKeys {
@@ -45,79 +249,4 @@ export interface ISession extends IUserIdentityKeys {
   isClosed: boolean
   unreadCount: number
   summary: string
-}
-
-export interface IMessage extends IUserIdentityKeys {
-  messageId: string
-  sessionTag: string
-  messageType: MESSAGE_TYPE
-  timestamp: number
-  isFromYourself: boolean
-  plainText?: string
-  transactionHash?: string
-  status: MESSAGE_STATUS
-}
-
-export enum MESSAGE_TYPE {
-  HELLO = 0,
-  NORMAL = 1,
-  CLOSE_SESSION = 2,
-}
-
-export enum MESSAGE_STATUS {
-  DELIVERING = 0,
-  DELIVERED = 1,
-  FAILED = 2,
-}
-
-export const MESSAGE_STATUS_STR = Object.freeze({
-  [MESSAGE_STATUS.DELIVERING]: 'Delivering',
-  [MESSAGE_STATUS.FAILED]: 'Failed',
-  [MESSAGE_STATUS.DELIVERED]: 'Delivered',
-}) as {
-  [messageStatus: number]: string
-}
-
-export interface ITrustbaseRawMessage {
-  message: string
-  timestamp: string
-}
-
-export interface IDecryptedTrustbaseMessage {
-  decryptedPaddedMessage: Uint8Array
-  senderIdentity: keys.IdentityKey
-  timestamp: string
-  messageByteLength: number
-}
-
-export interface IRawUnppaddedMessage {
-  messageType: MESSAGE_TYPE
-  timestamp: number
-  subject: string
-  fromUserAddress?: string
-  plainText?: string
-}
-
-export interface IReceivedMessage extends IRawUnppaddedMessage {
-  mac: Uint8Array
-  sessionTag: string
-  timestamp: number
-  blockHash?: string
-}
-
-export interface ICheckMessageStatusLifecycle {
-  sendingDidFail?: () => void
-}
-
-export interface ISendingLifecycle extends ITransactionLifecycle {
-  sendingDidComplete?: () => void
-  sendingDidFail?: (err: Error | null, code?: SENDING_FAIL_CODE) => void
-}
-
-export enum SENDING_FAIL_CODE {
-  UNKNOWN = 0,
-  NOT_CONNECTED = 400,
-  INVALID_USER_ADDRESS = 401,
-  INVALID_MESSAGE = 402,
-  SEND_TO_YOURSELF = 403,
 }

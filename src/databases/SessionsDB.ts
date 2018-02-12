@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import {
-  ITables,
+  TypeDexieWithTables,
   Databases,
 } from './'
 
@@ -10,12 +10,14 @@ import {
 } from '../stores/UserStore'
 import {
   ISession,
+} from '../stores/SessionStore'
+import {
   MESSAGE_TYPE,
   MESSAGE_STATUS,
-} from '../stores/SessionStore'
+} from '../stores/ChatMessageStore'
 
 export class SessionsDB {
-  constructor(private tables: ITables, private dexieDB: Dexie, private dataBases: Databases) {
+  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {
     //
   }
 
@@ -30,7 +32,7 @@ export class SessionsDB {
       limit,
     }: IGetSessionsOptions = {}) {
       const collect = (() => {
-        let _collect = this.tables.tableSessions
+        let _collect = this.dexieDB.sessions
           .orderBy('lastUpdate')
           .reverse()
           .filter((session) =>
@@ -61,12 +63,12 @@ export class SessionsDB {
       userAddress,
     } = user
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, () => {
-      return tableSessions
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
+    return this.dexieDB.transaction('rw', users, sessions, messages, () => {
+      return sessions
         .where(Object.assign(
           {
             networkId,
@@ -85,7 +87,7 @@ export class SessionsDB {
       // session
       sessionTag,
       contact,
-      subject,
+      subject = '',
       // first message
       messageId,
       messageType,
@@ -101,17 +103,13 @@ export class SessionsDB {
       userAddress,
     } = user
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    const {
-      usersDB,
-      messagesDB,
-    } = this.dataBases
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
     return this.dexieDB
-      .transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
-        await tableSessions
+      .transaction('rw', users, sessions, messages, async () => {
+        await sessions
           .add({
             sessionTag,
             userAddress,
@@ -130,7 +128,7 @@ export class SessionsDB {
           throw new Error('session not exist')
         }
 
-        await messagesDB.createMessage(
+        await this.dataBases.messagesDB.createMessage(
           session,
           {
             messageId,
@@ -143,15 +141,15 @@ export class SessionsDB {
           }
         )
 
-        await usersDB.addContact(user, contact)
+        await this.dataBases.usersDB.addContact(user, contact)
 
         return [sessionTag, user.userAddress] as [string, string]
       })
-      .then((primaryKeys) => tableSessions.get(primaryKeys)) as Dexie.Promise<ISession>
+      .then((primaryKeys) => sessions.get(primaryKeys)) as Dexie.Promise<ISession>
   }
 
   public getSession(sessionTag: string, userAddress: string) {
-    return this.tables.tableSessions
+    return this.dexieDB.sessions
       .get([sessionTag, userAddress])
   }
 
@@ -163,11 +161,11 @@ export class SessionsDB {
     updateSessionOptions: IUpdateSessionOptions = {}
   ) {
     const {
-      tableSessions,
-    } = this.tables
-    return tableSessions
+      sessions,
+    } = this.dexieDB
+    return sessions
       .update([sessionTag, userAddress], updateSessionOptions)
-      .then(() => tableSessions.get([sessionTag, userAddress])) as Dexie.Promise<ISession>
+      .then(() => sessions.get([sessionTag, userAddress])) as Dexie.Promise<ISession>
   }
 
   public deleteSession(session: ISession) {
@@ -178,21 +176,21 @@ export class SessionsDB {
       networkId,
     } = session
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
     const {
       messagesDB,
       usersDB,
     } = this.dataBases
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
-      await tableSessions
+    return this.dexieDB.transaction('rw', users, sessions, messages, async () => {
+      await sessions
         .delete([sessionTag, userAddress])
 
       await messagesDB.deleteMessagesOfSession(session)
 
-      const remainSessions = await tableSessions
+      const remainSessions = await sessions
         .where({'contact.userAddress': contact.userAddress})
         .toArray()
 
@@ -207,25 +205,25 @@ export class SessionsDB {
 
   public disposeDB() {
     const {
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    return this.dexieDB.transaction('rw', tableSessions, tableMessages, async () => {
+      sessions,
+      messages,
+    } = this.dexieDB
+    return this.dexieDB.transaction('rw', sessions, messages, async () => {
       await Promise.all([
-        tableSessions.clear(),
-        tableMessages.clear(),
+        sessions.clear(),
+        messages.clear(),
       ])
     })
   }
 }
 
-interface ICreateSessionArgs {
+export interface ICreateSessionArgs {
   messageId: string
   contact: IContact
-  subject: string
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
+  subject?: string
   plainText?: string
   isFromYourself?: boolean
   transactionHash?: string
@@ -243,7 +241,7 @@ interface IDeleteSessionsOptions {
   contact?: string
 }
 
-interface IUpdateSessionOptions {
+export interface IUpdateSessionOptions {
   lastUpdate?: number
   isClosed?: boolean
   unreadCount?: number

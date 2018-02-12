@@ -10,16 +10,17 @@ import {
 } from './MessagesDB'
 
 import {
-  ETHEREUM_NETWORKS,
-} from '../stores/MetaMaskStore'
-import {
   IUser,
 } from '../stores/UserStore'
 import {
   ISession,
-  IMessage,
 } from '../stores/SessionStore'
-import { IUserCaches } from '../stores/UserCachesStore'
+import {
+  IUserCaches,
+} from '../stores/UserCachesStore'
+import {
+  IMessage,
+} from '../stores/ChatMessageStore'
 
 import {
   dumpDB,
@@ -30,6 +31,15 @@ import {
 } from '../utils/data'
 import { UserCachesDB } from './UserCachesDB'
 
+let databases: Databases | undefined
+
+export function getDatabases() {
+  if (typeof databases === 'undefined') {
+    databases = new Databases()
+  }
+  return databases
+}
+
 export class Databases {
   public usersDB: UsersDB
   public sessionsDB: SessionsDB
@@ -37,38 +47,16 @@ export class Databases {
   public userCachesDB: UserCachesDB
 
   public constructor() {
-    if (typeof indexedDB === 'undefined') {
-      throw new Error(`IndexedDB isn't supported by your platform.`)
-    }
-
-    const dexieDB = this.dexieDB = new Dexie('keymail')
+    const dexieDB = this.dexieDB = new Dexie('keymail') as TypeDexieWithTables
     dexieDB.version(1).stores(SCHEMA_V1)
 
-    const tables = {
-      tableUsers: this.tableUsers,
-      tableSessions: this.tableSessions,
-      tableMessages: this.tableMessages,
-      tableUserCaches: this.tableUserCaches,
-    }
-    this.usersDB = new UsersDB(tables, dexieDB, this)
-    this.sessionsDB = new SessionsDB(tables, dexieDB, this)
-    this.messagesDB = new MessagesDB(tables, dexieDB, this)
-    this.userCachesDB = new UserCachesDB(tables)
+    this.usersDB = new UsersDB(dexieDB, this)
+    this.sessionsDB = new SessionsDB(dexieDB, this)
+    this.messagesDB = new MessagesDB(dexieDB, this)
+    this.userCachesDB = new UserCachesDB(dexieDB)
   }
 
-  private readonly dexieDB: Dexie
-  private get tableUsers(): TypeTableUsers {
-    return (this.dexieDB as any)[TABLE_NAMES.USERS]
-  }
-  private get tableSessions(): TypeTableSessions {
-    return (this.dexieDB as any)[TABLE_NAMES.SESSIONS]
-  }
-  private get tableMessages(): TypeTableMessages {
-    return (this.dexieDB as any)[TABLE_NAMES.MESSAGES]
-  }
-  private get tableUserCaches(): TypeTableUserCaches {
-    return (this.dexieDB as any)[TABLE_NAMES.USER_CACHES]
-  }
+  private readonly dexieDB: TypeDexieWithTables
 
   public async dumpDB() {
     const dbs: IDumpedDatabases = {}
@@ -109,9 +97,30 @@ enum TABLE_NAMES {
   USERS = 'users',
   SESSIONS = 'sessions',
   MESSAGES = 'messages',
-  USER_CACHES = 'user_caches',
+  USER_CACHES = 'userCaches',
 }
 
+type TypeTableItems = {
+  [TABLE_NAMES.USERS]: IUser
+  [TABLE_NAMES.SESSIONS]: ISession
+  [TABLE_NAMES.MESSAGES]: IMessage
+  [TABLE_NAMES.USER_CACHES]: IUserCaches
+}
+
+type TypeTablePrimaryKeys = {
+  [TABLE_NAMES.USERS]: [IUser['networkId'], IUser['userAddress']]
+  [TABLE_NAMES.SESSIONS]: [ISession['sessionTag'], ISession['userAddress']]
+  [TABLE_NAMES.MESSAGES]: [IMessage['messageId'], IMessage['userAddress']]
+  [TABLE_NAMES.USER_CACHES]: [IUserCaches['networkId'], IUserCaches['userAddress']]
+}
+
+export type TypeTables = {
+  [tablename in TABLE_NAMES]: Dexie.Table<TypeTableItems[tablename], TypeTablePrimaryKeys[tablename]>
+}
+
+export type TypeDexieWithTables = Dexie & TypeTables
+
+// TODO: improve typings
 /**
  * NOTE: here only specify table's index properties (for search optimization),
  * and only types list below can be use as index:
@@ -126,15 +135,3 @@ const SCHEMA_V1 = Object.freeze({
     '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
   [TABLE_NAMES.USER_CACHES]: '[networkId+userAddress]',
 })
-
-type TypeTableUsers = Dexie.Table<IUser, [ETHEREUM_NETWORKS, string]>
-type TypeTableSessions = Dexie.Table<ISession, [string, string]>
-type TypeTableMessages = Dexie.Table<IMessage, [string, string]>
-type TypeTableUserCaches = Dexie.Table<IUserCaches, [ETHEREUM_NETWORKS, string]>
-
-export interface ITables {
-  tableUsers: TypeTableUsers
-  tableSessions: TypeTableSessions
-  tableMessages: TypeTableMessages
-  tableUserCaches: TypeTableUserCaches
-}

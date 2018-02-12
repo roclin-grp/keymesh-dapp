@@ -12,7 +12,7 @@ import {
   Tooltip,
   Popconfirm,
 } from 'antd'
-import HashAvatar from '../../components/HashAvatar'
+import HashAvatar from '../../../components/HashAvatar'
 
 // style
 import * as styles from './index.css'
@@ -24,31 +24,28 @@ import {
 } from 'mobx-react'
 import {
   IStores,
-} from '../../stores'
+} from '../../../stores'
 import {
   MetaMaskStore,
   ETHEREUM_NETWORK_TX_URL_PREFIX,
-} from '../../stores/MetaMaskStore'
+} from '../../../stores/MetaMaskStore'
 import {
   UsersStore,
   REGISTER_FAIL_CODE,
-} from '../../stores/UsersStore'
+} from '../../../stores/UsersStore'
 import {
+  UserStore,
   IUser,
-} from '../../stores/UserStore'
+  USER_STATUS,
+  IDENTITY_UPLOAD_CHECKING_FAIL_CODE,
+} from '../../../stores/UserStore'
 
 // helper
 import {
   storeLogger,
-} from '../../utils/loggers'
+} from '../../../utils/loggers'
 
-@inject(({
-  usersStore,
-  metaMaskStore,
-}: IStores) => ({
-  usersStore,
-  metaMaskStore,
-}))
+@inject(mapStoreToProps)
 @observer
 class AccountListItem extends React.Component<IProps, IState> {
   public readonly state = Object.freeze({
@@ -57,9 +54,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     isDeleting: false,
   })
 
-  private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
-  private userStore = this.injectedProps.usersStore.createUserStore(this.props.user)
+  private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
 
   private unmounted = false
   public componentWillUnmount() {
@@ -69,12 +64,22 @@ class AccountListItem extends React.Component<IProps, IState> {
   public componentDidMount() {
     const {
       isRegisterCompleted,
-    } = this.userStore
+      user,
+    } = this.injectedProps.userStore
     if (!isRegisterCompleted) {
       this.handleCheckRegisterStatus()
     } else {
       this.setState({
-        status: REGISTER_STATUS.DONE,
+        status: (() => {
+          switch (user.status) {
+            case USER_STATUS.OK:
+              return REGISTER_STATUS.DONE
+            case USER_STATUS.FAIL:
+              return REGISTER_STATUS.TRANSACTION_ERROR
+            default:
+              return REGISTER_STATUS.UNEXCEPTED_ERROR
+          }
+        })(),
       })
     }
   }
@@ -83,7 +88,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     const {
       avatarHash,
       user,
-    } = this.userStore
+    } = this.injectedProps.userStore
     const {
       isCurrentUser,
     } = this.injectedProps.usersStore
@@ -97,7 +102,10 @@ class AccountListItem extends React.Component<IProps, IState> {
             shape="circle"
             hash={avatarHash}
           />}
-          title={<Link to={`/profile${isCurrentUser(user) ? '' : `/${user.userAddress}`}`}>{user.userAddress}</Link>}
+          title={
+            <Link to={`/profile${isCurrentUser(user.networkId, user.userAddress) ? '' : `/${user.userAddress}`}`}>
+              {user.userAddress}
+            </Link>}
         />
         <div className={styles.listContent}>
           {this.getListContent()}
@@ -109,7 +117,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   private getActions = () => {
     const {
       user,
-    } = this.userStore
+    } = this.injectedProps.userStore
     const {
       isCurrentUser,
     } = this.injectedProps.usersStore
@@ -123,6 +131,7 @@ class AccountListItem extends React.Component<IProps, IState> {
         title="Are you sure delete this user?"
         onConfirm={this.handleDeleteUser}
         okText="Delete"
+        okType="danger"
       >
         <Button
           key={`delete-${user.userAddress}`}
@@ -138,7 +147,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     switch (status) {
       case REGISTER_STATUS.DONE:
-        if (isCurrentUser(user)) {
+        if (isCurrentUser(user.networkId, user.userAddress)) {
           return [
             deleteButton,
           ]
@@ -168,6 +177,7 @@ class AccountListItem extends React.Component<IProps, IState> {
           </Button>,
           deleteButton,
         ]
+      case REGISTER_STATUS.TRANSACTION_ERROR:
       default:
         return [
           deleteButton,
@@ -196,6 +206,7 @@ class AccountListItem extends React.Component<IProps, IState> {
       case REGISTER_STATUS.PENDING:
         return <Spin />
       case REGISTER_STATUS.IDENTITY_UPLOADING:
+      case REGISTER_STATUS.TRANSACTION_ERROR:
         return (
           <Tooltip title={helpMessage} placement="bottom">
             <a
@@ -219,8 +230,9 @@ class AccountListItem extends React.Component<IProps, IState> {
             <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
           </Tooltip>
         )
+      case REGISTER_STATUS.DONE:
       default:
-        if (isCurrentUser(user)) {
+        if (isCurrentUser(user.networkId, user.userAddress)) {
           return 'Current user'
         }
         return null
@@ -242,32 +254,29 @@ class AccountListItem extends React.Component<IProps, IState> {
   }
 
   private handleSwitchUser = () => {
-    const {
-      useUser,
-    } = this.injectedProps.usersStore
-
-    useUser(this.props.user)
+    this.injectedProps.usersStore.useUser(this.props.user)
   }
 
   private handleCheckRegisterStatus = () => {
     const {
       checkIdentityUploadStatus,
-    } = this.userStore
+    } = this.injectedProps.userStore
     checkIdentityUploadStatus({
-      checkRegisterWillStart: this.checkRegisterWillStart,
+      checkIdentityUploadStatusWillStart: this.checkIdentityUploadStatusWillStart,
       identityDidUpload: this.identityDidUpload,
       registerDidFail: this.registerDidFail,
-    }).catch(this.registerDidFail)
+      checkingDidFail: this.identityUploadCheckingDidFail,
+    }).catch(this.identityUploadCheckingDidFail)
   }
 
-  private checkRegisterWillStart = () => {
+  private checkIdentityUploadStatusWillStart = () => {
     if (this.unmounted) {
       return
     }
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADING,
-      helpMessage: 'Waiting for confirmation (click to see transaction)',
+      helpMessage: 'Waiting for transaction confirmation.',
     })
   }
 
@@ -276,7 +285,7 @@ class AccountListItem extends React.Component<IProps, IState> {
       return
     }
 
-    this.userStore.uploadPreKeys({
+    this.injectedProps.userStore.uploadPreKeys({
       preKeysDidUpload: this.preKeysDidUpload,
       preKeysUploadDidFail: this.preKeysUploadDidFail,
       isRegister: true,
@@ -320,7 +329,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     })
   }
 
-  private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
+  private registerDidFail = (code: REGISTER_FAIL_CODE) => {
     if (this.unmounted) {
       return
     }
@@ -332,7 +341,29 @@ class AccountListItem extends React.Component<IProps, IState> {
         status = REGISTER_STATUS.OCCUPIED
         helpMessage = 'Wallet address already registered.'
         break
-      case REGISTER_FAIL_CODE.TIMEOUT:
+      case REGISTER_FAIL_CODE.TRANSACTION_ERROR:
+        status = REGISTER_STATUS.TRANSACTION_ERROR
+        helpMessage = 'Transaction process error, you can delete this account and retry later.'
+        break
+      default:
+        status = REGISTER_STATUS.UNEXCEPTED_ERROR
+        helpMessage = `Something went wrong, you can retry later.`
+    }
+    this.setState({
+      status,
+      helpMessage,
+    })
+  }
+
+  private identityUploadCheckingDidFail = (err: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
+    if (this.unmounted) {
+      return
+    }
+
+    let status: REGISTER_STATUS
+    let helpMessage: string
+    switch (code) {
+      case IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT:
         status = REGISTER_STATUS.TIMEOUT
         helpMessage = `Transaction was not mined within 50 blocks, you can retry later.`
         break
@@ -344,6 +375,23 @@ class AccountListItem extends React.Component<IProps, IState> {
       status,
       helpMessage,
     })
+  }
+}
+
+function mapStoreToProps (
+  {
+    metaMaskStore,
+    usersStore,
+  }: IStores,
+  props: IProps,
+): IInjectedProps {
+  const {
+    user,
+  } = props
+  return {
+    metaMaskStore,
+    usersStore,
+    userStore: usersStore.getUserStore(user),
   }
 }
 
@@ -359,6 +407,7 @@ enum REGISTER_STATUS {
   UNEXCEPTED_ERROR,
   // error
   OCCUPIED,
+  TRANSACTION_ERROR,
 }
 
 const REGISTER_STATUS_SUMMARY_TEXT = Object.freeze({
@@ -370,6 +419,7 @@ const REGISTER_STATUS_SUMMARY_TEXT = Object.freeze({
   [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Unexpected error',
 
   [REGISTER_STATUS.OCCUPIED]: 'Be occupied',
+  [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction error',
 }) as {
   [status: number]: string
 }
@@ -383,6 +433,7 @@ const REGISTER_STATUS_ICON_TYPE = Object.freeze({
   [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'exclamation-circle-o',
 
   [REGISTER_STATUS.OCCUPIED]: 'close-circle-o',
+  [REGISTER_STATUS.TRANSACTION_ERROR]: 'close-circle-o',
 }) as {
   [status: number]: string
 }
@@ -393,9 +444,10 @@ interface IProps {
   className?: string
 }
 
-interface IInjectedProps extends IProps {
+interface IInjectedProps {
   metaMaskStore: MetaMaskStore
   usersStore: UsersStore
+  userStore: UserStore
 }
 
 interface IState {

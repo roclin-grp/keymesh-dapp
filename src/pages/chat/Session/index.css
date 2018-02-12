@@ -1,0 +1,18 @@
+.listItem {
+  display: block;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid #ebedf0;
+  position: relative;
+}
+
+.listItem :global .ant-list-item-content {
+  align-self: baseline;
+}
+
+.summary {
+  display: block;
+  max-width: 11rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}

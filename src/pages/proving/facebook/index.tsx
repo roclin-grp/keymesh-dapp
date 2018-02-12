@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import ProvingTextarea from '../../../components/ProvingTextarea'
+import ProvingTextarea from '../ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
 import { FacebookProvingState , getFacebookClaim } from './FacebookProvingState'
 import { Icon, Button } from 'antd'

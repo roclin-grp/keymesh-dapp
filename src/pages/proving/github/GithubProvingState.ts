@@ -1,7 +1,6 @@
 import {
   observable,
   runInAction,
-  useStrict,
 } from 'mobx'
 
 import ProvingState from '../ProvingState'
@@ -15,8 +14,6 @@ import {
   BINDING_SOCIAL_STATUS,
   IGithubClaim,
 } from '../../../stores/BoundSocialsStore'
-
-useStrict(true)
 
 export class GithubProvingState extends ProvingState {
   @observable public claim: ISignedGithubClaim

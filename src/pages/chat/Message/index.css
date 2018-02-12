@@ -12,10 +12,14 @@
 }
 
 .sender {
-  color: blue;
+  color: #1890ff;
   margin-right: 10px;
   margin-bottom: 7px;
   word-break: break-all;
+}
+
+.messageSelf > .sender {
+  color: inherit;
 }
 
 .time {
@@ -30,16 +34,39 @@
 }
 
 .content {
+  display: flex;
+  flex-direction: column;
+}
+
+.messageText {
   color: rgb(22, 22, 22);
   padding: 10px 10px;
   font-size: 16px;
-  box-shadow: rgba(0, 0, 0, 0.118) 0px 1px 6px, rgba(0, 0, 0, 0.118) 0px 1px 4px;
   text-align: start;
   border-radius: 8px;
   margin-top: 0;
+  background: white;
+  white-space: pre-wrap;
+}
+
+.messageSelf .messageText {
+  background: rgba(167, 223, 255, .5);
 }
 
 .messageSelf > .content,
-.messageSelf .sender {
+.messageSelf .sender,
+.messageStatus {
   margin-left: auto;
+}
+
+.messageStatus {
+  transform: translateY(-100%);
+  margin: 0;
+  text-align: right;
+  height: 0;
+  font-size: 12px;
+}
+
+.messageSelf .sender {
+  color: rgba(0, 0, 0, 0.45);
 }

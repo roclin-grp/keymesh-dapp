@@ -2,6 +2,7 @@ import {
   observable,
   action,
   runInAction,
+  computed,
 } from 'mobx'
 import {
   SessionStore,
@@ -12,61 +13,120 @@ import {
 } from './UserStore'
 
 import {
-  Databases,
+  getDatabases,
 } from '../databases'
+import {
+  ICreateSessionArgs,
+  SessionsDB,
+} from '../databases/SessionsDB'
 
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
   @observable.ref public currentSessionStore: SessionStore | undefined
-  @observable public isLoading = false
+  @observable public isLoadingSessions = false
+  @observable public isSwitchingSession = false
+  @observable public isLoaded = false
 
-  constructor({
-    databases,
-    userStore,
-  }: {
-    databases: Databases
-    userStore: UserStore
-  }) {
-    this.databases = databases
-    this.userStore = userStore
+  @computed
+  public get hasSelectedSession() {
+    return typeof this.currentSessionStore !== 'undefined'
   }
 
-  private databases: Databases
+  constructor({
+    userStore,
+  }: {
+    userStore: UserStore
+  }) {
+    this.userStore = userStore
+    this.sessionsDB = getDatabases().sessionsDB
+  }
+
+  private sessionsDB: SessionsDB
   private userStore: UserStore
+  private cachedSessionStores: {
+    [primaryKey: string]: SessionStore
+  } = {}
+
+  public isCurrentSession = (userAddress: string, sessionTag: string) => {
+    return (
+      this.hasSelectedSession
+      && this.currentSessionStore!.session.userAddress === userAddress
+      && this.currentSessionStore!.session.sessionTag === sessionTag
+    )
+  }
 
   public loadSessions = async () => {
-    runInAction(() => {
-      this.isLoading = true
-    })
-    const sessions = await this.databases.sessionsDB.getSessions(this.userStore.user)
-    runInAction(() => {
-      this.sessions = sessions
-      if (sessions.length > 0) {
-        this.selectSession(sessions[0])
-      }
-      this.isLoading = false
-    })
+    if (!this.isLoaded) {
+      runInAction(() => {
+        this.isLoadingSessions = true
+      })
+      const sessions = await this.sessionsDB.getSessions(this.userStore.user)
+      this.cachedSessionStores = {}
+      runInAction(() => {
+        this.sessions = sessions
+        this.isLoadingSessions = false
+        if (sessions.length > 0) {
+          this.selectSession(sessions[0])
+        }
+        this.isLoaded = true
+      })
+    }
+  }
+
+  public createSession = async (args: ICreateSessionArgs) => {
+    const {user} = this.userStore
+
+    const session = await this.sessionsDB.createSession(
+      user,
+      args
+    )
+    this.addSession(session)
+    return session
   }
 
   public deleteSession = async (session: ISession) => {
-    await this.databases.sessionsDB.deleteSession(session)
+    await this.sessionsDB.deleteSession(session)
     this.removeSession(session)
+  }
+
+  public getSessionStore = (session: ISession): SessionStore => {
+    const primaryKey = `${session.userAddress}${session.sessionTag}`
+    let store = this.cachedSessionStores[primaryKey]
+    if (typeof store === 'undefined') {
+      store = new SessionStore(session, {
+        sessionsStore: this,
+      })
+      this.cachedSessionStores[primaryKey] = store
+    }
+    return store
+  }
+
+  @action
+  public sortSessions = () => {
+    this.sessions.sort((sessionA, sessionB) => sessionA.lastUpdate > sessionB.lastUpdate ? -1 : 1)
+    this.sessions = this.sessions.slice()
   }
 
   @action
   public selectSession = async (session: ISession) => {
-    this.currentSessionStore = new SessionStore(session, {
-      databases: this.databases,
-      userStore: this.userStore,
+    const currentSessionStore = this.getSessionStore(session)
+    this.isSwitchingSession = true
+    await currentSessionStore.loadNewMessages()
+    runInAction(() => {
+      this.currentSessionStore = currentSessionStore
+      this.isSwitchingSession = false
     })
   }
 
-  // @action
-  // private addSession = (session: Isession) => {
-  //   this.sessions.unshift(session)
-  //   this.sessions = this.sessions.slice()
-  //   this.selectSession(session)
-  // }
+  @action
+  public unselectSession = () => {
+    this.currentSessionStore = undefined
+  }
+
+  @action
+  private addSession = (session: ISession) => {
+    this.sessions = [session].concat(this.sessions)
+  }
 
   @action
   private removeSession = (session: ISession) => {
@@ -74,19 +134,11 @@ export class SessionsStore {
       (_session) => session.sessionTag !== _session.sessionTag
     )
 
-    if (
-      typeof this.currentSessionStore !== 'undefined'
-      && this.currentSessionStore.session.sessionTag === session.sessionTag
-    ) {
-      this.unsetSession()
+    if (this.isCurrentSession(session.userAddress, session.sessionTag)) {
+      this.unselectSession()
       if (remainSessions.length > 0) {
         this.selectSession(remainSessions[0])
       }
     }
-  }
-
-  @action
-  private unsetSession = () => {
-    delete this.currentSessionStore
   }
 }

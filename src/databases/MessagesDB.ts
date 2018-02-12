@@ -1,26 +1,32 @@
 import Dexie from 'dexie'
 import {
-  ITables,
+  TypeDexieWithTables,
   Databases,
 } from './'
+
+import {
+  IUpdateSessionOptions,
+} from './SessionsDB'
 
 import {
   IUser,
 } from '../stores/UserStore'
 import {
   ISession,
+} from '../stores/SessionStore'
+import {
   IMessage,
   MESSAGE_TYPE,
   MESSAGE_STATUS,
-} from '../stores/SessionStore'
+} from '../stores/ChatMessageStore'
 
 export class MessagesDB {
-  constructor(private tables: ITables, private dexieDB: Dexie, private dataBases: Databases) {
+  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {
     //
   }
 
   public getMessagesOfUser({userAddress, networkId}: IUser) {
-    return this.tables.tableMessages
+    return this.dexieDB.messages
       .where({userAddress, networkId})
       .toArray()
   }
@@ -33,12 +39,12 @@ export class MessagesDB {
     {
       timestampAfter,
       timestampBefore,
-      offset,
-      limit,
+      offset = -1,
+      limit = -1,
     }: IGetMessagesOptions = {}
   ) {
     const collect = (() => {
-      let _collect = this.tables.tableMessages
+      let _collect = this.dexieDB.messages
         .orderBy('timestamp')
         .reverse()
         .filter((message) =>
@@ -65,7 +71,7 @@ export class MessagesDB {
     }: IUser,
     timestampBefore?: number
   ) {
-    return this.tables.tableMessages
+    return this.dexieDB.messages
       .where({networkId, userAddress})
       .filter((message) => timestampBefore ? message.timestamp < timestampBefore : true)
       .delete()
@@ -77,7 +83,7 @@ export class MessagesDB {
     }: ISession,
     timestampBefore?: number
   ) {
-    return this.tables.tableMessages
+    return this.dexieDB.messages
       .where({sessionTag})
       .filter((message) => timestampBefore ? message.timestamp < timestampBefore : true)
       .delete()
@@ -93,7 +99,7 @@ export class MessagesDB {
       isFromYourself = false,
       shouldAddUnread = true,
       transactionHash = '',
-      status = MESSAGE_STATUS.DELIVERING,
+      status = MESSAGE_STATUS.DELIVERED,
     }: ICreateMessageArgs,
   ) {
     const {
@@ -102,15 +108,12 @@ export class MessagesDB {
       sessionTag,
     } = session
     const {
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    const {
-      sessionsDB,
-    } = this.dataBases
+      sessions,
+      messages,
+    } = this.dexieDB
     return this.dexieDB
-      .transaction('rw', tableSessions, tableMessages, async () => {
-        await tableMessages
+      .transaction('rw', sessions, messages, async () => {
+        await messages
           .add({
             messageId,
             networkId,
@@ -126,7 +129,7 @@ export class MessagesDB {
 
         const isClosed = messageType === MESSAGE_TYPE.CLOSE_SESSION
 
-        let summary: string = ''
+        let summary = ''
         if (isClosed) {
           summary = 'Session closed'
         } else {
@@ -134,7 +137,8 @@ export class MessagesDB {
           summary = `${plainText.slice(0, SUMMARY_LENGTH)}${(plainText.length > SUMMARY_LENGTH ? '...' : '')}`
         }
 
-        await sessionsDB.updateSession(session, Object.assign(
+        await this.dataBases.sessionsDB.updateSession(
+          session, Object.assign<IUpdateSessionOptions, IUpdateSessionOptions | null, IUpdateSessionOptions | null>(
           {
             lastUpdate: timestamp,
             summary,
@@ -145,11 +149,11 @@ export class MessagesDB {
 
         return [messageId, userAddress] as [string, string]
       })
-      .then((primaryKeys) => tableMessages.get(primaryKeys)) as Dexie.Promise<IMessage>
+      .then((primaryKeys) => messages.get(primaryKeys)) as Dexie.Promise<IMessage>
   }
 
   public getMessage(messageId: string, userAddress: string) {
-    return this.tables.tableMessages
+    return this.dexieDB.messages
       .get([messageId, userAddress])
   }
 
@@ -161,34 +165,58 @@ export class MessagesDB {
     IupdateMessageArgs: IUpdateMessageOptions = {}
   ) {
     const {
-      tableMessages,
-    } = this.tables
-    return tableMessages
+      messages,
+    } = this.dexieDB
+    return messages
       .update([messageId, userAddress], IupdateMessageArgs)
-      .then(() => tableMessages.get([messageId, userAddress])) as Dexie.Promise<IMessage>
+      .then(() => messages.get([messageId, userAddress])) as Dexie.Promise<IMessage>
   }
 
-  public deleteMessage({
+  public deleteMessage(session: ISession, {
     messageId,
     userAddress,
   }: IMessage) {
-    return this.tables.tableMessages
-      .delete([messageId, userAddress])
+    const {
+      sessions,
+      messages,
+    } = this.dexieDB
+    return this.dexieDB
+      .transaction('rw', sessions, messages, async () => {
+        await this.dexieDB.messages
+          .delete([messageId, userAddress])
+
+        const remainMessages = await this.getMessagesOfSession(session)
+        const remainMessagesCount = remainMessages.length
+        const hasRemainMessages = remainMessagesCount > 0
+        let lastUpdate = 0
+        let summary = ''
+        if (hasRemainMessages) {
+          const lastMessages = remainMessages[remainMessagesCount - 1]
+          lastUpdate = lastMessages.timestamp
+          const plainText = lastMessages.plainText || ''
+          summary = `${plainText.slice(0, SUMMARY_LENGTH)}${(plainText.length > SUMMARY_LENGTH ? '...' : '')}`
+        }
+
+        await this.dataBases.sessionsDB.updateSession(session, {
+          lastUpdate,
+          summary,
+        })
+      })
   }
 
   public disposeDB() {
     const {
-      tableMessages,
-    } = this.tables
-    return this.dexieDB.transaction('rw', tableMessages, () => {
-      return tableMessages.clear()
+      messages,
+    } = this.dexieDB
+    return this.dexieDB.transaction('rw', messages, () => {
+      return messages.clear()
     })
   }
 }
 
 const SUMMARY_LENGTH = 32
 
-interface ICreateMessageArgs {
+export interface ICreateMessageArgs {
   messageId: string
   messageType: MESSAGE_TYPE
   timestamp: number

@@ -1,12 +1,10 @@
 import { runInAction, observable } from 'mobx'
 import { noop } from '../utils/'
-import { ISendingLifecycle, MESSAGE_STATUS } from './SessionStore'
 import { UsersStore } from './UsersStore'
 import { utf8ToHex, hexToUtf8, sodiumFromHex } from '../utils/hex'
-import { BlockType } from 'trustbase/typings/web3'
 import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
-import { ContractStore } from './ContractStore'
+import { ContractStore, ITransactionLifecycle } from './ContractStore'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
@@ -27,7 +25,7 @@ export class BroadcastMessagesStore {
 
   private fetchTimeout: number
   private isFetching: boolean
-  private lastFetchBlock: BlockType
+  private lastFetchBlock: number
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
     [userAddress: string]: keys.PublicKey
@@ -38,9 +36,9 @@ export class BroadcastMessagesStore {
     {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
-      sendingDidComplete = noop,
-      sendingDidFail = noop,
-    }: ISendingLifecycle = {},
+      publishDidComplete = noop,
+      publishDidFail = noop,
+    }: IPublishBroadcastOptions = {},
   ) => {
     const {
       hasUser,
@@ -92,7 +90,7 @@ export class BroadcastMessagesStore {
             runInAction(() => {
               this.broadcastMessages = _messages
             })
-            sendingDidFail(new Error('Unknown error'))
+            publishDidFail(new Error('Unknown error'))
             return
           }
           const messages = this.broadcastMessages.map((_message) => {
@@ -104,11 +102,11 @@ export class BroadcastMessagesStore {
           runInAction(() => {
             this.broadcastMessages = messages
           })
-          sendingDidComplete()
+          publishDidComplete()
         }
       })
       .on('error', async (error: Error) => {
-        sendingDidFail(error)
+        publishDidFail(error)
       })
   }
 
@@ -209,6 +207,12 @@ export class BroadcastMessagesStore {
   }
 }
 
+export enum MESSAGE_STATUS {
+  DELIVERING,
+  DELIVERED,
+  FAILED,
+}
+
 export interface IBroadcastMessage {
   author?: string
   isInvalidTimestamp?: boolean
@@ -220,6 +224,11 @@ export interface IBroadcastMessage {
 
 export interface ISignedBroadcastMessage extends IBroadcastMessage {
   signature: string
+}
+
+export interface IPublishBroadcastOptions extends ITransactionLifecycle {
+  publishDidComplete?: () => void
+  publishDidFail?: (err: Error | null) => void
 }
 
 const FETCH_BROADCAST_MESSAGES_INTERVAL = 10 * 1000

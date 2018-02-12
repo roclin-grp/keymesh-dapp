@@ -7,6 +7,10 @@ import {
 import {
   MetaMaskStore,
   ETHEREUM_NETWORKS,
+  CONFIRMATION_NUMBER,
+  TRANSACTION_TIME_OUT_BLOCK_NUMBER,
+  AVERAGE_BLOCK_TIME,
+  TRANSACTION_STATUS,
 } from './MetaMaskStore'
 import {
   ContractStore,
@@ -18,10 +22,9 @@ import {
 import {
   SessionsStore,
 } from './SessionsStore'
-
 import {
-  sha3,
-} from 'trustbase'
+  ChatMessagesStore,
+} from './ChatMessagesStore'
 
 const sodium = require('libsodium-wrappers-sumo')
 import {
@@ -53,63 +56,70 @@ import {
 } from '../utils/data'
 
 import {
-  Databases,
+  getDatabases,
 } from '../databases'
+import {
+  UsersDB,
+  IUpdateUserOptions,
+} from '../databases/UsersDB'
 
 import IndexedDBStore from '../IndexedDBStore'
 import {
   PreKeysPackage,
-  IPreKeyPublicKeys,
+  IPreKeyPublicKeyFingerprints,
 } from '../PreKeysPackage'
 
 import {
   BoundSocialsStore,
-  IBoundSocials,
-  IBindingSocials,
 } from './BoundSocialsStore'
 
+/**
+ * **NOTE**: You need to run `userStore.initCryptobox()` and
+ * check `userStore.isCryptoboxReady` before using the store to
+ * sign/encrypt/decrypt messages
+ */
 export class UserStore {
   // FIXME consider @observable.ref
   @observable public user: IUser
-  @observable.ref public sessionsStore: SessionsStore
   @observable public isCryptoboxReady = false
+
+  public sessionsStore: SessionsStore
   public boundSocialsStore: BoundSocialsStore
+  public chatMessagesStore: ChatMessagesStore
 
   @computed
   public get avatarHash() {
-    return this.user.status === USER_STATUS.PENDING
-      ? ''
-      : sha3(`${this.user.userAddress}${this.user.blockHash}`)
+    return UsersStore.getAvatarHashByUser(this.user)
   }
 
   @computed
   public get isRegisterCompleted() {
-    return this.user.status === USER_STATUS.OK
-  }
-
-  @computed
-  public get isCorrespondingEthereumAddressAccount() {
-    return this.user.userAddress === this.metaMaskStore.currentEthereumAccount
+    const status = this.user.status
+    return (
+      status === USER_STATUS.OK
+      || status === USER_STATUS.FAIL
+    )
   }
 
   constructor(user: IUser, {
-    databases,
     metaMaskStore,
     contractStore,
     usersStore,
   }: {
-    databases: Databases
     metaMaskStore: MetaMaskStore
     contractStore: ContractStore
     usersStore: UsersStore
   }) {
     this.user = this.userRef = user
-    this.databases = databases
+    this.usersDB = getDatabases().usersDB
     this.metaMaskStore = metaMaskStore
     this.contractStore = contractStore
     this.usersStore = usersStore
+
+    const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${user.networkId}@${user.userAddress}`)
+    const cryptoBox = this.cryptoBox = new Cryptobox(indexedDBStore as any, 0)
+
     this.sessionsStore = new SessionsStore({
-      databases,
       userStore: this,
     })
     this.boundSocialsStore = new BoundSocialsStore({
@@ -117,44 +127,80 @@ export class UserStore {
       contractStore: this.contractStore,
       userCachesStore: this.usersStore.userCachesStore,
     })
-    this.loadDataFromLocal()
+    this.chatMessagesStore = new ChatMessagesStore({
+      userStore: this,
+      contractStore,
+      metaMaskStore,
+      indexedDBStore,
+      cryptoBox,
+    })
+
+    this.initCryptobox()
 
     reaction(
       () => ({
         status: this.user.status,
         blockHash: this.user.blockHash,
-      }) as IUser,
+        lastFetchBlockOfChatMessages: this.user.lastFetchBlockOfChatMessages,
+        contacts: this.user.contacts,
+      }) as IUpdateUserOptions,
       (observableUserData) => {
-        if (observableUserData.status === USER_STATUS.OK) {
+        const oldStatus = this.userRef.status
+        Object.assign(this.userRef, observableUserData)
+
+        if (
+          oldStatus !== USER_STATUS.OK
+          && observableUserData.status === USER_STATUS.OK
+        ) {
           // refresh usableUsers
           this.usersStore.users = this.usersStore.users.slice()
         }
-        Object.assign(this.userRef, observableUserData)
       })
   }
 
   private userRef: IUser
-  private databases: Databases
+  private usersDB: UsersDB
   private metaMaskStore: MetaMaskStore
   private contractStore: ContractStore
   private usersStore: UsersStore
   private indexedDBStore: IndexedDBStore
-  private box: Cryptobox
+  private cryptoBox: Cryptobox
+
+  /**
+   * Initialise cryptobox
+   *
+   * Run this function before using store to sign/encrypt/decrypt messages
+   */
+  public async initCryptobox() {
+    if (!this.isCryptoboxReady) {
+      await this.cryptoBox.load()
+      runInAction(() => {
+        this.isCryptoboxReady = true
+      })
+    }
+  }
+
+  public async reloadCryptobox() {
+    this.cryptoBox = new Cryptobox(this.indexedDBStore as any, 0)
+    await this.cryptoBox.load()
+    return this.cryptoBox
+  }
 
   public checkIdentityUploadStatus = async (
     {
-      checkRegisterWillStart = noop,
+      checkIdentityUploadStatusWillStart = noop,
       identityDidUpload = noop,
       registerDidFail = noop,
+      checkingDidFail = noop,
     }: ICheckIdentityUploadStatusLifecycle = {}
   ) => {
-    const user = this.user
+    const {user} = this
     if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
       return identityDidUpload()
     }
 
     const {
-      web3,
+      getTransactionReceipt,
       getBlockHash,
     } = this.metaMaskStore
     const { identitiesContract } = this.contractStore
@@ -163,69 +209,84 @@ export class UserStore {
       userAddress,
       identityTransactionHash,
     } = user
-    const identityKeyPair = this.isCryptoboxReady ? this.box.identity : await this.indexedDBStore.load_identity()
+    const identityKeyPair = this.isCryptoboxReady ? this.cryptoBox.identity : await this.indexedDBStore.load_identity()
 
-    checkRegisterWillStart(identityTransactionHash)
-    const waitForTransactionReceipt = async (counter = 0) => {
-      const receipt = await web3.eth.getTransactionReceipt(identityTransactionHash)
-      if (receipt) {
-        if (counter >= Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
-          const {
-            blockNumber,
-            publicKey: registeredIdentityFingerprint,
-          } = await identitiesContract.getIdentity(userAddress)
-          if (!registeredIdentityFingerprint || isHexZeroValue(registeredIdentityFingerprint)) {
-            // we have receipt but found no identity, retry
-            return window.setTimeout(waitForTransactionReceipt, 1000, counter)
-          }
-
-          if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
-            const blockHash = await getBlockHash(blockNumber)
-            if (isHexZeroValue(blockHash)) {
-              return window.setTimeout(waitForTransactionReceipt, 1000, counter)
+    checkIdentityUploadStatusWillStart(identityTransactionHash)
+    const waitForTransactionReceipt = async (blockCounter = 0, confirmationCounter = 0) => {
+      try {
+        const receipt = await getTransactionReceipt(identityTransactionHash)
+        if (receipt) {
+          if (confirmationCounter >= CONFIRMATION_NUMBER) {
+            const hasStatus = receipt.status !== 'undefined'
+            const hasTransactionError = hasStatus
+              ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
+              : receipt.gasUsed === receipt.cumulativeGasUsed
+            if (hasTransactionError) {
+              await this.updateUser(
+                {
+                  status: USER_STATUS.FAIL,
+                }
+              )
+              return registerDidFail(REGISTER_FAIL_CODE.TRANSACTION_ERROR)
             }
-            try {
-              await this.databases.usersDB.updateUser(
-                user,
+
+            const {
+              blockNumber,
+              publicKey: registeredIdentityFingerprint,
+            } = await identitiesContract.getIdentity(userAddress)
+            if (!registeredIdentityFingerprint || isHexZeroValue(registeredIdentityFingerprint)) {
+              // we have receipt but found no identity,
+              // set confirmationCounter to 0 and retry
+              window.setTimeout(
+                waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1
+              )
+              return
+            }
+
+            if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
+              const blockHash = await getBlockHash(blockNumber)
+              if (isHexZeroValue(blockHash)) {
+                // no blockHash? just retry.
+                const retryTimeOut = 1000
+                window.setTimeout(
+                  waitForTransactionReceipt, retryTimeOut, blockCounter, confirmationCounter
+                )
+                return
+              }
+              await this.updateUser(
                 {
                   blockHash,
                   status: USER_STATUS.IDENTITY_UPLOADED,
                 }
               )
-              runInAction(() => {
-                this.user.status = USER_STATUS.IDENTITY_UPLOADED
-                this.user.blockHash = blockHash
-              })
-              return identityDidUpload()
-            } catch (err) {
-              return registerDidFail(err)
+              identityDidUpload()
+            } else {
+              this.usersStore.deleteUser(networkId, userAddress)
+              registerDidFail(REGISTER_FAIL_CODE.OCCUPIED)
             }
           } else {
-            this.usersStore.deleteUser(networkId, userAddress)
-            return registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
+            window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1)
           }
-        } else {
-          window.setTimeout(waitForTransactionReceipt, 1000, counter + 1)
           return
         }
-      }
 
-      if (counter === 50) {
-        return registerDidFail(null, REGISTER_FAIL_CODE.TIMEOUT)
-      }
+        if (blockCounter >= TRANSACTION_TIME_OUT_BLOCK_NUMBER) {
+          checkingDidFail(null, IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT)
+          return
+        }
 
-      window.setTimeout(waitForTransactionReceipt, 1000, counter)
+        window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1)
+      } catch (err) {
+        checkingDidFail(err)
+        return
+      }
     }
 
     return waitForTransactionReceipt()
   }
 
-  public sign = (message: string) => {
-    if (typeof this.box === 'undefined') {
-      return '0x0'
-    }
-
-    return '0x' + sodium.to_hex(this.box.identity.secret_key.sign(message))
+  public sign(message: string) {
+    return `0x${sodium.to_hex(this.cryptoBox.identity.secret_key.sign(message))}`
   }
 
   public uploadPreKeys = async (
@@ -238,7 +299,7 @@ export class UserStore {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
 
-    const preKeysPublicKeys: IPreKeyPublicKeys = preKeys.reduce(
+    const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = preKeys.reduce(
       (result, preKey) => Object.assign(result, {
         [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`,
       }),
@@ -250,8 +311,8 @@ export class UserStore {
     const lastPreKey = preKeys[preKeys.length - 1]
     lastResortPrekey.key_pair = lastPreKey.key_pair
 
-    const identity = this.isCryptoboxReady ? this.box.identity : await this.indexedDBStore.load_identity()
-    const preKeysPackage = new PreKeysPackage(preKeysPublicKeys, interval, lastPreKey.key_id)
+    const identity = this.isCryptoboxReady ? this.cryptoBox.identity : await this.indexedDBStore.load_identity()
+    const preKeysPackage = new PreKeysPackage(preKeysPublicKeyFingerprints, interval, lastPreKey.key_id)
     const serializedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
     const prekeysSignature = `0x${sodium.to_hex(identity.secret_key.sign(serializedPrekeys))}`
 
@@ -267,20 +328,21 @@ export class UserStore {
 
     if (resp.status === 201) {
       const store = this.indexedDBStore
-      // enhancement: remove all local prekeys before save
+      if (!isRegister) {
+        await this.deleteAllPreKeys()
+      }
       await store.save_prekeys(preKeys.concat(lastResortPrekey))
       if (this.isCryptoboxReady) {
-        await this.box.load()
+        await this.cryptoBox.load()
       }
-      preKeysDidUpload()
       if (isRegister) {
-        await this.databases.usersDB.updateUser(this.user, { status: USER_STATUS.OK })
-        runInAction(() => {
-          this.user.status = USER_STATUS.OK
+        await this.updateUser({
+          status: USER_STATUS.OK,
         })
       }
+      preKeysDidUpload()
     } else {
-      storeLogger.error(resp.toString())
+      storeLogger.error(resp)
     }
   }
 
@@ -288,7 +350,7 @@ export class UserStore {
     const {
       sessionsDB,
       messagesDB,
-    } = this.databases
+    } = getDatabases()
     const data: IDumpedDatabases = {}
     const user = this.user
     data.keymail = [
@@ -301,19 +363,28 @@ export class UserStore {
     downloadObjectAsJson(data, `keymail@${user.networkId}@${user.userAddress}`)
   }
 
-  private async loadDataFromLocal() {
-    const {
-      user: {
-        networkId,
-        userAddress,
-      },
-    } = this
-    const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${networkId}@${userAddress}`)
-    const box = this.box = new Cryptobox(indexedDBStore as any, 0)
+  public deleteOutdatedPreKeys = async () => {
+    const store = this.indexedDBStore
+    const preKeysFromStorage = await store.load_prekeys()
+    const today = unixToday()
+    return Promise.all(preKeysFromStorage
+      .filter((preKey) => Number(preKey.key_id) < today)
+      .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
+  }
 
-    await box.load()
+  private async deleteAllPreKeys() {
+    const store = this.indexedDBStore
+    const preKeysFromStorage = await store.load_prekeys()
+    return Promise.all(preKeysFromStorage.map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
+  }
+
+  private updateUser = async (args: IUpdateUserOptions) => {
+    await this.usersDB.updateUser(
+      this.user,
+      args
+    )
     runInAction(() => {
-      this.isCryptoboxReady = true
+      Object.assign(this.user, args)
     })
   }
 }
@@ -323,10 +394,23 @@ function generatePreKeys(start: number, interval: number, size: number) {
     .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
 }
 
+export enum IDENTITY_UPLOAD_CHECKING_FAIL_CODE {
+  UNKNOWN = 0,
+  TIMEOUT,
+}
+
+export enum USER_STATUS {
+  PENDING = 0,
+  IDENTITY_UPLOADED,
+  OK,
+  FAIL,
+}
+
 interface ICheckIdentityUploadStatusLifecycle {
-  checkRegisterWillStart?: (hash: string) => void
+  checkIdentityUploadStatusWillStart?: (hash: string) => void
   identityDidUpload?: () => void
-  registerDidFail?: (err: Error | null, code?: REGISTER_FAIL_CODE) => void
+  registerDidFail?: (code: REGISTER_FAIL_CODE) => void
+  checkingDidFail?: (err: Error | null, code?: IDENTITY_UPLOAD_CHECKING_FAIL_CODE) => void
 }
 
 interface IUploadPreKeysOptions {
@@ -344,20 +428,8 @@ export interface IUser extends IUserIdentityKeys {
   status: USER_STATUS
   blockHash: string
   identityTransactionHash: string
+  lastFetchBlockOfChatMessages: number
   contacts: IContact[]
-
-  lastFetchBlockOfMessages: number
-  lastFetchBlockOfBroadcast: number
-  lastFetchBlockOfBoundSocials: number
-
-  boundSocials: IBoundSocials
-  bindingSocials: IBindingSocials
-}
-
-export enum USER_STATUS {
-  PENDING = 0,
-  IDENTITY_UPLOADED = 1,
-  OK = 2,
 }
 
 export interface IContact {

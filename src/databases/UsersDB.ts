@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import {
-  ITables,
+  TypeDexieWithTables,
   Databases,
 } from './'
 import {
@@ -19,24 +19,23 @@ import {
 } from '../stores/UserStore'
 
 export class UsersDB {
-  constructor(private tables: ITables, private dexieDB: Dexie, private dataBases: Databases) {
-    //
+  constructor(private dexieDB: TypeDexieWithTables, private databases: Databases) {
   }
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
-    return this.tables.tableUsers
+    return this.dexieDB.users
       .where(Object.assign({networkId}, status === undefined ? null : {status}))
       .toArray()
   }
 
   public deleteUsers(networkId: ETHEREUM_NETWORKS) {
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, () => {
-      return tableUsers
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
+    return this.dexieDB.transaction('rw', users, sessions, messages, () => {
+      return users
         .where({networkId})
         .each((user) => this.deleteUser(user))
     })
@@ -44,24 +43,20 @@ export class UsersDB {
 
   public createUser(user: ICreateUserArgs) {
     const {
-      tableUsers,
-    } = this.tables
-    return tableUsers
+      users,
+    } = this.dexieDB
+    return users
       .add(Object.assign(
         {},
         {
           status: USER_STATUS.PENDING,
           blockHash: '0x0',
-          lastFetchBlockOfMessages: 0,
-          lastFetchBlockOfBroadcast: 0,
-          lastFetchBlockOfBoundSocials: 0,
+          lastFetchBlockOfChatMessages: 0,
           contacts: [],
-          boundSocials: {nonce: 0},
-          bindingSocials: {},
         },
         user
       ))
-      .then((primaryKeys) => tableUsers.get(primaryKeys)) as Dexie.Promise<IUser>
+      .then((primaryKeys) => users.get(primaryKeys)) as Dexie.Promise<IUser>
   }
 
   public async restoreUserFromExportedData(networkId: ETHEREUM_NETWORKS, data: IDumpedDatabases) {
@@ -92,7 +87,7 @@ export class UsersDB {
   }
 
   public getUser(networkId: ETHEREUM_NETWORKS, userAddress: string) {
-    return this.tables.tableUsers
+    return this.dexieDB.users
       .get([networkId, userAddress])
   }
 
@@ -104,11 +99,11 @@ export class UsersDB {
     updateOptions: IUpdateUserOptions = {}
   ) {
     const {
-      tableUsers,
-    } = this.tables
-    return tableUsers
+      users,
+    } = this.dexieDB
+    return users
       .update([networkId, userAddress], updateOptions)
-      .then(() => tableUsers.get([networkId, userAddress])) as Dexie.Promise<IUser>
+      .then(() => users.get([networkId, userAddress])) as Dexie.Promise<IUser>
   }
 
   public addContact(user: IUser, contact: IContact) {
@@ -139,56 +134,50 @@ export class UsersDB {
 
   public deleteUser(user: IUser) {
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    const {
-      sessionsDB,
-      messagesDB,
-    } = this.dataBases
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
     const {
       networkId,
       userAddress,
     } = user
 
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
-      await tableUsers
+    return this.dexieDB.transaction('rw', users, sessions, messages, async () => {
+      await users
         .delete([networkId, userAddress])
 
-      await sessionsDB.deleteSessions(user)
+      await this.databases.sessionsDB.deleteSessions(user)
 
-      await messagesDB.deleteMessagesOfUser(user)
+      await this.databases.messagesDB.deleteMessagesOfUser(user)
     })
   }
 
   public disposeDB() {
     const {
-      tableUsers,
-      tableSessions,
-      tableMessages,
-    } = this.tables
-    return this.dexieDB.transaction('rw', tableUsers, tableSessions, tableMessages, async () => {
+      users,
+      sessions,
+      messages,
+    } = this.dexieDB
+    return this.dexieDB.transaction('rw', users, sessions, messages, async () => {
       await Promise.all([
-        tableUsers.clear(),
-        tableSessions.clear(),
-        tableMessages.clear(),
+        users.clear(),
+        sessions.clear(),
+        messages.clear(),
       ])
     })
   }
 }
 
-interface ICreateUserArgs {
+export interface ICreateUserArgs {
   networkId: ETHEREUM_NETWORKS
   userAddress: string
   identityTransactionHash: string
 }
 
-interface IUpdateUserOptions {
+export interface IUpdateUserOptions {
   status?: USER_STATUS
   blockHash?: string
-  identityTransactionHash?: string
+  lastFetchBlockOfChatMessages?: number
   contacts?: IContact[]
-
-  lastFetchBlockOfMessages?: number
 }

@@ -1,0 +1,50 @@
+.content,
+.sessionList,
+.sessionListTopBar {
+  display: flex;
+}
+
+.content,
+.sessionListTopBar {
+  flex-wrap: nowrap;
+}
+
+.content {
+  margin: 0 1.25rem;
+  flex-grow: 1;
+  height: calc(100vh - 7.25rem);
+  border: 1px solid #ebedf0;
+  min-width: 64rem;
+  min-height: 32rem;
+}
+
+.sessionList {
+  width: 20rem;
+  flex-direction: column;
+  border-right: 1px solid #ebedf0;
+  flex-shrink: 0;
+}
+
+.sessionListTopBar {
+  border-bottom: 1px solid #ebedf0;
+  padding: 0.625rem;
+  flex-shrink: 0;
+}
+
+.newConversationButton {
+  margin-left: auto;
+}
+
+.sessionListInner {
+  overflow: auto;
+}
+
+.selectedSession::before {
+  content: '';
+  display: block;
+  width: 0.3125rem;
+  height: 100%;
+  left: 0;
+  background-color: #1890ff;
+  position: absolute;
+}

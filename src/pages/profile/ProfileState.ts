@@ -30,7 +30,6 @@ const {
 } = VERIFY_SOCIAL_STATUS
 
 import { UserCachesStore } from '../../stores/UserCachesStore'
-import { BlockType } from 'trustbase/typings/web3'
 
 export class ProfileState {
   public isFetchingUserProofs: boolean = false
@@ -44,7 +43,7 @@ export class ProfileState {
     [SOCIALS.FACEBOOK]: false,
   }
 
-  public userLastFetchBlock: BlockType = 0
+  public userLastFetchBlock: number = 0
 
   constructor({
       usersStore,
@@ -268,7 +267,7 @@ export class ProfileState {
   }
 
   private getBindEvents = (
-    lastFetchBlock: BlockType,
+    lastFetchBlock: number,
     userAddress: string,
   ) => {
     return this.contractStore.boundSocialsContract.getBindEvents({

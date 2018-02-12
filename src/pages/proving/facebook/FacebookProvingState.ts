@@ -1,7 +1,6 @@
 import {
   observable,
   runInAction,
-  useStrict,
 } from 'mobx'
 
 import ProvingState from '../ProvingState'
@@ -13,8 +12,6 @@ import {
   BINDING_SOCIAL_STATUS,
   IFacebookClaim,
 } from '../../../stores/BoundSocialsStore'
-
-useStrict(true)
 
 export class FacebookProvingState extends ProvingState {
   @observable public claim: ISignedFacebookClaim

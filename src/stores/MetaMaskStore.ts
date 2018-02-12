@@ -51,12 +51,33 @@ export class MetaMaskStore {
     return this.connectFailCode === METAMASK_CONNECT_FAIL_CODE.LOCKED
   }
 
-  public web3: Web3
+  constructor() {
+    this.connect()
+  }
 
+  private web3: Web3
   private detectEthereumAccountChangeTimeout: number
   private detectEthereumNetworkChangeTimeout: number
 
-  public connect = () => {
+  public getBlockHash = (blockNumber: number) => {
+    return this.web3.eth.getBlock(blockNumber)
+      .then((block) => {
+        if (typeof block === 'undefined') {
+          return '0x0'
+        }
+        return block.hash
+      })
+      .catch((err) => {
+        storeLogger.error(err)
+        return '0x0'
+      })
+  }
+
+  public getTransactionReceipt = (transactionHash: string) => {
+    return this.web3.eth.getTransactionReceipt(transactionHash)
+  }
+
+  private connect = () => {
     const metaMasksWeb3 = (window as any).web3
     const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IAsyncProvider : undefined
 
@@ -87,20 +108,6 @@ export class MetaMaskStore {
           storeLogger.error(err)
           this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.UNKNOWN, err)
         }
-      })
-  }
-
-  public getBlockHash = (blockNumber: number) => {
-    return this.web3.eth.getBlock(blockNumber)
-      .then((block) => {
-        if (typeof block === 'undefined') {
-          return '0x0'
-        }
-        return block.hash
-      })
-      .catch((err) => {
-        storeLogger.error(err)
-        return '0x0'
       })
   }
 
@@ -239,4 +246,12 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
 }) as {
   [networkID: number]: string
+}
+
+export const CONFIRMATION_NUMBER = Number(process.env.REACT_APP_CONFIRMATION_NUMBER)
+export const AVERAGE_BLOCK_TIME = Number(process.env.REACT_APP_AVERAGE_BLOCK_TIME)
+export const TRANSACTION_TIME_OUT_BLOCK_NUMBER = Number(process.env.REACT_APP_TRANSACTION_TIME_OUT_BLOCK_NUMBER)
+export enum TRANSACTION_STATUS {
+  FAIL = 0,
+  SUCCESS,
 }

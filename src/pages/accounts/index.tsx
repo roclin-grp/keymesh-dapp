@@ -12,7 +12,7 @@ import {
   message,
   List,
 } from 'antd'
-import AccountListItem from '../../components/AccountListItem'
+import AccountListItem from './AccountListItem'
 import {
   UploadFile,
 } from 'antd/lib/upload/interface.d'
@@ -73,13 +73,14 @@ class Accounts extends React.Component<IProps, IState> {
   public render() {
     const {
       metaMaskStore: {
+        currentEthereumNetwork,
         currentEthereumAccount,
       },
       usersStore: {
         users,
-        currentUserStore,
-        hasNoRegisterRecordOnLocal,
-        hasNoRegisterRecordOnChain,
+        isCurrentUser,
+        hasRegisterRecordOnLocal,
+        hasRegisterRecordOnChain,
         hasWalletCorrespondingUsableUser,
       },
     } = this.injectedProps
@@ -103,38 +104,37 @@ class Accounts extends React.Component<IProps, IState> {
           Wallet Address: {currentEthereumAccount}
         </h3>
         {
-          hasNoRegisterRecordOnLocal && hasNoRegisterRecordOnChain
-          ? (
-            <>
-              <p>Click the button below and confirm the transaction to create a new account</p>
-              <Button
-                loading={isCreatingTransaction}
-                size="large"
-                type="primary"
-                disabled={isCreatingTransaction}
-                onClick={this.handleRegister}
-              >
-                {registerButtonContent}
-              </Button>
-            </>
-          )
-          : null
-        }
-        {
-          hasNoRegisterRecordOnLocal && !hasNoRegisterRecordOnChain
-          ? <p>This address already registered, please use another wallet address or import existed account.</p>
-          : null
+          !hasRegisterRecordOnLocal
+            ? (
+              hasRegisterRecordOnChain
+                ? <p>This address already registered, please use another wallet address or import existed account.</p>
+                : (
+                  <>
+                    <p>Click the button below and confirm the transaction to create a new account</p>
+                    <Button
+                      loading={isCreatingTransaction}
+                      size="large"
+                      type="primary"
+                      disabled={isCreatingTransaction}
+                      onClick={this.handleRegister}
+                    >
+                      {registerButtonContent}
+                    </Button>
+                  </>
+                )
+            )
+            : null
         }
         {
           hasWalletCorrespondingUsableUser
-          && !currentUserStore!.isCorrespondingEthereumAddressAccount
+          && !isCurrentUser(currentEthereumNetwork!, currentEthereumAccount!)
           ? (
             <>
               <p>Would you like to swtich to corresponding account?</p>
               <Button
                 size="large"
                 type="primary"
-                onClick={this.handleSwitch}
+                onClick={this.handleSwitchToRespondingAccount}
               >
                 Switch
               </Button>
@@ -178,9 +178,10 @@ class Accounts extends React.Component<IProps, IState> {
         </h2>
         <div className={classnames(styles.userListContainer, 'container')}>
           <List
+            rowKey={((user: IUser) => user.userAddress)}
             dataSource={users}
             renderItem={(user: IUser) => (
-              <AccountListItem key={user.userAddress} user={user} />
+              <AccountListItem user={user} />
             )}
           />
         </div>
@@ -244,15 +245,12 @@ class Accounts extends React.Component<IProps, IState> {
     })
   }
 
-  private handleSwitch = () => {
+  private handleSwitchToRespondingAccount = () => {
     const {
-      usableUsers,
       useUser,
+      walletCorrespondingUser,
     } = this.injectedProps.usersStore
-    const {
-      currentEthereumAccount,
-    } = this.injectedProps.metaMaskStore
-    useUser(usableUsers.find((user) => user.userAddress === currentEthereumAccount)!)
+    useUser(walletCorrespondingUser!)
   }
 
   private handleImport = (_: UploadFile, files: UploadFile[]) => {

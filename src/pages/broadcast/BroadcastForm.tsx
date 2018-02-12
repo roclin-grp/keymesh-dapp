@@ -9,6 +9,7 @@ const { TextArea } = Input
 
 interface IProps {
   broadcastMessagesStore: BroadcastMessagesStore
+  disabled: boolean
 }
 
 interface IState {
@@ -25,30 +26,27 @@ export class BroadcastForm extends React.Component<IProps, IState> {
   }
 
   public handlePublish = () => {
-    const message = this.state.message.replace(/\n*$/, '')
-    this.setState({
-      message: message,
-    })
-    this.props.broadcastMessagesStore.publishBroadcastMessage(message, {
+    this.props.broadcastMessagesStore.publishBroadcastMessage(this.state.message.trimRight(), {
       transactionDidCreate: () => {
         this.setState({message: ''})
       },
-      sendingDidComplete: () => {
+      publishDidComplete: () => {
         storeLogger.log('completed')
       },
-      sendingDidFail: (err: Error) => {
+      publishDidFail: (err: Error) => {
         storeLogger.error(err)
       },
     })
   }
 
-  public handleChange = (event: any) => {
+  public handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     this.setState({message: event.target.value})
   }
 
   public render() {
     return <div className={styles.broadcastForm}>
       <TextArea
+        spellCheck={false}
         className={styles.textarea}
         placeholder="What's happing?"
         value={this.state.message}
@@ -56,6 +54,7 @@ export class BroadcastForm extends React.Component<IProps, IState> {
         autosize={{minRows: 5}}
       />
       <Button
+        disabled={this.props.disabled}
         className={styles.postButton}
         type="primary"
         onClick={this.handlePublish}

@@ -1,0 +1,20 @@
+.messages {
+  overflow: auto;
+  flex-grow: 1;
+  padding: 0 0.625rem;
+  background-color: rgba(247, 247, 247, .5);
+}
+
+.newUnreadCount {
+  position: absolute;
+  bottom: 9.875rem;
+  padding: 0.25rem 0.75rem;
+  left: 50%;
+  background: #eee;
+  border-radius: 100px;
+  transform: translateX(-50%);
+  outline: 0;
+  cursor: pointer;
+  border: 0;
+  -webkit-appearance: none;
+}

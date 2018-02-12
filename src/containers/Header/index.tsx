@@ -14,8 +14,9 @@ import {
   message,
   Button,
 } from 'antd'
-import SwitchUserOption from '../../components/SwitchUserOption'
+import SwitchUserOption from './SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
+import UserAddress from '../../components/UserAddress'
 
 // style
 import * as classnames from 'classnames'
@@ -173,7 +174,6 @@ class Header extends React.Component<IProps, IState> {
       return (
         <Link to="/accounts">
           <Button
-            size="large"
             type="primary"
           >
             Create account
@@ -240,13 +240,13 @@ class Header extends React.Component<IProps, IState> {
             placement="topLeft"
             title="Click to copy"
           >
-            <span
-              title={user.userAddress}
-              className={styles.userAddress}
-              onClick={this.handleCopyUserAddress}
-            >
-              {user.userAddress.slice(0, 8)}...
-            </span>
+            <a className={styles.userAddressLink} onClick={this.handleCopyUserAddress}>
+                <UserAddress
+                  address={user.userAddress}
+                  className={styles.userAddress}
+                  maxLength={8}
+                />
+            </a>
           </Tooltip>
         </Menu.Item>
         <Menu.Item>
@@ -274,7 +274,7 @@ class Header extends React.Component<IProps, IState> {
                 usableUsers
                   .filter((_user) => _user.userAddress !== user.userAddress)
                   .map((_user) => (
-                    <Menu.Item key={`${_user.userAddress}@${_user.networkId}`}>
+                    <Menu.Item key={_user.userAddress}>
                       <SwitchUserOption user={_user} onSelect={this.handleSelectUser} />
                     </Menu.Item>
                   ))
@@ -294,7 +294,7 @@ class Header extends React.Component<IProps, IState> {
 
   private handleSelectUser = (user: IUser) => {
     window.setTimeout(
-      () => this.injectedProps.usersStore.switchUser(user),
+      () => this.injectedProps.usersStore.useUser(user),
       300
     )
   }

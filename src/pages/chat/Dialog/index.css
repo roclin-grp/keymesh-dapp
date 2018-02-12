@@ -1,0 +1,24 @@
+.dialog {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0.625rem 1.25rem;
+  border-bottom: 1px solid #ebedf0;
+}
+
+.title {
+  margin: 0;
+  /* wtf */
+  padding-bottom: 1px;
+  margin-right: auto;
+}
+
+.dialogInput {
+  resize: none;
+}

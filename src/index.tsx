@@ -1,5 +1,5 @@
 import 'font-awesome/css/font-awesome.css'
-import './index.css'
+import './global.css'
 
 import * as React from 'react'
 import { render } from 'react-dom'

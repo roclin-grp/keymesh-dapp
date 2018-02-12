@@ -11,6 +11,8 @@ import {
   Menu,
 } from 'antd'
 
+import * as classnames from 'classnames'
+
 interface IProps {
   routePath: string
 }
@@ -19,7 +21,7 @@ export default function MenuBody({
   children,
   routePath,
 }: IProps & { children?: React.ReactNode }) {
-  return <div className={styles.content}>
+  return <div className={classnames(styles.content, 'container')}>
     <Menu className={styles.menu} selectedKeys={[routePath]}>
       <Menu.Item key="/discover">
         <Link to="/discover">

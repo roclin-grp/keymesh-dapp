@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import {
-  ITables,
+  TypeDexieWithTables,
 } from './'
 import {
   ETHEREUM_NETWORKS,
@@ -8,7 +8,7 @@ import {
 import { IUserCaches, IUserCachesVerification , IUserCachesIdentity } from '../stores/UserCachesStore'
 
 export class UserCachesDB {
-  constructor(private tables: ITables) {
+  constructor(private dexieDB: TypeDexieWithTables) {
   }
 
   public get(networkId: ETHEREUM_NETWORKS, userAddress: string): Dexie.Promise<IUserCaches | undefined> {
@@ -37,6 +37,6 @@ export class UserCachesDB {
   }
 
   private get table() {
-    return this.tables.tableUserCaches
+    return this.dexieDB.userCaches
   }
 }

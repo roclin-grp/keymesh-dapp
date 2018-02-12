@@ -1,8 +1,7 @@
 .content {
   display: flex;
-  width: 90%;
+  flex-wrap: nowrap;
 }
 .menu {
-  margin-right: 12px;
-  height: 105px;
+  margin-right: auto;
 }

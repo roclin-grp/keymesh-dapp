@@ -1,16 +1,21 @@
 import * as React from 'react'
+import {
+  Link,
+} from 'react-router-dom'
 
 import { observable, runInAction } from 'mobx'
 import { observer } from 'mobx-react'
 
 import HashAvatar from '../../components/HashAvatar'
-import Address from '../../components/Address'
-import { IBroadcastMessage } from '../../stores/BroadcastMessagesStore'
+import UserAddress from '../../components/UserAddress'
+import {
+  IBroadcastMessage,
+  MESSAGE_STATUS,
+} from '../../stores/BroadcastMessagesStore'
 import { UsersStore } from '../../stores/UsersStore'
 
 import * as styles from './BroadcastMessage.css'
 import { timeAgo } from '../../utils/time'
-import { MESSAGE_STATUS_STR, MESSAGE_STATUS } from '../../stores/SessionStore'
 import * as classnames from 'classnames'
 
 interface IProps {
@@ -53,6 +58,9 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   render() {
     const { message } = this.props
+    const userAddress = message.author!
+    const messageStatus = message.status!
+
     return <div className={styles.broadcastMessage}>
       <HashAvatar
         className={styles.avatar}
@@ -64,16 +72,22 @@ export default class BroadcastMessage extends React.Component<IProps> {
         <p
           className={styles.addressAndTime}
         >
-          Address: <Address address={message.author!} /> {this.timeText}
+          <Link to={`/profile/${userAddress}`}>
+            <UserAddress address={userAddress} />
+          </Link>
+          {` ${this.timeText}`}
         </p>
         <p className={styles.content}>{message.message}</p>
         {
-          message.status! !== MESSAGE_STATUS.DELIVERING ? null :
-          <p className={classnames(styles.status, styles.delivering)}>{MESSAGE_STATUS_STR[message.status!]}</p>
-        }
-        {
-          message.status! !== MESSAGE_STATUS.FAILED ? null :
-          <p className={classnames(styles.status, styles.failed)}>{MESSAGE_STATUS_STR[message.status!]}</p>
+          messageStatus !== MESSAGE_STATUS.DELIVERED
+            ? (
+              <p
+                className={classnames(styles.status, MESSAGE_MODIFIER_CLASSES[messageStatus])}
+              >
+                {MESSAGE_STATUS_STR[messageStatus]}
+              </p>
+            )
+            : null
         }
       </div>
     </div>
@@ -86,4 +100,18 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
   }
+}
+
+const MESSAGE_MODIFIER_CLASSES = Object.freeze({
+  [MESSAGE_STATUS.DELIVERING]: styles.delivering,
+  [MESSAGE_STATUS.FAILED]: styles.failed,
+}) as {
+  [status: number]: string
+}
+
+const MESSAGE_STATUS_STR = Object.freeze({
+  [MESSAGE_STATUS.DELIVERING]: 'Delivering',
+  [MESSAGE_STATUS.FAILED]: 'Failed',
+}) as {
+  [messageStatus: number]: string
 }

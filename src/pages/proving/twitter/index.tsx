@@ -2,7 +2,7 @@ import * as React from 'react'
 import { observer } from 'mobx-react'
 
 import { TwitterProvingState, getTwitterClaim } from './TwitterProvingState'
-import ProvingTextarea from '../../../components/ProvingTextarea'
+import ProvingTextarea from '../ProvingTextarea'
 
 import {
   Link,
@@ -37,6 +37,7 @@ class TwitterProving extends React.Component<IProps> {
         </div>
         <div className={styles.inputContainer}>
           <Input
+            spellCheck={false}
             value={username}
             onChange={(e: any) => updateUsername(e.target.value)}
             placeholder={`Your ${label} username`}
