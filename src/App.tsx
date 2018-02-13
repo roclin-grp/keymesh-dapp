@@ -107,7 +107,7 @@ class App extends React.Component<IProps> {
         <Route path="/profile/:userAddress" component={Profile} />
         {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
         <ConditionalRoute
-          path="/chat"
+          path="/messages"
           component={Chat}
           predicate={hasUser}
           redirectTo="/accounts"
