@@ -99,7 +99,7 @@ export class MessagesDB {
       isFromYourself = false,
       shouldAddUnread = true,
       transactionHash = '',
-      status = MESSAGE_STATUS.DELIVERED,
+      status = isFromYourself ? MESSAGE_STATUS.DELIVERING : MESSAGE_STATUS.DELIVERED,
     }: ICreateMessageArgs,
   ) {
     const {

@@ -105,7 +105,6 @@ export function newEmptyVerification(): IUserCachesVerification {
   return {
     boundSocials: {nonce: 0},
     lastFetchBlock: 0,
-    lastVerifiedAt: 0,
     verifyStatues: NewIVerifyStatuses(),
-  } as IUserCachesVerification
+  }
 }

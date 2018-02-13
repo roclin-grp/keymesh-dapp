@@ -78,8 +78,8 @@ export class MetaMaskStore {
   }
 
   private connect = () => {
-    const metaMasksWeb3 = (window as any).web3
-    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider as IAsyncProvider : undefined
+    const metaMasksWeb3 = (window as Window & {web3?: {currentProvider: IAsyncProvider}}).web3
+    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider : undefined
 
     if (typeof provider === 'undefined') {
       this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.NO_METAMASK)
@@ -233,9 +233,7 @@ export const ETHEREUM_NETWORK_NAMES = Object.freeze({
   [ETHEREUM_NETWORKS.ROPSTEN]: 'Ropsten',
   [ETHEREUM_NETWORKS.RINKEBY]: 'Rinkeby',
   [ETHEREUM_NETWORKS.KOVAN]: 'Kovan',
-}) as {
-  [networkID: number]: string
-}
+})
 
 export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.OLYMPIC]: '',
@@ -244,9 +242,7 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.ROPSTEN]: 'https://ropsten.etherscan.io/tx/',
   [ETHEREUM_NETWORKS.RINKEBY]: 'https://rinkeby.etherscan.io/tx/',
   [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
-}) as {
-  [networkID: number]: string
-}
+})
 
 export const CONFIRMATION_NUMBER = Number(process.env.REACT_APP_CONFIRMATION_NUMBER)
 export const AVERAGE_BLOCK_TIME = Number(process.env.REACT_APP_AVERAGE_BLOCK_TIME)

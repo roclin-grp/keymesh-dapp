@@ -10,7 +10,7 @@ import { FacebookResource } from '../../resources/facebook'
 import { TwitterResource } from '../../resources/twitter'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { hexToUtf8, sodiumFromHex } from '../../utils/hex'
+import { hexToUtf8, uint8ArrayFromHex } from '../../utils/hex'
 import {
   VERIFY_SOCIAL_STATUS,
   IBoundSocials,
@@ -117,10 +117,10 @@ export class ProfileState {
     this.userLastFetchBlock = lastBlock
     for (let i = bindEvents.length - 1; i >= 0; i--) {
       const bindEvent: any = bindEvents[i]
-      const _signedBoundSocial = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials.slice(2))) as ISignedBoundSocials
+      const _signedBoundSocial: ISignedBoundSocials = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials))
       if (_signedBoundSocial.socialMedias.nonce > this.userBoundSocials.nonce) {
         if (!publicKey.verify(
-          sodiumFromHex(_signedBoundSocial.signature, true),
+          uint8ArrayFromHex(_signedBoundSocial.signature),
           JSON.stringify(_signedBoundSocial.socialMedias)
         )) {
           continue
@@ -214,7 +214,7 @@ export class ProfileState {
     }
 
     if (this.publicKey.verify(
-      sodiumFromHex(claim.signature, true),
+      uint8ArrayFromHex(claim.signature),
       JSON.stringify(claim.claim),
     )) {
       updateFunc(VALID)

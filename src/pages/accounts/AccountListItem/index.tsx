@@ -11,6 +11,7 @@ import {
   Icon,
   Tooltip,
   Popconfirm,
+  message,
 } from 'antd'
 import HashAvatar from '../../../components/HashAvatar'
 
@@ -212,7 +213,7 @@ class AccountListItem extends React.Component<IProps, IState> {
             <a
               className={styles.transactionLink}
               target="_blank"
-              href={`${ETHEREUM_NETWORK_TX_URL_PREFIX[currentEthereumNetwork!]}${user.identityTransactionHash}`}
+              href={`${ETHEREUM_NETWORK_TX_URL_PREFIX[currentEthereumNetwork!] || '#'}${user.identityTransactionHash}`}
             >
               <Icon className={statusIconClassNames} type={REGISTER_STATUS_ICON_TYPE[status]} />
               <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
@@ -276,7 +277,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADING,
-      helpMessage: 'Waiting for transaction confirmation.',
+      helpMessage: 'Transaction processing',
     })
   }
 
@@ -293,7 +294,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADED,
-      helpMessage: 'Uploading pre-keys to cloud server.',
+      helpMessage: 'Uploading pre-keys to cloud server',
     })
   }
 
@@ -308,7 +309,8 @@ class AccountListItem extends React.Component<IProps, IState> {
     } = this.injectedProps.usersStore
 
     if (users.length === 1) {
-      useUser(this.props.user)
+      await useUser(this.props.user)
+      message.success('You have successfully registered and logged in!')
     }
 
     this.setState({
@@ -325,7 +327,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     this.setState({
       status: REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL,
-      helpMessage: 'Can not upload your public keys to our server, please check your internet connection and retry.',
+      helpMessage: 'Can not upload your public keys to our server, please check your internet connection and retry',
     })
   }
 

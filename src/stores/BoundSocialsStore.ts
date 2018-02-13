@@ -148,7 +148,7 @@ export async function getGithubClaimByRawURL(rawURL: string): Promise<ISignedGit
       return {
         claim: _claim,
         signature: _signature,
-      } as ISignedGithubClaim
+      }
     })
 }
 
@@ -222,15 +222,15 @@ export interface IVerifyStatus {
 }
 
 export interface IVerifyStatuses {
-    github: IVerifyStatus
-    twitter: IVerifyStatus
-    facebook: IVerifyStatus
+  github: IVerifyStatus
+  twitter: IVerifyStatus
+  facebook: IVerifyStatus
 }
 
-export function NewIVerifyStatuses() {
+export function NewIVerifyStatuses(): IVerifyStatuses {
   return {
     github: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
     twitter: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
     facebook: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
-  } as IVerifyStatuses
+  }
 }

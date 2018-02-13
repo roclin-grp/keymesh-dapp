@@ -1,6 +1,10 @@
 import * as React from 'react'
 
 // component
+import {
+  Tooltip,
+  Icon,
+} from 'antd'
 import UserAddress from '../../../components/UserAddress'
 
 // style
@@ -24,6 +28,10 @@ import {
 import {
   IContact,
 } from '../../../stores/UserStore'
+import {
+  MetaMaskStore,
+  ETHEREUM_NETWORK_TX_URL_PREFIX,
+} from '../../../stores/MetaMaskStore'
 
 @inject(mapStoreToProps)
 @observer
@@ -49,6 +57,7 @@ class Message extends React.Component<IProps> {
         timestamp,
         plainText,
         messageType,
+        transactionHash,
       },
       contact,
     } = this.props
@@ -103,7 +112,23 @@ class Message extends React.Component<IProps> {
         </div>
         <div className={styles.content}>
           <p className={styles.messageText}>{plainText}</p>
-          {statusStr ? <p className={styles.messageStatus}>{statusStr}</p> : null}
+          {statusStr
+            ? (
+              <Tooltip title="Transaction processing" placement="bottom">
+                <a
+                  className={styles.messageStatus}
+                  target="_blank"
+                  href={`${
+                    ETHEREUM_NETWORK_TX_URL_PREFIX[this.injectedProps.metaMaskStore.currentEthereumNetwork!] || '#'
+                  }${transactionHash!}`}
+                >
+                  <Icon className={styles.messageStatusIcon} type="loading"/>
+                  <span>{statusStr}</span>
+                </a>
+              </Tooltip>
+            )
+            : null
+          }
         </div>
       </li>
     )
@@ -131,15 +156,14 @@ function mapStoreToProps (
     chatMessageStore: usersStore.currentUserStore!.chatMessagesStore.getMessageStore(
       props.message
     ),
+    metaMaskStore,
   }
 }
 
 const MESSAGE_STATUS_STR = Object.freeze({
   [MESSAGE_STATUS.DELIVERING]: 'Delivering',
   [MESSAGE_STATUS.FAILED]: 'Failed',
-}) as {
-  [messageStatus: number]: string
-}
+})
 
 interface IProps {
   message: IMessage
@@ -149,6 +173,7 @@ interface IProps {
 
 interface IInjectedProps {
   chatMessageStore: ChatMessageStore
+  metaMaskStore: MetaMaskStore
 }
 
 export default Message

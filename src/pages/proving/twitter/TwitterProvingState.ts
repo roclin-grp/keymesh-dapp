@@ -66,7 +66,7 @@ export class TwitterProvingState extends ProvingState {
     })
   }
 
-  private generateSignedClaim = (username: string, userAddress: string, publicKey: string) => {
+  private generateSignedClaim = (username: string, userAddress: string, publicKey: string): ISignedTwitterClaim => {
     const claim: ITwitterClaim = {
       userAddress,
       publicKey,
@@ -75,7 +75,7 @@ export class TwitterProvingState extends ProvingState {
     return {
       claim: claim,
       signature,
-    } as ISignedTwitterClaim
+    }
   }
 }
 

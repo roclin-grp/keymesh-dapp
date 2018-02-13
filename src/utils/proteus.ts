@@ -7,10 +7,10 @@ const {
   Envelope,
 } = message
 
-import { sodiumFromHex } from './hex'
+import { uint8ArrayFromHex } from './hex'
 
 export function generatePublicKeyFromHexStr(publicKeyHexString: string) {
-  const preKeyPublicKeyEd = sodiumFromHex(publicKeyHexString)
+  const preKeyPublicKeyEd = uint8ArrayFromHex(publicKeyHexString)
   const preKeyPublicKeyCurve = ed2curve.convertPublicKey(preKeyPublicKeyEd)
   return keys.PublicKey.new(
     preKeyPublicKeyEd,
@@ -22,8 +22,12 @@ export function generateIdentityKeyFromHexStr(identityKeyHexString: string) {
   return keys.IdentityKey.new(generatePublicKeyFromHexStr(identityKeyHexString))
 }
 
-export function getEmptyProteusEnvelope() {
+export function getEmptyProteusEnvelope(): message.Envelope {
   const emptyEnvelope = Object.create(Envelope.prototype)
   emptyEnvelope.version = 1
-  return emptyEnvelope as message.Envelope
+  return emptyEnvelope
+}
+
+export function getPublicKeyFingerPrint(key: keys.IdentityKey | keys.PublicKey) {
+  return `0x${key.fingerprint()}`
 }

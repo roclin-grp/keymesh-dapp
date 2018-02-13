@@ -1,7 +1,7 @@
 import { runInAction, observable } from 'mobx'
 import { noop } from '../utils/'
 import { UsersStore } from './UsersStore'
-import { utf8ToHex, hexToUtf8, sodiumFromHex } from '../utils/hex'
+import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
@@ -159,10 +159,10 @@ export class BroadcastMessagesStore {
       fromBlock: this.lastFetchBlock > 0 ? this.lastFetchBlock : 0,
     })
 
-    const messages = (await Promise.all(broadcastMessages.map(async (message: any) => {
-      const userAddress = message.userAddress
-      const blockTimestamp = message.timestamp
-      const signedMessage = JSON.parse(hexToUtf8(message.signedMessage.slice(2))) as ISignedBroadcastMessage
+    const messages = (await Promise.all(broadcastMessages.map(async (messagePackage: any) => {
+      const userAddress = messagePackage.userAddress
+      const blockTimestamp = messagePackage.timestamp
+      const signedMessage: ISignedBroadcastMessage = JSON.parse(hexToUtf8(messagePackage.signedMessage))
       if (this.broadcastMessagesSignatures.includes(signedMessage.signature)) {
         return null
       }
@@ -175,7 +175,7 @@ export class BroadcastMessagesStore {
       }
 
       try {
-        if (!userPublicKey.verify(sodiumFromHex(signedMessage.signature.slice(2)), signedMessage.message)) {
+        if (!userPublicKey.verify(uint8ArrayFromHex(signedMessage.signature), signedMessage.message)) {
           throw new Error('invalid signature')
         }
       } catch (e) {
@@ -185,17 +185,17 @@ export class BroadcastMessagesStore {
 
       const isInvalidTimestamp = Math.abs(signedMessage.timestamp - blockTimestamp) >= 10 * 60
 
-      const m = {
+      const broadcastMessage: IBroadcastMessage = {
         message: signedMessage.message,
         timestamp: Number(signedMessage.timestamp) * 1000,
         author: userAddress,
         isInvalidTimestamp,
-      } as IBroadcastMessage
-      if (isInvalidTimestamp) {
-        m.blockTimestamp = Number(blockTimestamp) * 1000
       }
-      return m
-    }))).filter((m) => m !== null) as IBroadcastMessage[]
+      if (isInvalidTimestamp) {
+        broadcastMessage.blockTimestamp = Number(blockTimestamp) * 1000
+      }
+      return broadcastMessage
+    }))).filter((message) => message !== null) as IBroadcastMessage[]
 
     if (messages.length > 0) {
       runInAction(() => {

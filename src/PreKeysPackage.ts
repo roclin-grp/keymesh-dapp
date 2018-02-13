@@ -1,6 +1,8 @@
 import * as CBOR from 'wire-webapp-cbor'
-import { sodiumFromHex } from './utils/hex'
-const sodium = require('libsodium-wrappers-sumo')
+import {
+  uint8ArrayFromHex,
+  hexFromUint8Array,
+} from './utils/hex'
 
 export class PreKeysPackage {
   public static deserialize(buf: ArrayBuffer) {
@@ -30,7 +32,7 @@ export class PreKeysPackage {
             for (let j = 0; j < npropsPreKey; j += 1) {
               const preKeyId = d.u16()
               if (preKeyId) {
-                preKeyPublicKeys[preKeyId] = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
+                preKeyPublicKeys[preKeyId] = hexFromUint8Array(new Uint8Array(d.bytes()))
               } else {
                 d.skip()
               }
@@ -75,7 +77,7 @@ export class PreKeysPackage {
     Object.keys(this.preKeyPublicKeys).forEach((preKeyId) => {
       e.object(1)
       e.u16(Number(preKeyId))
-      e.bytes(sodiumFromHex(this.preKeyPublicKeys[preKeyId], true))
+      e.bytes(uint8ArrayFromHex(this.preKeyPublicKeys[preKeyId]))
     })
   }
 }

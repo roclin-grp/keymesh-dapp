@@ -1,20 +1,26 @@
 const sodium = require('libsodium-wrappers-sumo')
 
+import {
+  stringFromUint8Array,
+  uint8ArrayFromString,
+} from './sodium'
+
 export function isHexZeroValue(hexString: string) {
   return Number(hexString) === 0
 }
 
 export function utf8ToHex(str: string): string {
-  return `0x${sodium.to_hex(sodium.from_string(str))}`
+  return hexFromUint8Array(uint8ArrayFromString(str))
 }
 
 export function hexToUtf8(hex: string): string {
-  return sodium.to_string(sodiumFromHex(hex))
+  return stringFromUint8Array(uint8ArrayFromHex(hex))
 }
 
-export function sodiumFromHex(hex: string, removePrefix: boolean = false) {
-  if (removePrefix) {
-    hex = hex.slice(2)
-  }
-  return sodium.from_hex(hex)
+export function uint8ArrayFromHex(hex: string): Uint8Array {
+  return sodium.from_hex(hex.startsWith('0x') ? hex.slice(2) : hex)
+}
+
+export function hexFromUint8Array(data: Uint8Array): string {
+  return `0x${sodium.to_hex(data)}`
 }

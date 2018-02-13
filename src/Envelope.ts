@@ -5,20 +5,25 @@ import {
 
 import * as CBOR from 'wire-webapp-cbor'
 
-const sodium = require('libsodium-wrappers-sumo')
-
 import { Buffer } from 'buffer'
-import { sodiumFromHex } from './utils/hex'
+import {
+  hexFromUint8Array,
+  uint8ArrayFromHex,
+} from './utils/hex'
+import {
+  cryptoBoxSeal,
+  cryptoBoxSealOpen,
+} from './utils/sodium'
 
 export class Envelope {
   public static decode(d: CBOR.Decoder) {
-    const header = {}
-    let cipherMessage
+    const header = {} as IEnvelopeHeader
+    let cipherMessage: message.CipherMessage | undefined
     const nprops = d.object()
     for (let i = 0; i <= nprops - 1; i += 1) {
       switch (d.u8()) {
         case 0: {
-          (header as IEnvelopeHeader).senderIdentity = keys.IdentityKey.decode(d)
+          header.senderIdentity = keys.IdentityKey.decode(d)
           break
         }
         case 1: {
@@ -26,7 +31,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IEnvelopeHeader).mac = new Uint8Array(d.bytes())
+                header.mac = new Uint8Array(d.bytes())
                 break
               default:
                 d.skip()
@@ -35,7 +40,7 @@ export class Envelope {
           break
         }
         case 2: {
-          (header as IEnvelopeHeader).baseKey = keys.PublicKey.decode(d)
+          header.baseKey = keys.PublicKey.decode(d)
           break
         }
         case 3: {
@@ -43,7 +48,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IEnvelopeHeader).sessionTag = `0x${sodium.to_hex(new Uint8Array(d.bytes()))}`
+                header.sessionTag = hexFromUint8Array(new Uint8Array(d.bytes()))
                 break
               default:
                 d.skip()
@@ -52,7 +57,7 @@ export class Envelope {
           break
         }
         case 4: {
-          (header as IEnvelopeHeader).isPreKeyMessage = d.bool()
+          header.isPreKeyMessage = d.bool()
           break
         }
         case 5: {
@@ -60,7 +65,7 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                (header as IEnvelopeHeader).messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
+                header.messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
                 break
               default:
                 d.skip()
@@ -77,7 +82,7 @@ export class Envelope {
         }
       }
     }
-    return new Envelope((header as IEnvelopeHeader), cipherMessage as message.CipherMessage)
+    return new Envelope(header, cipherMessage!)
   }
 
   public static deserialize(buf: ArrayBuffer) {
@@ -85,29 +90,26 @@ export class Envelope {
     return Envelope.decode(d)
   }
 
-  public static decrypt(envelopeBuf: ArrayBuffer, preKey: keys.PreKey) {
-    return Envelope.deserialize(sodium.crypto_box_seal_open(
+  public static decrypt(envelopeBuf: Uint8Array, preKey: keys.PreKey) {
+    return Envelope.deserialize(cryptoBoxSealOpen(
       envelopeBuf,
       preKey.key_pair.public_key.pub_curve,
-      preKey.key_pair.secret_key.sec_curve,
-      'uint8array'
-    ).buffer)
+      preKey.key_pair.secret_key.sec_curve
+    ).buffer as ArrayBuffer)
   }
 
   constructor(public header: IEnvelopeHeader, public cipherMessage: message.CipherMessage) {
-    this.header = header
-    this.cipherMessage = cipherMessage
   }
 
   public encrypt(preKeyID: number, preKeyPublicKey: keys.PublicKey) {
-    const envelopeBuf = Buffer.from(sodium.crypto_box_seal(
+    const envelopeBuf = Buffer.from(cryptoBoxSeal(
       new Uint8Array(this.serialise()), // binary represent
       preKeyPublicKey.pub_curve
     ))
     // prepend the pre-key ID
     const preKeyIDBuf = Buffer.from(Uint16Array.from([preKeyID]).buffer as ArrayBuffer)
     const concatedBuf = Buffer.concat([preKeyIDBuf, envelopeBuf]) // Buffer
-    return sodium.to_hex(concatedBuf)
+    return hexFromUint8Array(concatedBuf)
   }
 
   public serialise() {
@@ -138,7 +140,7 @@ export class Envelope {
     e.u8(3)
     e.object(1)
     e.u8(0)
-    e.bytes(sodiumFromHex(sessionTag, true))
+    e.bytes(uint8ArrayFromHex(sessionTag))
     e.u8(4)
     e.bool(Number(isPreKeyMessage))
     e.u8(5)

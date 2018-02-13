@@ -25,7 +25,6 @@ import {
   Cryptobox,
   CryptoboxSession,
 } from 'wire-webapp-cryptobox'
-const sodium = require('libsodium-wrappers-sumo')
 
 import {
   getDatabases,
@@ -37,9 +36,11 @@ import {
 import {
   generateIdentityKeyFromHexStr,
   getEmptyProteusEnvelope,
+  getPublicKeyFingerPrint,
 } from '../../utils/proteus'
 import {
   isHexZeroValue,
+  uint8ArrayFromHex,
 } from '../../utils/hex'
 import {
   storeLogger,
@@ -236,7 +237,7 @@ export class ChatMessagesStore {
           },
           {
             userAddress: toUserAddress,
-            identityKey: generateIdentityKeyFromHexStr(identityFingerprint.slice(2)),
+            identityKey: generateIdentityKeyFromHexStr(identityFingerprint),
             preKeyPublicKey,
             preKeyID,
           },
@@ -277,7 +278,7 @@ export class ChatMessagesStore {
 
     transactionWillCreate()
     const messageId = generateMessageIDFromMAC(mac)
-    messagesContract.publish(`0x${envelope.encrypt(preKeyID, preKeyPublicKey)}`)
+    messagesContract.publish(envelope.encrypt(preKeyID, preKeyPublicKey))
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
         if (closeSession) {
@@ -291,7 +292,7 @@ export class ChatMessagesStore {
               blockHash,
             },
             subject,
-
+            // create message args
             messageId,
             messageType: usingMessageType,
             timestamp,
@@ -299,6 +300,9 @@ export class ChatMessagesStore {
             isFromYourself: true,
             transactionHash: hash,
           })
+
+          // refresh contacts
+          this.userStore.refreshMemoryUser()
 
           sessionsStore.selectSession(newSession)
           return messagesDB.getMessage(messageId, fromUserAddress)
@@ -325,7 +329,6 @@ export class ChatMessagesStore {
                 plainText,
                 isFromYourself: true,
                 transactionHash: hash,
-                status: MESSAGE_STATUS.DELIVERING,
               })
               messageDidCreate(newMessage)
             }
@@ -442,6 +445,9 @@ export class ChatMessagesStore {
               userAddress: message.fromUserAddress!,
             },
           }))
+
+          // refresh contacts
+          this.userStore.refreshMemoryUser()
         } else {
           await sessionsStore.getSessionStore(oldSession).createMessage(Object.assign({}, message, { messageId }))
         }
@@ -478,7 +484,7 @@ export class ChatMessagesStore {
     const {
       sessionsDB,
     } = getDatabases()
-    const concatedBuf = sodium.from_hex(encryptedConcatedBufferStr.slice(2)) // Uint8Array
+    const concatedBuf = uint8ArrayFromHex(encryptedConcatedBufferStr)
     const preKeyID = new Uint16Array(concatedBuf.slice(0, PRE_KEY_ID_BYTES_LENGTH).buffer)[0]
     const preKey = await this.indexedDBStore.load_prekey(preKeyID)
 
@@ -569,7 +575,7 @@ export class ChatMessagesStore {
 
       blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
 
-      if (expectedFingerprint !== `0x${senderIdentity.fingerprint()}`) {
+      if (expectedFingerprint !== getPublicKeyFingerPrint(senderIdentity)) {
         const err = new Error('Invalid message: sender identity not match')
         throw err
       }

@@ -69,7 +69,7 @@ export class TwitterResource {
     const bearerTokenCredentials = encodeURIComponent(this.consumerKey) + ':' + encodeURIComponent(this.consumerSecret)
     const base64EncodedCredentials = '::' + btoa(bearerTokenCredentials)
 
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'POST',
       mode: 'cors',
       headers: {
@@ -77,9 +77,9 @@ export class TwitterResource {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
       },
       body: 'grant_type=client_credentials',
-    } as RequestInit
+    }
 
-    return fetch(`${this.apiPrefix}/oauth2/token`, init)
+    return fetch(`${this.apiPrefix}/oauth2/token`, fetchOptions)
       .then((resp) => {
         const json = resp.json()
         return json

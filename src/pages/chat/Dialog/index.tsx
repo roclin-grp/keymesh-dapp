@@ -163,7 +163,7 @@ class Dialog extends React.Component<IProps, IState> {
       content: 'You will NOT able to receive his/her messages after deleted!',
       okText: 'Delete',
       okType: 'danger',
-      cancelText: 'No',
+      cancelText: 'Cancel',
       onOk: this.handleDeleteSession,
     })
   }

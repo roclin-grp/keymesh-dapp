@@ -337,16 +337,12 @@ const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
   [METAMASK_CONNECT_STATUS.PENDING]: '',
   [METAMASK_CONNECT_STATUS.ACTIVE]: styles.networkIndicatorActive,
   [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable,
-}) as {
-  [connectStatus: number]: string
-}
+})
 
 const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
   [METAMASK_CONNECT_STATUS.ACTIVE]: 'Active',
   [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'No account',
-}) as {
-  [connectStatus: number]: string
-}
+})
 
 // typing
 interface IProps extends RouteComponentProps<{}> {

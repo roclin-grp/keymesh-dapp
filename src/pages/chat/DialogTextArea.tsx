@@ -55,7 +55,8 @@ class DialogTextArea extends React.Component<IProps, IState> {
       <Form className={this.props.className} onSubmit={this.props.isSending ? this.noopSubmit : this.handleSubmit}>
         <FormItem className={styles.textAreaWrapper}>
           <TextArea
-            ref={this.getTextArea as any}
+            // hack: antd's type definition is wrong
+            ref={this.getTextArea as () => void}
             autoFocus={this.hasSession}
             spellCheck={false}
             rows={4}

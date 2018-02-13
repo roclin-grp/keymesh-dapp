@@ -15,17 +15,19 @@ import App from './App'
 
 const isDevelop = process.env.NODE_ENV === 'development'
 
+const windowWithStore = window as TypeWindowWithStore
+
 const load = (Component: typeof App) => {
   const stores = (() => {
     if (isDevelop) {
-      const oldStores = (window as any).__STORE
+      const oldStores = windowWithStore.__STORE
       if (oldStores) {
-        return oldStores as IStores
+        return oldStores
       }
     }
     const newStores = createStores()
     if (isDevelop) {
-      (window as any).__STORE = newStores
+      windowWithStore.__STORE = newStores
     }
     return newStores
   })()
@@ -44,8 +46,13 @@ const load = (Component: typeof App) => {
   )
 }
 
-if ((module as any).hot) {
-  (module as any).hot.accept(() => load(App))
+const moduleWithHotReload = module as TypeNodeModuleWithHotReload
+
+if (moduleWithHotReload.hot) {
+  moduleWithHotReload.hot.accept(() => load(App))
 }
 
 load(App)
+
+type TypeWindowWithStore = Window & {__STORE: IStores}
+type TypeNodeModuleWithHotReload = NodeModule & {hot?: {accept: (cb: () => void) => void}}

@@ -8,14 +8,14 @@ interface IPost {
 
 export class FacebookResource {
   static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
-    } as RequestInit
+    }
     const url = `https://graph.facebook.com/v2.11/${userID}/posts`
       + `?access_token=${accessToken}`
 
-    return fetch(url, init)
+    return fetch(url, fetchOptions)
       .then((resp) => resp.json())
       .then(respBody => {
         return respBody.data ? respBody.data : []
@@ -23,14 +23,14 @@ export class FacebookResource {
   }
 
   static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim | null> {
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
-    } as RequestInit
+    }
 
     url = 'https://cors-anywhere.herokuapp.com/' + url
 
-    const body = await fetch(url, init)
+    const body = await fetch(url, fetchOptions)
       .then((resp) => resp.text())
 
     if (body === '') {
@@ -52,6 +52,6 @@ export class FacebookResource {
         publicKey: parts[2],
       },
       signature: parts[3],
-    } as ISignedFacebookClaim
+    }
   }
 }

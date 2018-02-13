@@ -1,10 +1,12 @@
 import Dexie from 'dexie'
-const sodium = require('libsodium-wrappers-sumo')
 
 import {
   IUser,
 } from '../stores/UserStore'
-import { sodiumFromHex } from './hex'
+import {
+  hexFromUint8Array,
+  uint8ArrayFromHex,
+} from './hex'
 
 const CRYPTOBOX_SCHEMA = Object.freeze({
   keys: '',
@@ -30,7 +32,7 @@ export function restoreCryptobox(dbname: string, tables: IDumpedTable[]) {
   tables = tables.map((t) => {
     t.rows = t.rows.map((row) => {
       if (row.serialised) {
-        row.serialised = sodiumFromHex(row.serialised).buffer
+        row.serialised = uint8ArrayFromHex(row.serialised).buffer
       }
       return row
     })
@@ -53,7 +55,7 @@ export function dumpDB(db: Dexie) {
         .then((rows) => {
           rows = rows.map((row) => {
             if (row.serialised) {
-              row.serialised = sodium.to_hex(new Uint8Array(row.serialised))
+              row.serialised = hexFromUint8Array(new Uint8Array(row.serialised))
             }
             return row
           })

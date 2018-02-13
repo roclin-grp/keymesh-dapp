@@ -3,6 +3,7 @@ import {
   computed,
   reaction,
   runInAction,
+  action,
 } from 'mobx'
 import {
   MetaMaskStore,
@@ -26,7 +27,6 @@ import {
   ChatMessagesStore,
 } from './ChatMessagesStore'
 
-const sodium = require('libsodium-wrappers-sumo')
 import {
   Cryptobox,
 } from 'wire-webapp-cryptobox'
@@ -42,7 +42,11 @@ import {
 } from '../utils'
 import {
   isHexZeroValue,
+  hexFromUint8Array,
 } from '../utils/hex'
+import {
+  getPublicKeyFingerPrint,
+} from '../utils/proteus'
 import {
   unixToday,
 } from '../utils/time'
@@ -243,7 +247,7 @@ export class UserStore {
               return
             }
 
-            if (registeredIdentityFingerprint === `0x${identityKeyPair.public_key.fingerprint()}`) {
+            if (registeredIdentityFingerprint === getPublicKeyFingerPrint(identityKeyPair.public_key)) {
               const blockHash = await getBlockHash(blockNumber)
               if (isHexZeroValue(blockHash)) {
                 // no blockHash? just retry.
@@ -285,8 +289,15 @@ export class UserStore {
     return waitForTransactionReceipt()
   }
 
+  public async refreshMemoryUser() {
+    const user = await this.usersDB.getUser(this.user.networkId, this.user.userAddress)
+    if (typeof user !== 'undefined') {
+      this.updateMemoryUser(user)
+    }
+  }
+
   public sign(message: string) {
-    return `0x${sodium.to_hex(this.cryptoBox.identity.secret_key.sign(message))}`
+    return hexFromUint8Array(this.cryptoBox.identity.secret_key.sign(message))
   }
 
   public uploadPreKeys = async (
@@ -301,7 +312,7 @@ export class UserStore {
 
     const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = preKeys.reduce(
       (result, preKey) => Object.assign(result, {
-        [preKey.key_id]: `0x${preKey.key_pair.public_key.fingerprint()}`,
+        [preKey.key_id]: getPublicKeyFingerPrint(preKey.key_pair.public_key),
       }),
       {}
     )
@@ -313,8 +324,8 @@ export class UserStore {
 
     const identity = this.isCryptoboxReady ? this.cryptoBox.identity : await this.indexedDBStore.load_identity()
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeyFingerprints, interval, lastPreKey.key_id)
-    const serializedPrekeys = `0x${sodium.to_hex(new Uint8Array(preKeysPackage.serialise()))}`
-    const prekeysSignature = `0x${sodium.to_hex(identity.secret_key.sign(serializedPrekeys))}`
+    const serializedPrekeys = hexFromUint8Array(new Uint8Array(preKeysPackage.serialise()))
+    const prekeysSignature = hexFromUint8Array(identity.secret_key.sign(serializedPrekeys))
 
     const uploadPreKeysUrl = `${process.env.REACT_APP_KVASS_ENDPOINT}${this.user.userAddress}`
     const resp = await fetch(
@@ -383,9 +394,12 @@ export class UserStore {
       this.user,
       args
     )
-    runInAction(() => {
-      Object.assign(this.user, args)
-    })
+    this.updateMemoryUser(args)
+  }
+
+  @action
+  private updateMemoryUser = async (args: IUpdateUserOptions) => {
+    Object.assign(this.user, args)
   }
 }
 

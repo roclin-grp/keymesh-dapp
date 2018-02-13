@@ -33,6 +33,9 @@ import {
 import {
   isHexZeroValue,
 } from '../utils/hex'
+import {
+  getPublicKeyFingerPrint,
+} from '../utils/proteus'
 
 import {
   getDatabases,
@@ -147,7 +150,7 @@ export class UsersStore {
       return undefined
     }
 
-    return generatePublicKeyFromHexStr(identityFingerprint.slice(2))
+    return generatePublicKeyFromHexStr(identityFingerprint)
   }
 
   public getIdentityByUserAddress(userAddress: string) {
@@ -180,7 +183,7 @@ export class UsersStore {
     }
 
     const identityKeyPair = IdentityKeyPair.new()
-    const userPublicKeyFingerprint = `0x${identityKeyPair.public_key.fingerprint()}`
+    const userPublicKeyFingerprint = getPublicKeyFingerPrint(identityKeyPair.public_key)
 
     transactionWillCreate()
     identitiesContract.register(userPublicKeyFingerprint)
@@ -236,10 +239,8 @@ export class UsersStore {
     )
     runInAction(() => {
       this.addUser(user)
-      if (this.users.length === 1) {
-        this.useUser(user)
-      }
     })
+    return user
   }
 
   public getAvatarHashByUserAddress = async (userAddress: string) => {
@@ -371,11 +372,11 @@ function setNetworkLastUsedUserAddress({
   networkId,
   userAddress,
 }: IUser) {
-  localStorage.setItem(`keymail@'${networkId}@last-used-user`, userAddress)
+  localStorage.setItem(`keymail@${networkId}@last-used-user`, userAddress)
 }
 
 function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
-  return (localStorage.getItem(`keymail@'${networkId}@last-used-user`) || '').toString()
+  return (localStorage.getItem(`keymail@${networkId}@last-used-user`) || '').toString()
 }
 
 export enum REGISTER_FAIL_CODE {

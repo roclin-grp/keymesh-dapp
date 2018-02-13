@@ -9,31 +9,31 @@ interface IGist {
 
 export class GithubResource {
   static getGists(username: string): Promise<IGist[]> {
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
-    } as RequestInit
+    }
 
-    return fetch(`https://api.github.com/users/${username}/gists`, init)
+    return fetch(`https://api.github.com/users/${username}/gists`, fetchOptions)
       .then((resp) => resp.json())
   }
 
   static getGist(id: string): Promise<IGist> {
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
-    } as RequestInit
+    }
 
-    return fetch(`https://api.github.com/gists/${id}`, init)
+    return fetch(`https://api.github.com/gists/${id}`, fetchOptions)
       .then((resp) => resp.json())
   }
 
   static getRawContent(rawURL: string): Promise<any> {
-    const init = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
-    } as RequestInit
+    }
 
-    return fetch(rawURL, init)
+    return fetch(rawURL, fetchOptions)
   }
 }

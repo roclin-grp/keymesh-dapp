@@ -105,13 +105,9 @@ export default class BroadcastMessage extends React.Component<IProps> {
 const MESSAGE_MODIFIER_CLASSES = Object.freeze({
   [MESSAGE_STATUS.DELIVERING]: styles.delivering,
   [MESSAGE_STATUS.FAILED]: styles.failed,
-}) as {
-  [status: number]: string
-}
+})
 
 const MESSAGE_STATUS_STR = Object.freeze({
   [MESSAGE_STATUS.DELIVERING]: 'Delivering',
   [MESSAGE_STATUS.FAILED]: 'Failed',
-}) as {
-  [messageStatus: number]: string
-}
+})

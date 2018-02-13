@@ -264,9 +264,14 @@ class Accounts extends React.Component<IProps, IState> {
     const reader = new FileReader()
     reader.onload = async (oFREvent) => {
       try {
-        await this.injectedProps.usersStore.importUser((oFREvent.target as any).result)
+        const user = await this.injectedProps.usersStore.importUser((oFREvent.target as any).result)
         if (!this.unmounted) {
-          message.success('Account imported!')
+          if (this.injectedProps.usersStore.users.length === 1) {
+            await this.injectedProps.usersStore.useUser(user)
+            message.success('You have successfully imported account and logged in!')
+          } else {
+            message.success('Account imported successfully')
+          }
         }
       } catch (err) {
         if (this.unmounted) {
