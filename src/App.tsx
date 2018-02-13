@@ -10,7 +10,7 @@ import {
 import Header from './containers/Header'
 import MetaMaskConnectFailPage from './pages/MetaMaskConnectFailPage'
 import ErrorPage from './pages/ErrorPage'
-import Loading from './pages/Loading'
+import Loading from './pages/LoadingPage'
 import Chat from './pages/chat'
 import Accounts from './pages/accounts'
 import Broadcast from './pages/broadcast'
