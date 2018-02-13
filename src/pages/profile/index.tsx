@@ -24,7 +24,7 @@ import {
 import { ProfileState } from './ProfileState'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
-import { SOCIAL_LABELS, SOCIALS, SOCIAL_PROFILE_URLS } from '../../stores/BoundSocialsStore'
+import { SOCIAL_LABELS, SOCIALS } from '../../stores/BoundSocialsStore'
 import { UserCachesStore } from '../../stores/UserCachesStore'
 import { VerifiedItem } from './VerifiedItem'
 
@@ -125,7 +125,6 @@ class Profile extends React.Component<IProps> {
             boundSocial={userBoundSocials.twitter!}
             verifyStatus={verifyStatuses.twitter}
             verify={verifyTwitter}
-            socialProfileURL={SOCIAL_PROFILE_URLS[SOCIALS.TWITTER](userBoundSocials.twitter!.username)}
           /> :
           isSelf ? this.renderProvingEntry(SOCIALS.TWITTER) : null
       }
@@ -138,7 +137,6 @@ class Profile extends React.Component<IProps> {
             boundSocial={userBoundSocials.github!}
             verifyStatus={verifyStatuses.github}
             verify={verifyGithub}
-            socialProfileURL={SOCIAL_PROFILE_URLS[SOCIALS.GITHUB](userBoundSocials.github!.username)}
           /> :
           isSelf ? this.renderProvingEntry(SOCIALS.GITHUB) : null
       }
@@ -151,7 +149,6 @@ class Profile extends React.Component<IProps> {
             boundSocial={userBoundSocials.facebook!}
             verifyStatus={verifyStatuses.facebook}
             verify={verifyFacebook}
-            socialProfileURL={SOCIAL_PROFILE_URLS[SOCIALS.FACEBOOK](userBoundSocials.facebook!.proofURL)}
           /> :
           isSelf ? this.renderProvingEntry(SOCIALS.FACEBOOK) : null
       }

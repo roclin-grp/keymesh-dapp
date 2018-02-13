@@ -21,7 +21,6 @@ interface IProps {
   verifyStatus: IVerifyStatus
   verify: () => Promise<void>
   isVerifying: boolean
-  socialProfileURL: string
 }
 
 export class VerifiedItem extends React.Component<IProps> {
@@ -33,7 +32,7 @@ export class VerifiedItem extends React.Component<IProps> {
   }
 
   public render() {
-    const { boundSocial, verifyStatus , platform, isVerifying, isSelf, socialProfileURL } = this.props
+    const { boundSocial, verifyStatus , platform, isVerifying, isSelf } = this.props
     let usernameClassName = styles.grey
     let iconColor = styles.grey
     const isValid = verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID
@@ -49,7 +48,7 @@ export class VerifiedItem extends React.Component<IProps> {
             {usernameElement}
           </Link>
           : (isValid && !isVerifying
-            ? <a href={socialProfileURL} target="_blank" title={boundSocial.username}>{usernameElement}</a>
+            ? <a href={boundSocial.proofURL} target="_blank" title={boundSocial.username}>{usernameElement}</a>
             : usernameElement)
         }
         <span className={styles.grey}> @{platform}</span>
