@@ -153,13 +153,15 @@ class Accounts extends React.Component<IProps, IState> {
           accept=".json"
           disabled={this.state.isImporting}
         >
-          <p className="ant-upload-drag-icon">
-            <Icon type="plus" />
-          </p>
-          <p className="ant-upload-text">Click or drag file to this area to import</p>
-          <p className="ant-upload-hint">
-            Support JSON format exported user data
-          </p>
+          <div className={styles.draggerInner} >
+            <p className="ant-upload-drag-icon">
+              <Icon type="plus" />
+            </p>
+            <p className="ant-upload-text">Click or drag file to this area to import</p>
+            <p className="ant-upload-hint">
+              Support JSON format exported user data
+            </p>
+          </div>
         </Dragger>
       </>
     )

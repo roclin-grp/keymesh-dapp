@@ -64,8 +64,6 @@ import { storeLogger } from '../../utils/loggers'
 @observer
 class Header extends React.Component<IProps, IState> {
   public readonly state = Object.freeze({
-    hidden: false,
-    hasShadow: false,
     isExporting: false,
   })
 
@@ -82,10 +80,37 @@ class Header extends React.Component<IProps, IState> {
       <header className={styles.header}>
         <div className={classnames(styles.content, 'container')}>
           <h1 className={styles.logo}>
-            <Link tabIndex={0} className={styles.logoText} to="/">
+            <Link
+              tabIndex={0}
+              className={styles.logoText}
+              to="/"
+            >
               Keymail
             </Link>
           </h1>
+          <Menu
+            inlineIndent={24}
+            openTransitionName="slide-up"
+            theme="light"
+            className={classnames(styles.menu, 'menu-site')}
+            selectedKeys={[this.props.location.pathname]}
+            mode="horizontal"
+          >
+            <Menu.Item key="/discover">
+              <Link to="/discover" className={styles.menuItem}>
+                <Icon type="bulb" className={styles.menuIcon} />Discover
+              </Link>
+            </Menu.Item>
+            {
+              this.injectedProps.usersStore.hasUser
+                ? <Menu.Item key="/chat">
+                    <Link to="/chat" className={styles.menuItem}>
+                      <Icon type="message" className={styles.menuIcon} />Chat
+                    </Link>
+                  </Menu.Item>
+                : null
+            }
+          </Menu>
           {this.getNetworkStatus()}
           {this.getUserMenu()}
         </div>
@@ -356,8 +381,6 @@ interface IInjectedProps extends IProps {
 }
 
 interface IState {
-  hidden: boolean
-  hasShadow: boolean
   isExporting: boolean
 }
 

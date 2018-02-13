@@ -3,6 +3,7 @@
   flex-flow: row wrap;
   margin: 0 1.25rem;
   flex-grow: 1;
+  max-width: 64rem;
 }
 
 .postForm {

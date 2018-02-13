@@ -10,12 +10,14 @@
 }
 
 .content {
-  margin: 0 1.25rem;
+  margin: 0 auto;
+  -ms-flex-positive: 1;
   flex-grow: 1;
-  height: calc(100vh - 7.25rem);
+  height: calc(100vh - 4.125rem);
   border: 1px solid #ebedf0;
-  min-width: 64rem;
+  min-width: 52rem;
   min-height: 32rem;
+  margin-top: -3.125rem;
 }
 
 .sessionList {

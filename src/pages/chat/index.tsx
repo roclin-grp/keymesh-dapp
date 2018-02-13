@@ -1,7 +1,6 @@
 import * as React from 'react'
 
 // component
-import MenuBody from '../../containers/MenuBody'
 import Content from './Content'
 import Loading from './Loading'
 
@@ -30,18 +29,10 @@ class Chat extends React.Component {
     const currentUserStore = this.injectedProps.usersStore.currentUserStore!
 
     if (!currentUserStore.isCryptoboxReady) {
-      return (
-        <MenuBody routePath="/chat">
-          <Loading message="Loading..." />
-        </MenuBody>
-      )
+      return <Loading message="Loading..." />
     }
 
-    return (
-      <MenuBody routePath="/chat">
-        <Content userStore={currentUserStore!} />
-      </MenuBody>
-    )
+    return <Content userStore={currentUserStore!} />
   }
 }
 

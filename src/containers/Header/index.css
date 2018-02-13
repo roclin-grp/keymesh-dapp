@@ -9,18 +9,33 @@
   position: fixed;
   top: 0;
   left: 0;
-  transition: transform .25s ease-in-out;
+  box-shadow: 0 2px 8px #f0f1f2;
 }
 
-.content {
+.content, .menu {
   display: flex;
   align-items: center;
+}
+
+.menu, .logo {
+  margin-right: auto;
+}
+
+.menu {
+  margin-left: 2rem;
+}
+
+.menuIcon {
+  margin-right: 4px;
+}
+
+:global .ant-menu-item-selected :local .menuItem {
+  color: #1890ff !important;
 }
 
 .logo {
   font-size: 1.5rem;
   margin: 0;
-  margin-right: auto;
 }
 
 .logoText {
@@ -93,4 +108,21 @@
 
 .userAvatarDownIcon {
   font-size: 0.5rem !important;
+}
+
+:global .ant-menu-horizontal > .ant-menu-item {
+  height: 64px;
+  line-height: 60px;
+  min-width: 72px;
+  border-top: 2px solid transparent;
+}
+
+:global .ant-menu-horizontal > .ant-menu-item-selected,
+:global .ant-menu-horizontal > .ant-menu-item:hover {
+  border-top: 2px solid #1890ff;
+  border-bottom: 2px solid transparent;
+}
+
+:global .ant-menu-horizontal {
+  border-bottom: none;
 }
