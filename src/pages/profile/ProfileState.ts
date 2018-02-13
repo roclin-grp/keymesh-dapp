@@ -32,9 +32,6 @@ const {
 import { UserCachesStore } from '../../stores/UserCachesStore'
 
 export class ProfileState {
-  public isFetchingUserProofs: boolean = false
-  public fetchUserProofTimeout: number
-
   @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
   @observable public userBoundSocials: IBoundSocials = {nonce: 0}
   @observable public isVerifying = {
@@ -42,8 +39,6 @@ export class ProfileState {
     [SOCIALS.GITHUB]: false,
     [SOCIALS.FACEBOOK]: false,
   }
-
-  public userLastFetchBlock: number = 0
 
   constructor({
       usersStore,
@@ -67,15 +62,24 @@ export class ProfileState {
   private contractStore: ContractStore
   private userCachesStore: UserCachesStore
 
+  private isFetchingUserProofs: boolean = false
+  private fetchUserProofTimeout: number
+
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
+  @observable private userLastFetchBlock: number = 0
   private publicKey: keys.PublicKey
 
   private readonly twitterResource = new TwitterResource(
     process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
     process.env.REACT_APP_TWITTER_SECRET_KEY!
   )
+
+  @computed
+  public get isLoadingProofs() {
+    return this.userLastFetchBlock === 0
+  }
 
   @computed
   public get isSelf() {
@@ -114,7 +118,9 @@ export class ProfileState {
       bindEvents,
     } = await this.getBindEvents(this.userLastFetchBlock, this.userAddress)
 
-    this.userLastFetchBlock = lastBlock
+    runInAction(() => {
+      this.userLastFetchBlock = lastBlock
+    })
     for (let i = bindEvents.length - 1; i >= 0; i--) {
       const bindEvent: any = bindEvents[i]
       const _signedBoundSocial: ISignedBoundSocials = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials))
@@ -137,19 +143,23 @@ export class ProfileState {
   }
 
   public startFetchingUserProofs = () => {
+    if (this.isFetchingUserProofs) {
+      return
+    }
+
     const loop = async () => {
       try {
         await this.fetchUserProofs()
       } finally {
         runInAction(() => {
-          this.fetchUserProofTimeout = window.setTimeout(loop, 10000)
+          this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
         })
       }
     }
 
     runInAction(() => {
       this.isFetchingUserProofs = true
-      this.fetchUserProofTimeout = window.setTimeout(loop, 0)
+      this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
     })
   }
 

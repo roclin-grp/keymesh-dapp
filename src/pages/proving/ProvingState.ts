@@ -14,6 +14,7 @@ import {
 import {
   isHexZeroValue,
 } from '../../utils/hex'
+import { Modal } from 'antd'
 
 const defaultCheckProofButtonContent = 'OK posted! Check for it!'
 export default abstract class ProvingState {
@@ -32,6 +33,7 @@ export default abstract class ProvingState {
   constructor( protected usersStore: UsersStore) {
     this.init()
   }
+  protected checkingErrorContent: string
 
   public continueHandler = async () => {
     const userAddress = this.usersStore.currentUserStore!.user.userAddress
@@ -57,6 +59,7 @@ export default abstract class ProvingState {
     })
     const bindingSocial = await this.getBindingSocial()
     if (!bindingSocial) {
+      this.showCheckingError()
       runInAction(() => {
         this.checkProofButtonContent = defaultCheckProofButtonContent
         this.checkProofButtonDisabled = false
@@ -107,6 +110,12 @@ export default abstract class ProvingState {
   protected abstract setClaim(username: string, userAddress: string, publicKey: string): void
   protected async abstract getBindingSocial(): Promise<IBindingSocial | undefined>
 
+  private showCheckingError() {
+    Modal.error({
+      title: 'Check claim error',
+      content: this.checkingErrorContent,
+    })
+  }
   private uploadingDidFail = (err: Error | null, code = UPLOADING_FAIL_CODE.UNKNOWN) => {
     if (code === UPLOADING_FAIL_CODE.NO_NEW_BINDING) {
       storeLogger.error('no new binding')

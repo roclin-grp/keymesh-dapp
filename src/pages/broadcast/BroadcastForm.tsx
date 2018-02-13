@@ -48,7 +48,7 @@ export class BroadcastForm extends React.Component<IProps, IState> {
       <TextArea
         spellCheck={false}
         className={styles.textarea}
-        placeholder="What's happing?"
+        placeholder="What's happening?"
         value={this.state.message}
         onChange={this.handleChange}
         autosize={{minRows: 5}}

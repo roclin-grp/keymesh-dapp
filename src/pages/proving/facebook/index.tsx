@@ -52,15 +52,7 @@ class FacebookProving extends React.Component<IProps> {
         </div>
       <p>{username}</p>
       <p>
-        Finally, post your proof to Facebook.
-            We'll ask for permission to read your posts,
-            so that we can find this one afterwards.
-          </p>
-      <p>
-        This is really important
-            -- <span className={styles.notice}>
-          the text must be the same as below, and make sure your post is public.
-            </span>
+        Please post the your proof to Facebook, the content must be exactly as below and make sure that is public.
       </p>
       <ProvingTextarea value={text} />
 

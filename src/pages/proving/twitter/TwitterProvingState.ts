@@ -16,6 +16,7 @@ import {
 export class TwitterProvingState extends ProvingState {
   @observable public claim: ISignedTwitterClaim
   public platform = SOCIALS.TWITTER
+  protected checkingErrorContent = 'Please tweet the text exactly as it appears, then check again!'
 
   private readonly twitterResource = new TwitterResource(
       process.env.REACT_APP_TWITTER_CONSUMER_KEY!,

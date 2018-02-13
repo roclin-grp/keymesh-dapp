@@ -16,6 +16,9 @@ import {
 export class FacebookProvingState extends ProvingState {
   @observable public claim: ISignedFacebookClaim
   public platform = SOCIALS.FACEBOOK
+  protected checkingErrorContent = `Please post the your proof to Facebook, `
+    + `the content must be exactly as the screen appears and make sure that is public. `
+    + `Then check again!`
 
   private facebookAccessToken: string
   private facebookUserID: string

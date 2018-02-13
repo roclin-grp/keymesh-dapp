@@ -111,6 +111,15 @@ export const SOCIAL_LABELS = Object.freeze({
   [SOCIALS.FACEBOOK]:  'Facebook',
 })
 
+export const SOCIAL_PROFILE_URLS = Object.freeze({
+  [SOCIALS.GITHUB]: (username: string) => 'https://github.com/' + username,
+  [SOCIALS.TWITTER]:  (username: string) => 'https://twitter.com/' + username,
+  [SOCIALS.FACEBOOK]:  (proofURL: string) => {
+    const res = /(^.*?[0-9]+)/.exec(proofURL)
+    return res === null ? '' : res[0]
+  },
+})
+
 export enum BINDING_SOCIAL_STATUS {
   CHECKED = 100,
   TRANSACTION_CREATED = 200,

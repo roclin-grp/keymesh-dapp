@@ -21,6 +21,7 @@ interface IProps {
   verifyStatus: IVerifyStatus
   verify: () => Promise<void>
   isVerifying: boolean
+  socialProfileURL: string
 }
 
 export class VerifiedItem extends React.Component<IProps> {
@@ -32,22 +33,25 @@ export class VerifiedItem extends React.Component<IProps> {
   }
 
   public render() {
-    const { boundSocial, verifyStatus , platform, isVerifying } = this.props
+    const { boundSocial, verifyStatus , platform, isVerifying, isSelf, socialProfileURL } = this.props
     let usernameClassName = styles.grey
     let iconColor = styles.grey
+    const isValid = verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID
     if (!isVerifying) {
-      if (verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID) {
-        iconColor = usernameClassName = styles.valid
-      } else if (verifyStatus.status === VERIFY_SOCIAL_STATUS.INVALID) {
-        iconColor = usernameClassName = styles.invalid
-      }
+      iconColor = usernameClassName = isValid ? styles.valid : styles.invalid
     }
+    const usernameElement = <span className={usernameClassName}>{boundSocial.username}</span>
     return <li className={styles.li}>
       <div>
         <Icon type={platform} className={classnames(styles.platformIcon, iconColor)} />
-        <Link to={`/proving/${platform}`} title="Click to overwrite the proof">
-          <span className={usernameClassName}>{boundSocial.username}</span>
-        </Link>
+        {isSelf
+          ? <Link to={`/proving/${platform}`} title="Click to overwrite the proof">
+            {usernameElement}
+          </Link>
+          : (isValid && !isVerifying
+            ? <a href={socialProfileURL} target="_blank" title={boundSocial.username}>{usernameElement}</a>
+            : usernameElement)
+        }
         <span className={styles.grey}> @{platform}</span>
       </div>
       <div>{this.renderStatus()}</div>

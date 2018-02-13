@@ -32,7 +32,7 @@ export class UserCachesDB {
   }
 
   public create(userCache: IUserCaches): Promise<IUserCaches> {
-    return this.table.add(userCache)
+    return this.table.put(userCache)
       .then(() => this.table.get([userCache.networkId, userCache.userAddress])) as Dexie.Promise<IUserCaches>
   }
 

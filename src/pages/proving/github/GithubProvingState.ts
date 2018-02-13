@@ -17,6 +17,8 @@ import {
 
 export class GithubProvingState extends ProvingState {
   @observable public claim: ISignedGithubClaim
+  protected checkingErrorContent =
+    `Please paste the text into a public gist called ${GITHUB_GIST_FILENAME}, then check again!`
 
   public get platform() {
     return SOCIALS.GITHUB
