@@ -6,11 +6,6 @@
   margin-right: 14px;
 }
 
-.addressAndTime {
-  font-size: 12px;
-  color: grey;
-}
-
 .status {
   text-align: center;
   font-size: 12px;
@@ -30,4 +25,48 @@
 
 .content {
   white-space: pre-wrap;
+}
+
+.socialIcon {
+  font-size: 12px;
+}
+
+.socialIcon {
+  margin-left: 0.125rem;
+}
+.socialIcon:first-of-type {
+  margin-left: 0.5rem;
+}
+.socialIcon:last-of-type {
+  margin-right: 0.5rem;
+}
+
+.iconTwitter {
+  color: #1DA1F2;
+}
+
+.iconFacebook {
+  color: #3B5998;
+}
+
+.iconGitHub {
+  color: #333;
+}
+
+.username {
+  color: #333;
+  font-weight: bold;
+}
+
+.userAddress:not(.userAddressHasUsername) {
+  color: #333;
+  font-weight: bold;
+}
+
+.userAddressHasUsername {
+  color: #ccc;
+}
+
+.infoWrapper {
+  margin-bottom: 0.25rem;
 }

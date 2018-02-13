@@ -2,15 +2,15 @@ import {
   observable,
   computed,
   runInAction,
-  reaction,
+  action,
 } from 'mobx'
 
 import { sha3, } from 'trustbase'
-import { FacebookResource } from '../../resources/facebook'
-import { TwitterResource } from '../../resources/twitter'
-import { UsersStore } from '../../stores/UsersStore'
-import { ContractStore } from '../../stores/ContractStore'
-import { hexToUtf8, uint8ArrayFromHex } from '../../utils/hex'
+import { FacebookResource } from '../resources/facebook'
+import { TwitterResource } from '../resources/twitter'
+import { UsersStore } from '../stores/UsersStore'
+import { ContractStore } from './ContractStore'
+import { hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import {
   VERIFY_SOCIAL_STATUS,
   IBoundSocials,
@@ -22,23 +22,32 @@ import {
   ISignedTwitterClaim,
   ISignedFacebookClaim,
   ISignedGithubClaim,
-} from '../../stores/BoundSocialsStore'
+} from './BoundSocialsStore'
 import { keys } from 'wire-webapp-proteus'
 const {
   INVALID,
   VALID,
 } = VERIFY_SOCIAL_STATUS
 
-import { UserCachesStore } from '../../stores/UserCachesStore'
+import {
+  UserCachesStore,
+} from './UserCachesStore'
 
-export class ProfileState {
+export class UserProofsStateStore {
   @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
-  @observable public userBoundSocials: IBoundSocials = {nonce: 0}
+  @observable public userBoundSocials: IBoundSocials = {
+    [SOCIALS.TWITTER]: undefined,
+    [SOCIALS.GITHUB]: undefined,
+    [SOCIALS.FACEBOOK]: undefined,
+    nonce: 0,
+  }
   @observable public isVerifying = {
     [SOCIALS.TWITTER]: false,
     [SOCIALS.GITHUB]: false,
     [SOCIALS.FACEBOOK]: false,
   }
+
+  public isFetchingUserProofs: boolean = false
 
   constructor({
       usersStore,
@@ -55,14 +64,12 @@ export class ProfileState {
     this.userCachesStore = usersStore.userCachesStore
     this.userAddress = userAddress
     this.init()
-    reaction(() => this.isSelf, this.init)
   }
 
   private usersStore: UsersStore
   private contractStore: ContractStore
   private userCachesStore: UserCachesStore
 
-  private isFetchingUserProofs: boolean = false
   private fetchUserProofTimeout: number
 
   @observable private userAddress: string = ''
@@ -82,11 +89,6 @@ export class ProfileState {
   }
 
   @computed
-  public get isSelf() {
-    return this.usersStore.hasUser && this.userAddress === this.usersStore.currentUserStore!.user.userAddress
-  }
-
-  @computed
   public get avatarHash() {
     if (this.userBlockHash !== '0x0' && this.userAddress !== '') {
       return sha3(this.userAddress + this.userBlockHash)
@@ -94,20 +96,13 @@ export class ProfileState {
     return ''
   }
 
+  @action
   public stopFetchingUserProofs = () => {
-    if (typeof this.fetchUserProofTimeout !== 'undefined') {
-      window.clearTimeout(this.fetchUserProofTimeout)
-    }
-    runInAction(() => {
-      this.isFetchingUserProofs = false
-    })
+    window.clearTimeout(this.fetchUserProofTimeout)
+    this.isFetchingUserProofs = false
   }
 
   public fetchUserProofs = async () => {
-    if (!this.finishedInit) {
-      return
-    }
-
     const publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
     if (typeof publicKey === 'undefined') {
       return
@@ -142,25 +137,25 @@ export class ProfileState {
     this.persist()
   }
 
-  public startFetchingUserProofs = () => {
+  public startFetchingUserProofs = (interval = 1000) => {
     if (this.isFetchingUserProofs) {
       return
     }
 
     const loop = async () => {
-      try {
-        await this.fetchUserProofs()
-      } finally {
-        runInAction(() => {
-          this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
-        })
+      if (this.finishedInit) {
+        try {
+          await this.fetchUserProofs()
+        } finally {
+          this.fetchUserProofTimeout = window.setTimeout(loop, interval)
+          return
+        }
       }
+      this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
     }
 
-    runInAction(() => {
-      this.isFetchingUserProofs = true
-      this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
-    })
+    this.isFetchingUserProofs = true
+    this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
   }
 
   public verifyAllUserProofs = async () => {

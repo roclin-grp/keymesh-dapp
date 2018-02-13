@@ -58,7 +58,14 @@ class Broadcast extends React.Component<IProps> {
 
     const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => {
       return <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
-        <BroadcastMessage usersStore={this.props.usersStore} message={message}/>
+        <BroadcastMessage
+          userCachesStore={this.props.usersStore.userCachesStore}
+          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(
+            this.props.metaMaskStore.currentEthereumNetwork!,
+            message.author!
+          )}
+          message={message}
+        />
         <Divider/>
       </div>
     })

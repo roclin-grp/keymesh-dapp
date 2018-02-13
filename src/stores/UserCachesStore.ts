@@ -20,7 +20,7 @@ export class UserCachesStore {
       () => this.metaMaskStore.currentEthereumNetwork,
       (networkId) => {
         if (typeof networkId === 'undefined') {
-          this.networkID = 0
+          this.networkID = -1
         } else {
           this.networkID = networkId
         }
@@ -30,6 +30,12 @@ export class UserCachesStore {
   private usersStore: UsersStore
   private networkID: ETHEREUM_NETWORKS
   private metaMaskStore: MetaMaskStore
+  private cachedUserAvatarPromises: {
+    [userAddress: string]: Promise<string>
+  } = {}
+  private cachedUserIdentityPromises: {
+    [userAddress: string]: Promise<IUserCachesIdentity>
+  } = {}
 
   public async getVerification(userAddress: string): Promise<IUserCachesVerification> {
     const user = await this.userCachesDB.get(this.networkID, userAddress)
@@ -44,12 +50,23 @@ export class UserCachesStore {
     return this.userCachesDB.update(userAddress, this.networkID, {verification})
   }
 
-  public getAvatarHashByUserAddress = async (userAddress: string) => {
-    const identity = await this.getIdentityByUserAddress(userAddress)
-    return sha3(`${userAddress}${identity.blockHash}`)
+  public getAvatarHashByUserAddress = (userAddress: string): Promise<string> => {
+    let cachedPromise = this.cachedUserAvatarPromises[userAddress]
+    if (!cachedPromise) {
+      cachedPromise = this.cachedUserAvatarPromises[userAddress] = this._getAvatarHashByUserAddress(userAddress)
+    }
+    return cachedPromise
   }
 
-  public getIdentityByUserAddress = async (userAddress: string): Promise<IUserCachesIdentity> => {
+  public getIdentityByUserAddress = (userAddress: string): Promise<IUserCachesIdentity> => {
+    let cachedPromise = this.cachedUserIdentityPromises[userAddress]
+    if (!cachedPromise) {
+      cachedPromise = this.cachedUserIdentityPromises[userAddress] = this._getIdentityByUserAddress(userAddress)
+    }
+    return cachedPromise
+  }
+
+  public _getIdentityByUserAddress = async (userAddress: string): Promise<IUserCachesIdentity> => {
     const user = await this.userCachesDB.get(this.networkID, userAddress)
     if (user && user.identity) {
       return user.identity
@@ -76,6 +93,11 @@ export class UserCachesStore {
 
     const newUser = await this.userCachesDB.update(userAddress, this.networkID, {identity})
     return newUser.identity!
+  }
+
+  private async _getAvatarHashByUserAddress(userAddress: string) {
+    const identity = await this.getIdentityByUserAddress(userAddress)
+    return sha3(`${userAddress}${identity.blockHash}`)
   }
 
   private get userCachesDB() {
