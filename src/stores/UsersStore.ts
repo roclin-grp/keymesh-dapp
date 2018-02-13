@@ -18,6 +18,12 @@ import {
   IUser,
   USER_STATUS,
 } from './UserStore'
+import {
+  UserCachesStore,
+} from './UserCachesStore'
+import {
+  UserProofsStatesStore,
+} from './UserProofsStatesStore'
 
 import {
   keys,
@@ -35,6 +41,7 @@ import {
 } from '../utils/hex'
 import {
   getPublicKeyFingerPrint,
+  generatePublicKeyFromHexStr,
 } from '../utils/proteus'
 
 import {
@@ -47,8 +54,6 @@ import {
 import { sha3 } from 'trustbase'
 
 import IndexedDBStore from '../IndexedDBStore'
-import { generatePublicKeyFromHexStr } from '../utils/proteus'
-import { UserCachesStore } from './UserCachesStore'
 
 export class UsersStore {
   @observable.ref public users: IUser[] = []
@@ -90,6 +95,7 @@ export class UsersStore {
   }
 
   public userCachesStore: UserCachesStore
+  public userProofsStatesStore: UserProofsStatesStore
 
   constructor({
     metaMaskStore,
@@ -104,6 +110,10 @@ export class UsersStore {
     this.userCachesStore = new UserCachesStore({
       usersStore: this,
       metaMaskStore,
+    })
+    this.userProofsStatesStore = new UserProofsStatesStore({
+      usersStore: this,
+      contractStore: this.contractStore,
     })
 
     reaction(

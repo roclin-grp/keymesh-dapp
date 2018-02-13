@@ -21,7 +21,7 @@ import {
   IStores,
 } from '../../stores'
 
-import { ProfileState } from './ProfileState'
+import { UserProofsStateStore } from '../../stores/UserProofsStateStore'
 import { UsersStore } from '../../stores/UsersStore'
 import { ContractStore } from '../../stores/ContractStore'
 import { SOCIAL_LABELS, SOCIALS } from '../../stores/BoundSocialsStore'
@@ -37,44 +37,67 @@ interface IProps extends RouteComponentProps<IParams> {
   contractStore: ContractStore
   metaMaskStore: MetaMaskStore
   userCachesStore: UserCachesStore
+  proofsStateStore: UserProofsStateStore
 }
 
-@inject(({
+@inject((
+  {
+    usersStore,
+    contractStore,
+    metaMaskStore,
+  }: IStores,
+  {
+    match: {
+      params: {
+        userAddress,
+      },
+    },
+  }: IProps,
+) => ({
   usersStore,
   contractStore,
   metaMaskStore,
-}: IStores) => ({
-  usersStore,
-  contractStore,
-  metaMaskStore,
+  proofsStateStore: usersStore.userProofsStatesStore.getUserProofsStateStore(
+    metaMaskStore.currentEthereumNetwork!, userAddress || usersStore.currentUserStore!.user.userAddress
+  ),
 }))
 
 @observer
 class Profile extends React.Component<IProps> {
-  public data: ProfileState
-
-  constructor(props: IProps) {
-    super(props)
+  private get isSelf() {
     const {
       usersStore,
-      contractStore,
-      match: {
-        params: {
-          userAddress: _userAddress,
-        },
-      },
     } = this.props
+    const {
+      userAddress,
+    } = this.props.match.params
+    const hasParams = typeof userAddress !== 'undefined'
 
-    const userAddress = _userAddress ? _userAddress : usersStore.currentUserStore!.user.userAddress
-    this.data = new ProfileState({ usersStore, contractStore, userAddress})
+    return !hasParams || usersStore.isCurrentUser(
+      this.props.metaMaskStore.currentEthereumNetwork!, userAddress!
+    )
   }
 
   public componentDidMount() {
-    this.data.startFetchingUserProofs()
+    this.proofsStateStoreDidload(this.props.proofsStateStore)
   }
 
   public componentWillUnmount() {
-    this.data.stopFetchingUserProofs()
+    this.proofsStateStoreWillUnload(this.props.proofsStateStore)
+  }
+
+  public componentWillUpdate({proofsStateStore: nextProofsStateStore}: IProps) {
+    const currentProofsStateStore = this.props.proofsStateStore
+    if (nextProofsStateStore !== currentProofsStateStore) {
+      this.proofsStateStoreWillUnload(currentProofsStateStore)
+    }
+  }
+
+  public componentDidUpdate({proofsStateStore: prevProofsStateStore}: IProps) {
+    const currentProofsStateStore = this.props.proofsStateStore
+    if (prevProofsStateStore !== currentProofsStateStore) {
+      this.proofsStateStoreDidload(currentProofsStateStore)
+    }
   }
 
   public render() {
@@ -87,15 +110,15 @@ class Profile extends React.Component<IProps> {
   }
 
   private renderLoadingProofs() {
-    return this.data.isLoadingProofs ? <p>Loading proofs...</p> : null
+    return this.props.proofsStateStore.isLoadingProofs ? <p>Loading proofs...</p> : null
   }
 
   private renderNoSocials() {
     const {
       userBoundSocials: socials,
-      isSelf,
       isLoadingProofs,
-    } = this.data
+    } = this.props.proofsStateStore
+    const {isSelf} = this
 
     if (!socials.facebook && !socials.github && !socials.twitter && !isSelf && !isLoadingProofs) {
       return <p>User haven't bound any socials</p>
@@ -106,13 +129,13 @@ class Profile extends React.Component<IProps> {
   private renderSocials() {
     const {
       userBoundSocials,
-      isSelf,
       verifyStatuses,
       verifyFacebook,
       verifyTwitter,
       verifyGithub,
       isVerifying,
-    } = this.data
+    } = this.props.proofsStateStore
+    const {isSelf} = this
     return <ul className={styles.ul}>
       {this.renderLoadingProofs()}
       {this.renderNoSocials()}
@@ -173,8 +196,22 @@ class Profile extends React.Component<IProps> {
     return <HashAvatar
       shape={avatarShape}
       size={avatarSize}
-      hash={this.data.avatarHash}
+      hash={this.props.proofsStateStore.avatarHash}
     />
+  }
+
+  private proofsStateStoreWillUnload(store: UserProofsStateStore) {
+    if (store.isFetchingUserProofs) {
+      store.stopFetchingUserProofs()
+    }
+  }
+
+  private proofsStateStoreDidload(store: UserProofsStateStore) {
+    if (store.isFetchingUserProofs) {
+      store.stopFetchingUserProofs()
+    }
+    // more frequent than broadcast
+    store.startFetchingUserProofs(5000)
   }
 }
 
