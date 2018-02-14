@@ -95,7 +95,7 @@ export class FacebookProvingState extends ProvingState {
 }
 
 export function getFacebookClaim(signedClaim: ISignedFacebookClaim) {
-  return `Keymail
+  return `Keymesh
 addr: ${signedClaim.claim.userAddress}
 public key: ${signedClaim.claim.publicKey}
 sig: ${signedClaim.signature}`

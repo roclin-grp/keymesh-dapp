@@ -62,7 +62,7 @@ export class UsersDB {
   public async restoreUserFromExportedData(networkId: ETHEREUM_NETWORKS, data: IDumpedDatabases) {
     const user = await this.dexieDB.transaction('rw', this.dexieDB.tables, async () => {
       const oldUsers = await this.getUsers(networkId)
-      await restoreDB(this.dexieDB, data.keymail, () => undefined)
+      await restoreDB(this.dexieDB, data.keymesh, () => undefined)
       const users = await this.getUsers(networkId)
 
       const oldUserAddress = oldUsers.reduce(
@@ -76,7 +76,7 @@ export class UsersDB {
 
       return newUser
     })
-    delete data.keymail
+    delete data.keymesh
 
     await Promise.all(
       Object.keys(data)

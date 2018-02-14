@@ -47,7 +47,7 @@ export class Databases {
   public userCachesDB: UserCachesDB
 
   public constructor() {
-    const dexieDB = this.dexieDB = new Dexie('keymail') as TypeDexieWithTables
+    const dexieDB = this.dexieDB = new Dexie('keymesh') as TypeDexieWithTables
     dexieDB.version(1).stores(SCHEMA_V1)
 
     this.usersDB = new UsersDB(dexieDB, this)
@@ -61,14 +61,14 @@ export class Databases {
   public async dumpDB() {
     const dbs: IDumpedDatabases = {}
 
-    const keymailDB = await dumpDB(this.dexieDB)
+    const keymeshDB = await dumpDB(this.dexieDB)
 
-    const usersTable = keymailDB.find((table) => table.table === TABLE_NAMES.USERS)
+    const usersTable = keymeshDB.find((table) => table.table === TABLE_NAMES.USERS)
     if (typeof usersTable === 'undefined') {
       return dbs
     }
 
-    dbs.keymail = keymailDB
+    dbs.keymesh = keymeshDB
 
     await Promise.all((usersTable.rows as IUser[])
       .map(async (row) => {
@@ -81,13 +81,13 @@ export class Databases {
   }
 
   public async restoreDB(data: IDumpedDatabases) {
-    await restoreDB(this.dexieDB, data.keymail, (tablename: string): string[] | undefined => {
+    await restoreDB(this.dexieDB, data.keymesh, (tablename: string): string[] | undefined => {
       return undefined
     })
 
     return Promise.all(
       Object.keys(data)
-        .filter((dbname) => dbname !== 'keymail')
+        .filter((dbname) => dbname !== 'keymesh')
         .map((dbname) => restoreCryptobox(dbname, data[dbname]))
     )
   }

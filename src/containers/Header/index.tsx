@@ -85,7 +85,7 @@ class Header extends React.Component<IProps, IState> {
               className={styles.logoText}
               to="/"
             >
-              Keymail
+              Keymesh
             </Link>
           </h1>
           <Menu

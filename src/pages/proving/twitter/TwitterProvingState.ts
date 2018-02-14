@@ -81,7 +81,7 @@ export class TwitterProvingState extends ProvingState {
 }
 
 export function getTwitterClaim(signedClaim: ISignedTwitterClaim) {
-  return `Keymail
+  return `Keymesh
 addr: ${signedClaim.claim.userAddress}
 public key: ${signedClaim.claim.publicKey}
 sig: ${signedClaim.signature}`

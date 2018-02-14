@@ -364,14 +364,14 @@ export class UserStore {
     } = getDatabases()
     const data: IDumpedDatabases = {}
     const user = this.user
-    data.keymail = [
+    data.keymesh = [
       { table: 'users', rows: [user], },
       { table: 'sessions', rows: await sessionsDB.getSessions(user)},
       { table: 'messages', rows: await messagesDB.getMessagesOfUser(user)},
     ]
     const cryptobox = await dumpCryptobox(user)
     data[cryptobox.dbname] = cryptobox.tables
-    downloadObjectAsJson(data, `keymail@${user.networkId}@${user.userAddress}`)
+    downloadObjectAsJson(data, `keymesh@${user.networkId}@${user.userAddress}`)
   }
 
   public deleteOutdatedPreKeys = async () => {

@@ -300,7 +300,11 @@ export class UsersStore {
   }
 
   private checkOnChainRegisterRecord = async (userAddress?: string) => {
-    if (typeof userAddress !== 'undefined' && !this.contractStore.isNotAvailable) {
+    if (
+      typeof userAddress !== 'undefined'
+      && this.metaMaskStore.isActive
+      && !this.contractStore.isNotAvailable
+    ) {
       const {
         publicKey,
       } = await this.getIdentityByUserAddress(userAddress)
@@ -382,11 +386,11 @@ function setNetworkLastUsedUserAddress({
   networkId,
   userAddress,
 }: IUser) {
-  localStorage.setItem(`keymail@${networkId}@last-used-user`, userAddress)
+  localStorage.setItem(`keymesh@${networkId}@last-used-user`, userAddress)
 }
 
 function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
-  return (localStorage.getItem(`keymail@${networkId}@last-used-user`) || '').toString()
+  return (localStorage.getItem(`keymesh@${networkId}@last-used-user`) || '').toString()
 }
 
 export enum REGISTER_FAIL_CODE {

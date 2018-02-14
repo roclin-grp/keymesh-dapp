@@ -100,12 +100,12 @@ export function getGithubClaim(signedClaim: ISignedGithubClaim) {
     signature,
   } = signedClaim
   const claimStr = JSON.stringify(claim, undefined, '  ')
-  return `### Keymail proof
+  return `### Keymesh proof
 
 I hereby claim:
 
   * I am ${claim.service.username} on github
-  * I am ${claim.userAddress} on Keymail
+  * I am ${claim.userAddress} on Keymesh
   * I have a public key ${claim.publicKey}
 
 To Claim this, I am signing this object:

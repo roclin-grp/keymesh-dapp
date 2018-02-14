@@ -131,7 +131,7 @@ export enum VERIFY_SOCIAL_STATUS {
   VALID = 200,
 }
 
-export const GITHUB_GIST_FILENAME = 'keymail.md'
+export const GITHUB_GIST_FILENAME = 'keymesh.md'
 
 export async function getGithubClaimByProofURL(url: string): Promise<ISignedGithubClaim | null> {
   const id = /[0-9a-f]+$/.exec(url)

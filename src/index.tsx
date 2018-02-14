@@ -33,7 +33,7 @@ const load = (Component: typeof App) => {
   })()
 
   if (isDevelop) {
-    localStorage.debug = 'keymail:*'
+    localStorage.debug = 'keymesh:*'
   }
 
   render(

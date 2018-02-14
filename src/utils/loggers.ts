@@ -1,7 +1,7 @@
 const logdown = require('logdown')
 
-export const storeLogger: ILogdown = logdown('keymail:store')
-export const uiLogger: ILogdown = logdown('keymail:ui')
+export const storeLogger: ILogdown = logdown('keymesh:store')
+export const uiLogger: ILogdown = logdown('keymesh:ui')
 
 interface ILogdown {
   log: (...info: any[]) => void

@@ -79,7 +79,7 @@ class Profile extends React.Component<IProps> {
   }
 
   public componentDidMount() {
-    this.proofsStateStoreDidload(this.props.proofsStateStore)
+    this.proofsStateStoreDidLoad(this.props.proofsStateStore)
   }
 
   public componentWillUnmount() {
@@ -96,7 +96,7 @@ class Profile extends React.Component<IProps> {
   public componentDidUpdate({proofsStateStore: prevProofsStateStore}: IProps) {
     const currentProofsStateStore = this.props.proofsStateStore
     if (prevProofsStateStore !== currentProofsStateStore) {
-      this.proofsStateStoreDidload(currentProofsStateStore)
+      this.proofsStateStoreDidLoad(currentProofsStateStore)
     }
   }
 
@@ -206,7 +206,7 @@ class Profile extends React.Component<IProps> {
     }
   }
 
-  private proofsStateStoreDidload(store: UserProofsStateStore) {
+  private proofsStateStoreDidLoad(store: UserProofsStateStore) {
     if (store.isFetchingUserProofs) {
       store.stopFetchingUserProofs()
     }

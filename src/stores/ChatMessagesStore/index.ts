@@ -488,7 +488,7 @@ export class ChatMessagesStore {
     const preKeyID = new Uint16Array(concatedBuf.slice(0, PRE_KEY_ID_BYTES_LENGTH).buffer)[0]
     const preKey = await this.indexedDBStore.load_prekey(preKeyID)
 
-    const keymailEnvelope = Envelope.decrypt(
+    const keymeshEnvelope = Envelope.decrypt(
       concatedBuf.slice(PRE_KEY_ID_BYTES_LENGTH),
       preKey
     )
@@ -501,7 +501,7 @@ export class ChatMessagesStore {
       sessionTag,
       isPreKeyMessage,
       messageByteLength,
-    } = keymailEnvelope.header
+    } = keymeshEnvelope.header
 
     proteusEnvelope.mac = mac
     proteusEnvelope._message_enc = (() => {
@@ -510,10 +510,10 @@ export class ChatMessagesStore {
           preKeyID,
           baseKey,
           senderIdentity,
-          keymailEnvelope.cipherMessage
+          keymeshEnvelope.cipherMessage
         ) as any).serialise())
       }
-      return new Uint8Array((keymailEnvelope.cipherMessage as any).serialise())
+      return new Uint8Array((keymeshEnvelope.cipherMessage as any).serialise())
     })()
 
     await this.cryptoBox.session_load(sessionTag).catch((err) => {
