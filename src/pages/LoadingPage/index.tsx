@@ -12,10 +12,10 @@ export default function Loading({
   message,
 }: IProps) {
   return (
-    <>
+    <div className={styles.container}>
       <Icon type="loading" className={styles.iconLoading} />
       <p>{message}</p>
-    </>
+    </div>
   )
 }
 

@@ -13,7 +13,7 @@ function ErrorPage({
   errorStack,
 }: IProps) {
   return (
-    <>
+    <div className={styles.container}>
       <Icon type="close-circle-o" className={styles.iconError} />
       <h1>{message}</h1>
       <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
@@ -21,7 +21,7 @@ function ErrorPage({
         <summary>You can provide those error messages to us</summary>
         <pre>{errorStack}</pre>
       </details>
-    </>
+    </div>
   )
 }
 
