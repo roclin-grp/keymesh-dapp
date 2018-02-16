@@ -1,16 +1,23 @@
 .textArea {
   resize: none;
+  border-radius: 0;
+  border: 0px;
+  border-top-width: 1px;
 }
 
 .textAreaWrapper,
 .submitButtonWrapper {
+  position: relative;
   margin: 0;
 }
 
 .submitButtonWrapper :global .ant-form-item-control {
   display: flex;
+  justify-content: flex-end;
 }
 
 .submitButton {
-  margin: 0.5rem auto;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
 }
