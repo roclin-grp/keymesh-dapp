@@ -83,7 +83,6 @@ class Header extends React.Component<IProps, IState> {
             <Link
               tabIndex={0}
               className={styles.logoText}
-              onClick={() => this.setState({ selectedNav: '/discover' })}
               to="/"
             >
               Keymesh
@@ -366,8 +365,8 @@ const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
 })
 
 const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
-  [METAMASK_CONNECT_STATUS.ACTIVE]: 'Active',
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'No account',
+  [METAMASK_CONNECT_STATUS.ACTIVE]: 'MetaMask Active',
+  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'MetaMask Locked',
 })
 
 // typing
