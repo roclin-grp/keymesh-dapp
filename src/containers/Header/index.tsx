@@ -19,7 +19,7 @@ import HashAvatar from '../../components/HashAvatar'
 import UserAddress from '../../components/UserAddress'
 
 // style
-import * as classnames from 'classnames'
+import * as   classnames from 'classnames'
 import * as styles from './index.css'
 
 // state management
@@ -98,15 +98,17 @@ class Header extends React.Component<IProps, IState> {
           >
             <Menu.Item key="/discover">
               <Link to="/discover" className={styles.menuItem}>
-                <Icon type="bulb" className={styles.menuIcon} />Discover
+                <Icon type="bulb" className={styles.menuIcon} />
+                Discover
               </Link>
             </Menu.Item>
             {
               this.injectedProps.usersStore.hasUser
                 ? <Menu.Item key="/messages">
                   <Link to="/messages" className={styles.menuItem}>
-                    <Icon type="message" className={styles.menuIcon} />Messages
-                    </Link>
+                    <Icon type="message" className={styles.menuIcon} />
+                    Messages
+                  </Link>
                 </Menu.Item>
                 : null
             }

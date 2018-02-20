@@ -1,9 +1,10 @@
+import 'antd/dist/antd.css'
+
 import 'font-awesome/css/font-awesome.css'
 import './global.css'
 
 import * as React from 'react'
 import { render } from 'react-dom'
-import { AppContainer } from 'react-hot-loader'
 
 import { Provider } from 'mobx-react'
 
@@ -17,7 +18,7 @@ const isDevelop = process.env.NODE_ENV === 'development'
 
 const windowWithStore = window as TypeWindowWithStore
 
-const load = (Component: typeof App) => {
+const renderApp = () => {
   const stores = (() => {
     if (isDevelop) {
       const oldStores = windowWithStore.__STORE
@@ -37,22 +38,17 @@ const load = (Component: typeof App) => {
   }
 
   render(
-    <AppContainer>
-      <Provider {...stores}>
-        <Component />
-      </Provider>
-    </AppContainer>,
+    <Provider {...stores}>
+      <App />
+    </Provider>,
     document.getElementById('root'),
   )
 }
 
-const moduleWithHotReload = module as TypeNodeModuleWithHotReload
-
-if (moduleWithHotReload.hot) {
-  moduleWithHotReload.hot.accept(() => load(App))
+if (module.hot) {
+  module.hot.accept(renderApp)
 }
 
-load(App)
+window.addEventListener("load", renderApp)
 
-type TypeWindowWithStore = Window & {__STORE: IStores}
-type TypeNodeModuleWithHotReload = NodeModule & {hot?: {accept: (cb: () => void) => void}}
+type TypeWindowWithStore = Window & { __STORE: IStores }
