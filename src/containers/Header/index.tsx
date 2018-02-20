@@ -19,7 +19,7 @@ import HashAvatar from '../../components/HashAvatar'
 import UserAddress from '../../components/UserAddress'
 
 // style
-import * as   classnames from 'classnames'
+import * as classnames from 'classnames'
 import * as styles from './index.css'
 
 // state management
