@@ -48,6 +48,7 @@
     "react-hot-loader": "^3.1.3",
     "react-router-dom": "^4.2.2",
     "trustbase": "^0.0.17",
+    "web3": "^1.0.0-beta.30",
     "wire-webapp-cbor": "^2.1.5",
     "wire-webapp-cryptobox": "^6.2.0",
     "wire-webapp-proteus": "^5.2.0"
