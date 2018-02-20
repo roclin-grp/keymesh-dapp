@@ -1,58 +1,33 @@
+import 'antd/dist/antd.css'
+
 import 'font-awesome/css/font-awesome.css'
 import './global.css'
 
 import * as React from 'react'
 import { render } from 'react-dom'
-import { AppContainer } from 'react-hot-loader'
 
 import { Provider } from 'mobx-react'
 
-import {
-  createStores,
-  IStores,
-} from './stores'
+import { initStores } from './initStores'
 import App from './App'
 
-const isDevelop = process.env.NODE_ENV === 'development'
-
-const windowWithStore = window as TypeWindowWithStore
-
-const load = (Component: typeof App) => {
-  const stores = (() => {
-    if (isDevelop) {
-      const oldStores = windowWithStore.__STORE
-      if (oldStores) {
-        return oldStores
-      }
-    }
-    const newStores = createStores()
-    if (isDevelop) {
-      windowWithStore.__STORE = newStores
-    }
-    return newStores
-  })()
-
-  if (isDevelop) {
+function renderApp() {
+  if (process.env.NODE_ENV === 'development') {
     localStorage.debug = 'keymesh:*'
   }
 
+  const stores = initStores()
+
   render(
-    <AppContainer>
-      <Provider {...stores}>
-        <Component />
-      </Provider>
-    </AppContainer>,
+    <Provider {...stores}>
+      <App />
+    </Provider>,
     document.getElementById('root'),
   )
 }
 
-const moduleWithHotReload = module as TypeNodeModuleWithHotReload
-
-if (moduleWithHotReload.hot) {
-  moduleWithHotReload.hot.accept(() => load(App))
+if (module.hot) {
+  module.hot.accept(renderApp)
 }
 
-load(App)
-
-type TypeWindowWithStore = Window & {__STORE: IStores}
-type TypeNodeModuleWithHotReload = NodeModule & {hot?: {accept: (cb: () => void) => void}}
+window.addEventListener('load', renderApp)
