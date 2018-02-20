@@ -2,15 +2,17 @@ import {
   observable,
   computed,
   action,
+  runInAction,
 } from 'mobx'
 
 import {
-  initialize,
-  getWeb3,
-  TrustbaseError,
+  setWeb3 as setTrustbaseWeb3,
 } from 'trustbase'
+
+import * as Web3 from 'web3'
+
 import {
-  Web3,
+  Web3 as Web3Instance,
   JsonRPCRequest,
   JsonRPCResponse,
 } from 'trustbase/typings/web3.d'
@@ -18,6 +20,14 @@ import {
 import {
   storeLogger,
 } from '../utils/loggers'
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setInterval(() => {
+      resolve()
+    }, ms)
+  })
+}
 
 export class MetaMaskStore {
   @observable public connectStatus: METAMASK_CONNECT_STATUS = METAMASK_CONNECT_STATUS.PENDING
@@ -55,9 +65,7 @@ export class MetaMaskStore {
     this.connect()
   }
 
-  private web3: Web3
-  private detectEthereumAccountChangeTimeout: number
-  private detectEthereumNetworkChangeTimeout: number
+  private web3: Web3Instance
 
   public getBlockHash = (blockNumber: number) => {
     return this.web3.eth.getBlock(blockNumber)
@@ -77,129 +85,92 @@ export class MetaMaskStore {
     return this.web3.eth.getTransactionReceipt(transactionHash)
   }
 
-  private connect = () => {
-    const metaMasksWeb3 = (window as Window & {web3?: {currentProvider: IAsyncProvider}}).web3
-    const provider = typeof metaMasksWeb3 !== 'undefined' ? metaMasksWeb3.currentProvider : undefined
-
-    if (typeof provider === 'undefined') {
-      this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.NO_METAMASK)
-      return Promise.resolve()
+  private getMetaMaskProvider(): IAsyncProvider | null {
+    const win = window as any
+    if (!win.web3) {
+      return null
     }
 
-    const setWeb3AndGetNetworkId = async () => {
-      const web3 = this.web3 = getWeb3()
-      const currentNetworkId: ETHEREUM_NETWORKS = await web3.eth.net.getId()
-      return currentNetworkId
+    if (win.web3.currentProvider.isMetaMask) {
+      return win.web3.currentProvider
     }
 
-    return initialize({ provider })
-      .then(async () => {
-        const currentNetworkId = await setWeb3AndGetNetworkId()
-        this.processConnectSuccess(currentNetworkId)
-      })
-      .catch(async (err: Error) => {
-        const isLocked = (err as TrustbaseError).code === TrustbaseError.CODE.FOUND_NO_ACCOUNT
-        if (isLocked) {
-          const currentNetworkId = await setWeb3AndGetNetworkId()
-          this.setCurrentEthereumNetworkId(currentNetworkId)
-
-          this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.LOCKED)
-        } else {
-          storeLogger.error(err)
-          this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.UNKNOWN, err)
-        }
-      })
+    return null
   }
 
-  private listenForEthereumAccountChange = async () => {
-    window.clearTimeout(this.detectEthereumAccountChangeTimeout)
+  @action
+  private async connect() {
+    const provider = this.getMetaMaskProvider()
 
-    const { web3 } = this
-    const accounts: string[] = await web3.eth.getAccounts()
-    const hasWalletAccount = accounts.length > 0
+    if (provider == null) {
+      this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.NO_METAMASK
+      return
+    }
 
-    if (hasWalletAccount) {
-      const isAccountChanged = this.currentEthereumAccount !== accounts[0]
+    this.web3 = new Web3(provider as any)
+    setTrustbaseWeb3(this.web3)
+    this.startStatusPoll()
+  }
 
-      if (isAccountChanged) {
-        this.setCurrentEthereumAccount(accounts[0])
-      } else if (this.isLocked) {
-        return this.processConnectSuccess(this.currentEthereumNetwork!)
+  /**
+   * Update MetaMask status at regular intervals
+   */
+  private async startStatusPoll() {
+    while (true) {
+      this.updateStatus()
+      await sleep(300)
+    }
+  }
+
+  @action
+  private async updateStatus() {
+    const {
+      networkID,
+      account,
+    } = await this.getMetamaskInfo()
+
+    if (this.currentEthereumAccount === account && this.currentEthereumNetwork === networkID) {
+      // nothing changed
+      return
+    }
+
+    runInAction(() => {
+      this.currentEthereumAccount = undefined
+      this.currentEthereumNetwork = undefined
+
+      delete this.connectFailCode
+      delete this.connectError
+
+      if (account && networkID) {
+        // metamask is available and unlocked
+        this.currentEthereumAccount = account
+        this.currentEthereumNetwork = networkID
+        this.web3.eth.defaultAccount = account
+        this.connectStatus = METAMASK_CONNECT_STATUS.ACTIVE
+        return
       }
-    } else if (!this.isLocked) {
-      return this.processConnectFail(METAMASK_CONNECT_FAIL_CODE.LOCKED)
-    }
 
-    this.detectEthereumAccountChangeTimeout =
-      window.setTimeout(this.listenForEthereumAccountChange, DETECT_ACCOUNT_INTERVAL)
-  }
+      // FIXME: when does this occur?
+      this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
 
-  private listenForEthereumNetworkChange = async () => {
-    window.clearTimeout(this.detectEthereumNetworkChangeTimeout)
-
-    const { web3 } = this
-    const currentNetworkId: ETHEREUM_NETWORKS = await web3.eth.net.getId()
-    const isEthereumNetworkChange = this.currentEthereumNetwork !== currentNetworkId
-
-    if (isEthereumNetworkChange) {
-      if (this.isLocked) {
-        this.setCurrentEthereumNetworkId(currentNetworkId)
-      } else {
-        return this.processConnectSuccess(currentNetworkId)
+      if (!account && networkID) {
+        this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.LOCKED
+        return
       }
+    })
+  }
+
+  private async getMetamaskInfo() {
+    const networkID: ETHEREUM_NETWORKS = await this.web3.eth.net.getId()
+    const accounts = await this.web3.eth.getAccounts()
+    const account = accounts[0]
+
+    return {
+      networkID,
+      account,
     }
-
-    this.detectEthereumNetworkChangeTimeout =
-      window.setTimeout(this.listenForEthereumNetworkChange, DETECT_NETWORK_INTERVAL)
-  }
-
-  @action
-  private processConnectSuccess = (networkId: ETHEREUM_NETWORKS) => {
-    delete this.connectFailCode
-    delete this.connectError
-
-    this.connectStatus = METAMASK_CONNECT_STATUS.ACTIVE
-    this.currentEthereumNetwork = networkId
-    this.currentEthereumAccount = this.web3.eth.defaultAccount
-
-    this.detectEthereumAccountChangeTimeout =
-      window.setTimeout(this.listenForEthereumAccountChange, DETECT_ACCOUNT_INTERVAL)
-    this.detectEthereumNetworkChangeTimeout =
-      window.setTimeout(this.listenForEthereumNetworkChange, DETECT_NETWORK_INTERVAL)
-  }
-
-  @action
-  private processConnectFail = (
-    failCode: METAMASK_CONNECT_FAIL_CODE,
-    err?: Error
-  ) => {
-    if (failCode === METAMASK_CONNECT_FAIL_CODE.LOCKED) {
-      // listen for unlock
-      this.detectEthereumAccountChangeTimeout =
-        window.setTimeout(this.listenForEthereumAccountChange, DETECT_ACCOUNT_INTERVAL)
-    } else {
-      delete this.currentEthereumNetwork
-    }
-    delete this.currentEthereumAccount
-
-    this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
-    this.connectFailCode = failCode
-    this.connectError = err
-  }
-
-  @action
-  private setCurrentEthereumNetworkId = (networkId: ETHEREUM_NETWORKS) => {
-    this.currentEthereumNetwork = networkId
-  }
-
-  @action
-  private setCurrentEthereumAccount = (address: string) => {
-    this.currentEthereumAccount = this.web3.eth.defaultAccount = address
   }
 }
-
-const DETECT_ACCOUNT_INTERVAL = 300 // 0.3 sec
-const DETECT_NETWORK_INTERVAL = 300 // 0.3 sec
 
 interface IAsyncProvider {
   sendAsync(payload: JsonRPCRequest, callback: (e: Error, val: JsonRPCResponse) => void): void
