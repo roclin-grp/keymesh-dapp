@@ -258,11 +258,12 @@ export class UsersStore {
     const primaryKey = `${user.networkId}${user.userAddress}`
     let store = this.cachedUserStores[primaryKey]
     if (typeof store === 'undefined') {
-      store = new UserStore(user, {
-        metaMaskStore: this.metaMaskStore,
-        contractStore: this.contractStore,
-        usersStore: this,
-      })
+      store = new UserStore(
+        user,
+        this.metaMaskStore,
+        this.contractStore,
+        this,
+      )
       this.cachedUserStores[primaryKey] = store
     }
     return store

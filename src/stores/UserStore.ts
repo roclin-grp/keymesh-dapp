@@ -93,9 +93,7 @@ export class UserStore {
 
   private userRef: IUser
   private usersDB: UsersDB
-  private metaMaskStore: MetaMaskStore
-  private contractStore: ContractStore
-  private usersStore: UsersStore
+
   private indexedDBStore: IndexedDBStore
   private cryptoBox: Cryptobox
 
@@ -113,20 +111,14 @@ export class UserStore {
     )
   }
 
-  constructor(user: IUser, {
-    metaMaskStore,
-    contractStore,
-    usersStore,
-  }: {
-      metaMaskStore: MetaMaskStore
-      contractStore: ContractStore
-      usersStore: UsersStore,
-    }) {
+  constructor(
+    user: IUser,
+    private metaMaskStore: MetaMaskStore,
+    private contractStore: ContractStore,
+    private usersStore: UsersStore,
+  ) {
     this.user = this.userRef = user
     this.usersDB = getDatabases().usersDB
-    this.metaMaskStore = metaMaskStore
-    this.contractStore = contractStore
-    this.usersStore = usersStore
 
     const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${user.networkId}@${user.userAddress}`)
     const cryptoBox = this.cryptoBox = new Cryptobox(indexedDBStore as any, 0)
