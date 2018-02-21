@@ -81,7 +81,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
     }
   }
 
-  render() {
+  public render() {
     const { message } = this.props
     const userAddress = message.author!
     const messageStatus = message.status!

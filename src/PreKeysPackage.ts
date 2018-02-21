@@ -53,7 +53,7 @@ export class PreKeysPackage {
   constructor(
     public preKeyPublicKeys: IPreKeyPublicKeyFingerprints,
     public interval: number,
-    public lastPrekeyDate: number
+    public lastPrekeyDate: number,
   ) {
     this.interval = interval
     this.lastPrekeyDate = lastPrekeyDate

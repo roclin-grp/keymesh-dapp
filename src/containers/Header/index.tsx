@@ -138,7 +138,7 @@ class Header extends React.Component<IProps, IState> {
             <span
               className={classnames(
                 styles.networkIndicator,
-                CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES[connectStatus]
+                CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES[connectStatus],
               )}
             />
           </span>
@@ -322,7 +322,7 @@ class Header extends React.Component<IProps, IState> {
   private handleSelectUser = (user: IUser) => {
     window.setTimeout(
       () => this.injectedProps.usersStore.useUser(user),
-      300
+      300,
     )
   }
 

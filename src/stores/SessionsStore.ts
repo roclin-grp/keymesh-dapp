@@ -35,7 +35,7 @@ export class SessionsStore {
   constructor({
     userStore,
   }: {
-    userStore: UserStore
+    userStore: UserStore,
   }) {
     this.userStore = userStore
     this.sessionsDB = getDatabases().sessionsDB
@@ -44,7 +44,7 @@ export class SessionsStore {
   private sessionsDB: SessionsDB
   private userStore: UserStore
   private cachedSessionStores: {
-    [primaryKey: string]: SessionStore
+    [primaryKey: string]: SessionStore,
   } = {}
 
   public isCurrentSession = (userAddress: string, sessionTag: string) => {
@@ -78,7 +78,7 @@ export class SessionsStore {
 
     const session = await this.sessionsDB.createSession(
       user,
-      args
+      args,
     )
     this.addSession(session)
     return session
@@ -131,7 +131,7 @@ export class SessionsStore {
   @action
   private removeSession = (session: ISession) => {
     const remainSessions = this.sessions = this.sessions.filter(
-      (_session) => session.sessionTag !== _session.sessionTag
+      (_session) => session.sessionTag !== _session.sessionTag,
     )
 
     if (this.isCurrentSession(session.userAddress, session.sessionTag)) {

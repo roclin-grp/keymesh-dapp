@@ -17,7 +17,7 @@ const CRYPTOBOX_SCHEMA = Object.freeze({
 export async function dumpCryptobox({
   networkId,
   userAddress,
-}: IUser
+}: IUser,
 ) {
   const dbname = `cryptobox@${networkId}@${userAddress}`
   const db = new Dexie(dbname)
@@ -60,8 +60,8 @@ export function dumpDB(db: Dexie) {
             return row
           })
           return { table: table.name, rows }
-        })
-      )
+        }),
+      ),
     )
   })
 }

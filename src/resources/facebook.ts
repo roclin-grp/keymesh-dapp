@@ -7,7 +7,7 @@ interface IPost {
 }
 
 export class FacebookResource {
-  static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
+  public static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -17,12 +17,12 @@ export class FacebookResource {
 
     return fetch(url, fetchOptions)
       .then((resp) => resp.json())
-      .then(respBody => {
+      .then((respBody) => {
         return respBody.data ? respBody.data : []
       })
   }
 
-  static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim | null> {
+  public static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim | null> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',

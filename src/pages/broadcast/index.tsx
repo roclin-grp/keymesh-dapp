@@ -63,7 +63,7 @@ class Broadcast extends React.Component<IProps> {
           userCachesStore={this.props.usersStore.userCachesStore}
           userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(
             this.props.metaMaskStore.currentEthereumNetwork!,
-            message.author!
+            message.author!,
           )}
           message={message}
         />

@@ -110,10 +110,10 @@ export class UserStore {
     contractStore,
     usersStore,
   }: {
-    metaMaskStore: MetaMaskStore
-    contractStore: ContractStore
-    usersStore: UsersStore
-  }) {
+      metaMaskStore: MetaMaskStore
+      contractStore: ContractStore
+      usersStore: UsersStore,
+    }) {
     this.user = this.userRef = user
     this.usersDB = getDatabases().usersDB
     this.metaMaskStore = metaMaskStore
@@ -196,9 +196,9 @@ export class UserStore {
       identityDidUpload = noop,
       registerDidFail = noop,
       checkingDidFail = noop,
-    }: ICheckIdentityUploadStatusLifecycle = {}
+    }: ICheckIdentityUploadStatusLifecycle = {},
   ) => {
-    const {user} = this
+    const { user } = this
     if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
       return identityDidUpload()
     }
@@ -229,7 +229,7 @@ export class UserStore {
               await this.updateUser(
                 {
                   status: USER_STATUS.FAIL,
-                }
+                },
               )
               return registerDidFail(REGISTER_FAIL_CODE.TRANSACTION_ERROR)
             }
@@ -242,7 +242,7 @@ export class UserStore {
               // we have receipt but found no identity,
               // set confirmationCounter to 0 and retry
               window.setTimeout(
-                waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1
+                waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1,
               )
               return
             }
@@ -253,7 +253,7 @@ export class UserStore {
                 // no blockHash? just retry.
                 const retryTimeOut = 1000
                 window.setTimeout(
-                  waitForTransactionReceipt, retryTimeOut, blockCounter, confirmationCounter
+                  waitForTransactionReceipt, retryTimeOut, blockCounter, confirmationCounter,
                 )
                 return
               }
@@ -261,7 +261,7 @@ export class UserStore {
                 {
                   blockHash,
                   status: USER_STATUS.IDENTITY_UPLOADED,
-                }
+                },
               )
               identityDidUpload()
             } else {
@@ -305,7 +305,7 @@ export class UserStore {
       preKeysDidUpload = noop,
       preKeysUploadDidFail = noop,
       isRegister = false,
-    }: IUploadPreKeysOptions = {}
+    }: IUploadPreKeysOptions = {},
   ) => {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
@@ -314,7 +314,7 @@ export class UserStore {
       (result, preKey) => Object.assign(result, {
         [preKey.key_id]: getPublicKeyFingerPrint(preKey.key_pair.public_key),
       }),
-      {}
+      {},
     )
 
     // use last pre-key as lastResortPrekey (id: 65535/0xFFFF)
@@ -334,7 +334,7 @@ export class UserStore {
         method: 'PUT',
         mode: 'cors',
         body: `${serializedPrekeys} ${prekeysSignature}`,
-      }
+      },
     )
 
     if (resp.status === 201) {
@@ -365,9 +365,9 @@ export class UserStore {
     const data: IDumpedDatabases = {}
     const user = this.user
     data.keymesh = [
-      { table: 'users', rows: [user], },
-      { table: 'sessions', rows: await sessionsDB.getSessions(user)},
-      { table: 'messages', rows: await messagesDB.getMessagesOfUser(user)},
+      { table: 'users', rows: [user] },
+      { table: 'sessions', rows: await sessionsDB.getSessions(user) },
+      { table: 'messages', rows: await messagesDB.getMessagesOfUser(user) },
     ]
     const cryptobox = await dumpCryptobox(user)
     data[cryptobox.dbname] = cryptobox.tables
@@ -392,7 +392,7 @@ export class UserStore {
   private updateUser = async (args: IUpdateUserOptions) => {
     await this.usersDB.updateUser(
       this.user,
-      args
+      args,
     )
     this.updateMemoryUser(args)
   }

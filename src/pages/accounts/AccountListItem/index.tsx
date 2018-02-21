@@ -380,7 +380,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   }
 }
 
-function mapStoreToProps (
+function mapStoreToProps(
   {
     metaMaskStore,
     usersStore,
@@ -423,7 +423,7 @@ const REGISTER_STATUS_SUMMARY_TEXT = Object.freeze({
   [REGISTER_STATUS.OCCUPIED]: 'Be occupied',
   [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction error',
 }) as {
-  [status: number]: string
+  [status: number]: string,
 }
 
 const REGISTER_STATUS_ICON_TYPE = Object.freeze({
@@ -437,7 +437,7 @@ const REGISTER_STATUS_ICON_TYPE = Object.freeze({
   [REGISTER_STATUS.OCCUPIED]: 'close-circle-o',
   [REGISTER_STATUS.TRANSACTION_ERROR]: 'close-circle-o',
 }) as {
-  [status: number]: string
+  [status: number]: string,
 }
 
 // typing

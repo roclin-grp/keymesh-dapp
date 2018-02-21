@@ -76,8 +76,8 @@ class NewConversationDialog extends React.Component<IProps, IState> {
                     ? <Icon type="close-circle" onClick={this.resetUserAddress} />
                     : null
                 }
-                ref={node => this.userAddressInput = node}
-              />
+                ref={(node) => this.userAddressInput = node}
+              />,
             )}
           </FormItem>
         </Form>
@@ -110,7 +110,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
               messageDidCreate: this.messageDidCreate,
               sendingDidFail: this.sendingDidFail,
               plainText,
-            }
+            },
           ).catch(this.sendingDidFail)
         } else {
           this.resetUserAddress()
@@ -174,7 +174,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   private validUserAddress = (
     _: Object,
     userAddress: string | undefined,
-    done: (isValid?: boolean) => void
+    done: (isValid?: boolean) => void,
   ) => {
     if (
       typeof userAddress !== 'undefined'

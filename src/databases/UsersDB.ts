@@ -24,7 +24,7 @@ export class UsersDB {
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users
-      .where(Object.assign({networkId}, status === undefined ? null : {status}))
+      .where(Object.assign({ networkId }, status === undefined ? null : { status }))
       .toArray()
   }
 
@@ -36,7 +36,7 @@ export class UsersDB {
     } = this.dexieDB
     return this.dexieDB.transaction('rw', users, sessions, messages, () => {
       return users
-        .where({networkId})
+        .where({ networkId })
         .each((user) => this.deleteUser(user))
     })
   }
@@ -54,7 +54,7 @@ export class UsersDB {
           lastFetchBlockOfChatMessages: 0,
           contacts: [],
         },
-        user
+        user,
       ))
       .then((primaryKeys) => users.get(primaryKeys)) as Dexie.Promise<IUser>
   }
@@ -67,7 +67,7 @@ export class UsersDB {
 
       const oldUserAddress = oldUsers.reduce(
         (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
-        {} as {[userAddress: string]: boolean}
+        {} as { [userAddress: string]: boolean },
       )
       const newUser = users.find((_user) => !oldUserAddress[_user.userAddress])
       if (typeof newUser === 'undefined') {
@@ -80,7 +80,7 @@ export class UsersDB {
 
     await Promise.all(
       Object.keys(data)
-        .map((dbname) => restoreCryptobox(dbname, data[dbname]))
+        .map((dbname) => restoreCryptobox(dbname, data[dbname])),
     )
 
     return user
@@ -96,7 +96,7 @@ export class UsersDB {
       networkId,
       userAddress,
     }: IUser,
-    updateOptions: IUpdateUserOptions = {}
+    updateOptions: IUpdateUserOptions = {},
   ) {
     const {
       users,
@@ -115,7 +115,7 @@ export class UsersDB {
       user,
       {
         contacts: user.contacts.concat(contact),
-      }
+      },
     )
   }
 
@@ -128,7 +128,7 @@ export class UsersDB {
       user,
       {
         contacts: user.contacts.filter((_contact) => _contact.userAddress !== contact.userAddress),
-      }
+      },
     )
   }
 

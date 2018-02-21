@@ -94,7 +94,7 @@ export class Envelope {
     return Envelope.deserialize(cryptoBoxSealOpen(
       envelopeBuf,
       preKey.key_pair.public_key.pub_curve,
-      preKey.key_pair.secret_key.sec_curve
+      preKey.key_pair.secret_key.sec_curve,
     ).buffer as ArrayBuffer)
   }
 
@@ -104,7 +104,7 @@ export class Envelope {
   public encrypt(preKeyID: number, preKeyPublicKey: keys.PublicKey) {
     const envelopeBuf = Buffer.from(cryptoBoxSeal(
       new Uint8Array(this.serialise()), // binary represent
-      preKeyPublicKey.pub_curve
+      preKeyPublicKey.pub_curve,
     ))
     // prepend the pre-key ID
     const preKeyIDBuf = Buffer.from(Uint16Array.from([preKeyID]).buffer as ArrayBuffer)

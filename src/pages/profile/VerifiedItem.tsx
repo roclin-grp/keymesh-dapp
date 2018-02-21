@@ -59,7 +59,7 @@ export class VerifiedItem extends React.Component<IProps> {
 
   private getStatusIconParams(): {
     type: string
-    className: string
+    className: string,
   } {
     const { verifyStatus, isVerifying } = this.props
 

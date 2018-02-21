@@ -100,7 +100,7 @@ class Dialog extends React.Component<IProps, IState> {
           sendingDidFail: this.sendingDidFail,
           plainText,
           sessionTag: this.props.sessionStore.session.sessionTag,
-        }
+        },
       ).catch(this.sendingDidFail)
     }
   }

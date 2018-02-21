@@ -22,7 +22,7 @@ function HashAvatar({size = 'default', hash, shape = 'square', className}: IProp
   const sizePx = SIZE_PX[size]
   const avatar = hasNotHash ? undefined : `data:image/svg+xml;base64,${(new Identicon(
     hash,
-    { size: sizePx, format: 'svg', margin: 0.1 }
+    { size: sizePx, format: 'svg', margin: 0.1 },
   ).toString())}`
   return (
     <Avatar

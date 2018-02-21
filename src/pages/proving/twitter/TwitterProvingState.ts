@@ -20,7 +20,7 @@ export class TwitterProvingState extends ProvingState {
 
   private readonly twitterResource = new TwitterResource(
       process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
-      process.env.REACT_APP_TWITTER_SECRET_KEY!
+      process.env.REACT_APP_TWITTER_SECRET_KEY!,
     )
 
   protected init() {
@@ -74,7 +74,7 @@ export class TwitterProvingState extends ProvingState {
     }
     const signature = this.usersStore.currentUserStore!.sign(JSON.stringify(claim))
     return {
-      claim: claim,
+      claim,
       signature,
     }
   }

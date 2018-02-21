@@ -51,15 +51,64 @@ import {
   UsersDB,
   ICreateUserArgs,
 } from '../databases/UsersDB'
-import { sha3 } from 'trustbase'
+import Web3 from 'web3'
+
+import { sha3 } from '../cryptos'
 
 import IndexedDBStore from '../IndexedDBStore'
 
 export class UsersStore {
+  public static getAvatarHashByUser(user: IUser): string {
+    switch (user.status) {
+      case USER_STATUS.OK:
+      case USER_STATUS.IDENTITY_UPLOADED:
+        return sha3(`${user.userAddress}${user.blockHash}`)
+      default:
+        return ''
+    }
+  }
+
   @observable.ref public users: IUser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
   @observable public isLoadingUsers = true
   @observable public hasRegisterRecordOnChain = false
+
+  public userCachesStore: UserCachesStore
+  public userProofsStatesStore: UserProofsStatesStore
+
+  constructor(
+    private metaMaskStore: MetaMaskStore,
+    private contractStore: ContractStore,
+  ) {
+    this.usersDB = getDatabases().usersDB
+    this.userCachesStore = new UserCachesStore({
+      usersStore: this,
+      metaMaskStore,
+    })
+    this.userProofsStatesStore = new UserProofsStatesStore({
+      usersStore: this,
+      contractStore: this.contractStore,
+    })
+
+    reaction(
+      () => this.metaMaskStore.currentEthereumAccount,
+      this.checkOnChainRegisterRecord,
+    )
+
+    reaction(
+      () => ({
+        isActive: this.metaMaskStore.isActive,
+        networkId: this.metaMaskStore.currentEthereumNetwork,
+      }),
+      this.reloadUsersIfNetworkChanged,
+    )
+  }
+
+  private usersDB: UsersDB
+  private lastNetworkId: ETHEREUM_NETWORKS | undefined
+  private cachedUserStores: {
+    [primaryKey: string]: UserStore,
+  } = {}
 
   @computed
   public get usableUsers() {
@@ -92,60 +141,6 @@ export class UsersStore {
     } = this.metaMaskStore
     return isActive
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) !== -1)
-  }
-
-  public userCachesStore: UserCachesStore
-  public userProofsStatesStore: UserProofsStatesStore
-
-  constructor({
-    metaMaskStore,
-    contractStore,
-  }: {
-    metaMaskStore: MetaMaskStore
-    contractStore: ContractStore
-  }) {
-    this.usersDB = getDatabases().usersDB
-    this.metaMaskStore = metaMaskStore
-    this.contractStore = contractStore
-    this.userCachesStore = new UserCachesStore({
-      usersStore: this,
-      metaMaskStore,
-    })
-    this.userProofsStatesStore = new UserProofsStatesStore({
-      usersStore: this,
-      contractStore: this.contractStore,
-    })
-
-    reaction(
-      () => this.metaMaskStore.currentEthereumAccount,
-      this.checkOnChainRegisterRecord
-    )
-
-    reaction(
-      () => ({
-        isActive: this.metaMaskStore.isActive,
-        networkId: this.metaMaskStore.currentEthereumNetwork,
-      }),
-      this.reloadUsersIfNetworkChanged
-    )
-  }
-
-  private usersDB: UsersDB
-  private metaMaskStore: MetaMaskStore
-  private contractStore: ContractStore
-  private lastNetworkId: ETHEREUM_NETWORKS | undefined
-  private cachedUserStores: {
-    [primaryKey: string]: UserStore
-  } = {}
-
-  public static getAvatarHashByUser(user: IUser): string {
-    switch (user.status) {
-      case USER_STATUS.OK:
-      case USER_STATUS.IDENTITY_UPLOADED:
-        return sha3(`${user.userAddress}${user.blockHash}`)
-      default:
-        return ''
-    }
   }
 
   public async getUserPublicKey(userAddress: string) {
@@ -210,7 +205,7 @@ export class UsersStore {
               networkId: ethereumNetworkId,
               userAddress: ethereumAddress,
               identityTransactionHash: transactionHash,
-            }
+            },
           )
           userDidCreate(user)
         } catch (err) {
@@ -232,7 +227,7 @@ export class UsersStore {
   }
 
   public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
-    const {usersDB} = this
+    const { usersDB } = this
     const user = await usersDB.getUser(networkId, userAddress)
     if (typeof user !== 'undefined') {
       await usersDB.deleteUser(user)
@@ -245,7 +240,7 @@ export class UsersStore {
   public importUser = async (stringifyData: string) => {
     const user = await this.usersDB.restoreUserFromExportedData(
       this.metaMaskStore.currentEthereumNetwork!,
-      JSON.parse(stringifyData)
+      JSON.parse(stringifyData),
     )
     runInAction(() => {
       this.addUser(user)
@@ -321,9 +316,9 @@ export class UsersStore {
     networkId,
     isActive,
   }: {
-    networkId: ETHEREUM_NETWORKS | undefined,
-    isActive: Boolean,
-  }) => {
+      networkId: ETHEREUM_NETWORKS | undefined,
+      isActive: boolean,
+    }) => {
     if (
       isActive
       && this.lastNetworkId !== networkId

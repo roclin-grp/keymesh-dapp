@@ -58,7 +58,7 @@ export class TwitterResource {
   }
 
   public getUserTimeline = async (
-    username: string
+    username: string,
   ): Promise<ITweet[]> => {
     const uri = `/1.1/statuses/user_timeline.json?screen_name=${username}&exclude_replies=true&tweet_mode=extended`
 
@@ -84,7 +84,7 @@ export class TwitterResource {
         const json = resp.json()
         return json
       })
-      .then(oauth2 => {
+      .then((oauth2) => {
         this.accessToken = oauth2.access_token
       })
   }
@@ -99,7 +99,7 @@ export class TwitterResource {
     return await fetch(timelineURL, {
       method: 'GET',
       headers: {
-        'Authorization': 'Bearer ' + this.accessToken,
+        Authorization: 'Bearer ' + this.accessToken,
       },
     }).then((resp) => resp.json())
   }

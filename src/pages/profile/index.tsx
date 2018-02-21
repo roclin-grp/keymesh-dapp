@@ -58,7 +58,7 @@ interface IProps extends RouteComponentProps<IParams> {
   contractStore,
   metaMaskStore,
   proofsStateStore: usersStore.userProofsStatesStore.getUserProofsStateStore(
-    metaMaskStore.currentEthereumNetwork!, userAddress || usersStore.currentUserStore!.user.userAddress
+    metaMaskStore.currentEthereumNetwork!, userAddress || usersStore.currentUserStore!.user.userAddress,
   ),
 }))
 
@@ -74,7 +74,7 @@ class Profile extends React.Component<IProps> {
     const hasParams = typeof userAddress !== 'undefined'
 
     return !hasParams || usersStore.isCurrentUser(
-      this.props.metaMaskStore.currentEthereumNetwork!, userAddress!
+      this.props.metaMaskStore.currentEthereumNetwork!, userAddress!,
     )
   }
 

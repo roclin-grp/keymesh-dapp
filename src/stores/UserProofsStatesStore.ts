@@ -17,7 +17,7 @@ export class UserProofsStatesStore {
     contractStore,
   }: {
     usersStore: UsersStore
-    contractStore: ContractStore
+    contractStore: ContractStore,
   }) {
     this.usersStore = usersStore
     this.contractStore = contractStore
@@ -26,7 +26,7 @@ export class UserProofsStatesStore {
   private contractStore: ContractStore
   private usersStore: UsersStore
   private cachedUserProofsStateStores: {
-    [primaryKey: string]: UserProofsStateStore
+    [primaryKey: string]: UserProofsStateStore,
   } = {}
 
   public getUserProofsStateStore = (networkId: ETHEREUM_NETWORKS, userAddress: string): UserProofsStateStore => {

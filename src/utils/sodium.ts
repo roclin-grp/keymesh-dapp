@@ -17,7 +17,7 @@ export function cryptoBoxSealOpen(
     data,
     publicKeyCurve,
     secretKeyCurve,
-    'uint8array'
+    'uint8array',
   )
 }
 

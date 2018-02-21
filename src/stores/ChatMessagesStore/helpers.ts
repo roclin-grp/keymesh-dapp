@@ -54,7 +54,7 @@ export async function generateHelloMessage(
   {
     closeSession = false,
     subject,
-  }: IGenerateMessageOptions = {}
+  }: IGenerateMessageOptions = {},
 ) {
   const messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.HELLO
   const timestamp = Date.now()
@@ -77,7 +77,7 @@ export async function generateHelloMessage(
   const encryptedMessage = await cryptoBox.encrypt(
     sessionTag,
     paddedMessage,
-    preKeyBundle.serialise()
+    preKeyBundle.serialise(),
   )
 
   const proteusEnvelope = proteusMessage.Envelope.deserialise(encryptedMessage)
@@ -114,7 +114,7 @@ export async function generateNormalMessage(
   {
     closeSession = false,
     subject,
-  }: IGenerateMessageOptions = {}
+  }: IGenerateMessageOptions = {},
 ) {
   const messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.NORMAL
   const timestamp = Date.now()
@@ -132,7 +132,7 @@ export async function generateNormalMessage(
 
   const encryptedMessage = await cryptoBox.encrypt(
     sessionTag,
-    paddedMessage
+    paddedMessage,
   )
 
   const senderIdentity = cryptoBox.identity.public_key
@@ -191,7 +191,7 @@ export function padTo512Bytes(plaintext: string) {
 export function unpad512BytesMessage(padded512BytesMessage: Uint8Array, messageByteLength: number) {
   return stringFromUint8Array(padded512BytesMessage.subarray(
     0,
-    messageByteLength
+    messageByteLength,
   ))
 }
 
@@ -230,7 +230,7 @@ export function getPreKey({
 }: {
   interval: number,
   lastPrekeyDate: number,
-  preKeyPublicKeyFingerprints: IPreKeyPublicKeyFingerprints
+  preKeyPublicKeyFingerprints: IPreKeyPublicKeyFingerprints,
 }) {
   let preKeyPublicKeyFingerprint
   let preKeyID = unixToday()

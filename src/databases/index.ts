@@ -74,7 +74,7 @@ export class Databases {
       .map(async (row) => {
         const db = await dumpCryptobox(row)
         dbs[db.dbname] = db.tables
-      })
+      }),
     )
 
     return dbs
@@ -88,7 +88,7 @@ export class Databases {
     return Promise.all(
       Object.keys(data)
         .filter((dbname) => dbname !== 'keymesh')
-        .map((dbname) => restoreCryptobox(dbname, data[dbname]))
+        .map((dbname) => restoreCryptobox(dbname, data[dbname])),
     )
   }
 }
@@ -100,14 +100,14 @@ enum TABLE_NAMES {
   USER_CACHES = 'userCaches',
 }
 
-type TypeTableItems = {
+interface TypeTableItems {
   [TABLE_NAMES.USERS]: IUser
   [TABLE_NAMES.SESSIONS]: ISession
   [TABLE_NAMES.MESSAGES]: IMessage
   [TABLE_NAMES.USER_CACHES]: IUserCaches
 }
 
-type TypeTablePrimaryKeys = {
+interface TypeTablePrimaryKeys {
   [TABLE_NAMES.USERS]: [IUser['networkId'], IUser['userAddress']]
   [TABLE_NAMES.SESSIONS]: [ISession['sessionTag'], ISession['userAddress']]
   [TABLE_NAMES.MESSAGES]: [IMessage['messageId'], IMessage['userAddress']]

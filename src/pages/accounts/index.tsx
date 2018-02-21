@@ -304,7 +304,7 @@ class Accounts extends React.Component<IProps, IState> {
 }
 
 // typing
-type IProps = {}
+interface IProps {}
 
 interface IInjectedProps extends RouteComponentProps<{}> {
   metaMaskStore: MetaMaskStore

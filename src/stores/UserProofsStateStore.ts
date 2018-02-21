@@ -5,7 +5,7 @@ import {
   action,
 } from 'mobx'
 
-import { sha3, } from 'trustbase'
+import { sha3 } from 'trustbase'
 import { FacebookResource } from '../resources/facebook'
 import { TwitterResource } from '../resources/twitter'
 import { UsersStore } from '../stores/UsersStore'
@@ -56,8 +56,8 @@ export class UserProofsStateStore {
     }: {
       usersStore: UsersStore
       contractStore: ContractStore
-      userAddress: string
-    }
+      userAddress: string,
+    },
   ) {
     this.usersStore = usersStore
     this.contractStore = contractStore
@@ -80,7 +80,7 @@ export class UserProofsStateStore {
 
   private readonly twitterResource = new TwitterResource(
     process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
-    process.env.REACT_APP_TWITTER_SECRET_KEY!
+    process.env.REACT_APP_TWITTER_SECRET_KEY!,
   )
 
   @computed
@@ -122,7 +122,7 @@ export class UserProofsStateStore {
       if (_signedBoundSocial.socialMedias.nonce > this.userBoundSocials.nonce) {
         if (!publicKey.verify(
           uint8ArrayFromHex(_signedBoundSocial.signature),
-          JSON.stringify(_signedBoundSocial.socialMedias)
+          JSON.stringify(_signedBoundSocial.socialMedias),
         )) {
           continue
         }

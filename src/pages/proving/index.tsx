@@ -109,7 +109,7 @@ class Proving extends React.Component<IProps> {
             this.data.isFinished = true
           })
         },
-        2000
+        2000,
       )
 
       body = <div>
@@ -127,7 +127,7 @@ class Proving extends React.Component<IProps> {
       <h3 className={styles.provingNotice}>Prove your {label} identity</h3>
 
       <Steps size="small" current={this.data.currentStep}>
-        {this.data.steps.map(item => <Step key={item} title={item} />)}
+        {this.data.steps.map((item) => <Step key={item} title={item} />)}
       </Steps>
 
       {body}

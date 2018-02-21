@@ -3,6 +3,7 @@ import {
 } from 'mobx'
 
 import {
+  getMetaMaskWeb3,
   MetaMaskStore,
 } from './MetaMaskStore'
 import {
@@ -18,14 +19,16 @@ import {
 useStrict(true)
 
 export function createStores(): IStores {
-  const metaMaskStore = new MetaMaskStore()
-  const contractStore = new ContractStore({
-    metaMaskStore,
-  })
-  const usersStore = new UsersStore({
-    metaMaskStore,
-    contractStore,
-  })
+  const web3 = getMetaMaskWeb3()
+
+  // FIXME handle this error more nicely. Right now want better code structure.
+  if (web3 == null) {
+    throw new Error('MetaMask not installed')
+  }
+
+  const metaMaskStore = new MetaMaskStore(web3)
+  const contractStore = new ContractStore(web3, metaMaskStore)
+  const usersStore = new UsersStore(metaMaskStore, contractStore)
   const broadcastMessagesStore = new BroadcastMessagesStore({
     usersStore,
     contractStore,

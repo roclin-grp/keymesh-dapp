@@ -48,7 +48,7 @@ export class FacebookProvingState extends ProvingState {
   protected async getBindingSocial() {
     const text = getFacebookClaim(this.claim)
     const proofPost = await FacebookResource.getPosts(this.facebookUserID, this.facebookAccessToken)
-      .then(posts => {
+      .then((posts) => {
         for (const post of posts) {
           if (!post.hasOwnProperty('message')) {
             continue

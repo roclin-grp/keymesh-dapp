@@ -58,7 +58,7 @@ class Messages extends React.Component<IProps, IState> {
     }
   }
 
-  render() {
+  public render() {
     const {
       newUnreadCount,
     } = this.props.sessionStore
@@ -137,13 +137,13 @@ class Messages extends React.Component<IProps, IState> {
   // tslint:disable-next-line
   private handleScrollThrottled = lodashThrottle(
     this.handleScroll,
-    300
+    300,
   )
 
   // tslint:disable-next-line
   private handleScrollDebounced = lodashDebounce(
     this.handleScroll,
-    300
+    300,
   )
 
   private sessionStoreDidLoad = (store: SessionStore) => {

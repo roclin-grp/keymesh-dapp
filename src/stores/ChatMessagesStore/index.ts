@@ -83,7 +83,7 @@ export class ChatMessagesStore {
     contractStore: ContractStore
     metaMaskStore: MetaMaskStore
     indexedDBStore: IndexedDBStore
-    cryptoBox: Cryptobox
+    cryptoBox: Cryptobox,
   }) {
     this.userStore = userStore
     this.contractStore = contractStore
@@ -100,7 +100,7 @@ export class ChatMessagesStore {
   private cryptoBox: Cryptobox
 
   private cachedMessageStores: {
-    [primaryKey: string]: ChatMessageStore
+    [primaryKey: string]: ChatMessageStore,
   } = {}
   private fetchTimeout: number
 
@@ -245,7 +245,7 @@ export class ChatMessagesStore {
           {
             closeSession,
             subject,
-          }
+          },
         ))
         break
       case MESSAGE_TYPE.CLOSE_SESSION:
@@ -269,7 +269,7 @@ export class ChatMessagesStore {
           {
             closeSession,
             subject,
-          }
+          },
         ))
         break
       default:
@@ -372,7 +372,7 @@ export class ChatMessagesStore {
         clearTimeout(this.fetchTimeout)
         this.fetchTimeout = window.setTimeout(
           fetNewChatMessagesLoop,
-          FETCH_BROADCAST_MESSAGES_INTERVAL
+          FETCH_BROADCAST_MESSAGES_INTERVAL,
         )
       }
     }
@@ -490,7 +490,7 @@ export class ChatMessagesStore {
 
     const keymeshEnvelope = Envelope.decrypt(
       concatedBuf.slice(PRE_KEY_ID_BYTES_LENGTH),
-      preKey
+      preKey,
     )
 
     const proteusEnvelope = getEmptyProteusEnvelope()
@@ -510,7 +510,7 @@ export class ChatMessagesStore {
           preKeyID,
           baseKey,
           senderIdentity,
-          keymeshEnvelope.cipherMessage
+          keymeshEnvelope.cipherMessage,
         ) as any).serialise())
       }
       return new Uint8Array((keymeshEnvelope.cipherMessage as any).serialise())

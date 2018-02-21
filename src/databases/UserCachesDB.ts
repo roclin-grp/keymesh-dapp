@@ -20,7 +20,7 @@ export class UserCachesDB {
     networkId: ETHEREUM_NETWORKS,
     newData: {
       identity?: IUserCachesIdentity
-      verification?: IUserCachesVerification
+      verification?: IUserCachesVerification,
     },
   ): Dexie.Promise<IUserCaches> {
     return this.table

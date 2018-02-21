@@ -46,7 +46,7 @@ export class SessionStore {
   constructor(session: ISession, {
     sessionsStore,
   }: {
-    sessionsStore: SessionsStore
+    sessionsStore: SessionsStore,
   }) {
     this.session = this.sessionRef = session
     this.sessionsStore = sessionsStore
@@ -96,7 +96,7 @@ export class SessionStore {
         if (newValue > oldValue) {
           listener()
         }
-      }
+      },
     )
   }
 
@@ -190,8 +190,8 @@ export class SessionStore {
         {
           shouldAddUnread: this.shouldAddUnread,
         },
-        args
-      )
+        args,
+      ),
     )
 
     this.addMessage(message)

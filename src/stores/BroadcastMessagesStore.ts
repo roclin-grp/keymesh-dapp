@@ -14,7 +14,7 @@ export class BroadcastMessagesStore {
     contractStore,
   }: {
     usersStore: UsersStore
-    contractStore: ContractStore
+    contractStore: ContractStore,
   }) {
     this.usersStore = usersStore
     this.contractStore = contractStore
@@ -28,7 +28,7 @@ export class BroadcastMessagesStore {
   private lastFetchBlock: number
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
-    [userAddress: string]: keys.PublicKey
+    [userAddress: string]: keys.PublicKey,
   } = {}
 
   public publishBroadcastMessage = (

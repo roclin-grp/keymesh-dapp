@@ -38,7 +38,7 @@ export class SessionsDB {
           .filter((session) =>
             session.networkId === networkId
             && session.userAddress === userAddress
-            && (contact ? session.contact === contact : true)
+            && (contact ? session.contact === contact : true),
           )
         if (offset >= 0) {
           _collect = _collect.offset(offset)
@@ -56,7 +56,7 @@ export class SessionsDB {
     {
       lastUpdateBefore,
       contact,
-    }: IDeleteSessionsOptions = {}
+    }: IDeleteSessionsOptions = {},
   ) {
     const {
       networkId,
@@ -74,7 +74,7 @@ export class SessionsDB {
             networkId,
             userAddress,
           },
-          contact ? {contact} : null)
+          contact ? {contact} : null),
         )
         .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
         .each((session) => this.deleteSession(session))
@@ -96,7 +96,7 @@ export class SessionsDB {
       isFromYourself,
       transactionHash,
       status,
-    }: ICreateSessionArgs
+    }: ICreateSessionArgs,
   ) {
     const {
       networkId,
@@ -138,7 +138,7 @@ export class SessionsDB {
             isFromYourself,
             transactionHash,
             status,
-          }
+          },
         )
 
         await this.dataBases.usersDB.addContact(user, contact)
@@ -158,7 +158,7 @@ export class SessionsDB {
       sessionTag,
       userAddress,
     }: ISession,
-    updateSessionOptions: IUpdateSessionOptions = {}
+    updateSessionOptions: IUpdateSessionOptions = {},
   ) {
     const {
       sessions,

@@ -14,7 +14,7 @@ export function generatePublicKeyFromHexStr(publicKeyHexString: string) {
   const preKeyPublicKeyCurve = ed2curve.convertPublicKey(preKeyPublicKeyEd)
   return keys.PublicKey.new(
     preKeyPublicKeyEd,
-    preKeyPublicKeyCurve
+    preKeyPublicKeyCurve,
   )
 }
 

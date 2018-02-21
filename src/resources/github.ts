@@ -1,14 +1,14 @@
 interface IGist {
   files: {
     [filename: string]: {
-      raw_url: string
-    }
+      raw_url: string,
+    },
   }
   html_url: string
 }
 
 export class GithubResource {
-  static getGists(username: string): Promise<IGist[]> {
+  public static getGists(username: string): Promise<IGist[]> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -18,7 +18,7 @@ export class GithubResource {
       .then((resp) => resp.json())
   }
 
-  static getGist(id: string): Promise<IGist> {
+  public static getGist(id: string): Promise<IGist> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -28,7 +28,7 @@ export class GithubResource {
       .then((resp) => resp.json())
   }
 
-  static getRawContent(rawURL: string): Promise<any> {
+  public static getRawContent(rawURL: string): Promise<any> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',

@@ -11,7 +11,7 @@ export class UserCachesStore {
     metaMaskStore,
   }: {
     usersStore: UsersStore
-    metaMaskStore: MetaMaskStore
+    metaMaskStore: MetaMaskStore,
   }) {
     this.usersStore = usersStore
     this.metaMaskStore = metaMaskStore
@@ -31,10 +31,10 @@ export class UserCachesStore {
   private networkID: ETHEREUM_NETWORKS
   private metaMaskStore: MetaMaskStore
   private cachedUserAvatarPromises: {
-    [userAddress: string]: Promise<string>
+    [userAddress: string]: Promise<string>,
   } = {}
   private cachedUserIdentityPromises: {
-    [userAddress: string]: Promise<IUserCachesIdentity>
+    [userAddress: string]: Promise<IUserCachesIdentity>,
   } = {}
 
   public async getVerification(userAddress: string): Promise<IUserCachesVerification> {

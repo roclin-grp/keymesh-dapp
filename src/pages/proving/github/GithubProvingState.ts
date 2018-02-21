@@ -62,8 +62,8 @@ export class GithubProvingState extends ProvingState {
 
     return {
       status: BINDING_SOCIAL_STATUS.CHECKED,
-      signedClaim: signedClaim,
-      proofURL: proofURL,
+      signedClaim,
+      proofURL,
       username: signedClaim.claim.service.username,
       platform: this.platform,
     }

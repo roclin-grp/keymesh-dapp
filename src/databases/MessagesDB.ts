@@ -41,7 +41,7 @@ export class MessagesDB {
       timestampBefore,
       offset = -1,
       limit = -1,
-    }: IGetMessagesOptions = {}
+    }: IGetMessagesOptions = {},
   ) {
     const collect = (() => {
       let _collect = this.dexieDB.messages
@@ -51,7 +51,7 @@ export class MessagesDB {
           message.sessionTag === sessionTag
           && message.userAddress === userAddress
           && (timestampAfter ? message.timestamp >= timestampAfter : true)
-          && (timestampBefore ? message.timestamp < timestampBefore : true)
+          && (timestampBefore ? message.timestamp < timestampBefore : true),
         )
       if (offset >= 0) {
         _collect = _collect.offset(offset)
@@ -69,7 +69,7 @@ export class MessagesDB {
       networkId,
       userAddress,
     }: IUser,
-    timestampBefore?: number
+    timestampBefore?: number,
   ) {
     return this.dexieDB.messages
       .where({networkId, userAddress})
@@ -81,7 +81,7 @@ export class MessagesDB {
     {
       sessionTag,
     }: ISession,
-    timestampBefore?: number
+    timestampBefore?: number,
   ) {
     return this.dexieDB.messages
       .where({sessionTag})
@@ -144,7 +144,7 @@ export class MessagesDB {
             summary,
           },
           isClosed ? { isClosed: true } : null,
-          !isFromYourself && shouldAddUnread ? { unreadCount: session.unreadCount + 1 } : null
+          !isFromYourself && shouldAddUnread ? { unreadCount: session.unreadCount + 1 } : null,
         ))
 
         return [messageId, userAddress] as [string, string]
@@ -162,7 +162,7 @@ export class MessagesDB {
       messageId,
       userAddress,
     }: IMessage,
-    IupdateMessageArgs: IUpdateMessageOptions = {}
+    IupdateMessageArgs: IUpdateMessageOptions = {},
   ) {
     const {
       messages,

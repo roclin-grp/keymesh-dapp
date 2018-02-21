@@ -30,12 +30,12 @@ import {
 } from '../utils'
 
 export class ChatMessageStore {
-  @observable messageStatus: MESSAGE_STATUS
+  @observable public messageStatus: MESSAGE_STATUS
 
   constructor(private message: IMessage, {
     metaMaskStore,
   }: {
-    metaMaskStore: MetaMaskStore
+    metaMaskStore: MetaMaskStore,
   }) {
     this.messageStatus = message.status
     this.metaMaskStore = metaMaskStore
@@ -50,7 +50,7 @@ export class ChatMessageStore {
       messageDidSend = noop,
       sendingDidFail = noop,
       checkingDidFail = noop,
-    }: ICheckChatMessageStatusLifecycle = {}
+    }: ICheckChatMessageStatusLifecycle = {},
   ) => {
     const transactionHash = this.message.transactionHash!
 

@@ -26,7 +26,7 @@ export class BoundSocialsStore {
   }: {
     userStore: UserStore
     contractStore: ContractStore
-    userCachesStore: UserCachesStore
+    userCachesStore: UserCachesStore,
   }) {
     this.userStore = userStore
     this.contractStore = contractStore
@@ -182,7 +182,7 @@ export interface IGithubClaim {
   userAddress: string
   service: {
     name: string
-    username: string
+    username: string,
   },
   ctime: number
   publicKey: string

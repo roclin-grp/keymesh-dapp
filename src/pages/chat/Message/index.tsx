@@ -140,12 +140,12 @@ class Message extends React.Component<IProps> {
       () => {
         this.componentDidMount()
       },
-      3000
+      3000,
     )
   }
 }
 
-function mapStoreToProps (
+function mapStoreToProps(
   {
     metaMaskStore,
     usersStore,
@@ -154,7 +154,7 @@ function mapStoreToProps (
 ): IInjectedProps {
   return {
     chatMessageStore: usersStore.currentUserStore!.chatMessagesStore.getMessageStore(
-      props.message
+      props.message,
     ),
     metaMaskStore,
   }
