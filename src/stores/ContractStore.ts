@@ -1,5 +1,6 @@
 import {
   reaction,
+  runInAction,
   observable,
   computed,
 } from 'mobx'
@@ -46,13 +47,15 @@ export class ContractStore {
 
   @computed
   public get isNotAvailable(): boolean {
-    return !!this.trustmesh
+    return !this.trustmesh
   }
 
   constructor(
     private web3: Web3,
     private metaMaskStore: MetaMaskStore,
   ) {
+    this.configureTrustMesh()
+
     reaction(
       () => this.metaMaskStore.currentEthereumNetwork,
       () => this.configureTrustMesh(),
@@ -60,7 +63,10 @@ export class ContractStore {
   }
 
   private async configureTrustMesh() {
-    this.trustmesh = await getContracts(this.web3)
+    const contracts = await getContracts(this.web3)
+    runInAction(() => {
+      this.trustmesh = contracts
+    })
   }
 }
 

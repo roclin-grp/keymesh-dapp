@@ -71,7 +71,6 @@ class App extends React.Component<IProps> {
       },
       contractStore: {
         isNotAvailable: isContractsNotAvailable,
-        instantiationError,
       },
     } = this.injectedProps
 
@@ -84,7 +83,7 @@ class App extends React.Component<IProps> {
     }
     // contracts instantiation
     if (isContractsNotAvailable) {
-      return <ErrorPage message="Current network is not supported!" errorStack={instantiationError!.stack} />
+      return <Loading message="Loading keymesh contracts..." />
     }
     // load data
     if (isLoadingUsers) {
