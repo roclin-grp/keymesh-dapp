@@ -87,10 +87,7 @@ export class UsersStore {
     private contractStore: ContractStore,
   ) {
     this.usersDB = getDatabases().usersDB
-    this.userCachesStore = new UserCachesStore({
-      usersStore: this,
-      metaMaskStore,
-    })
+    this.userCachesStore = new UserCachesStore(this, metaMaskStore)
     this.userProofsStatesStore = new UserProofsStatesStore({
       usersStore: this,
       contractStore: this.contractStore,

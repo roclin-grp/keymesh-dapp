@@ -6,9 +6,6 @@ import { sha3 } from '../cryptos'
 import { reaction } from 'mobx'
 
 export class UserCachesStore {
-  private usersStore: UsersStore
-  private networkID: ETHEREUM_NETWORKS
-  private metaMaskStore: MetaMaskStore
   private cachedUserAvatarPromises: {
     [userAddress: string]: Promise<string>,
   } = {}
@@ -16,25 +13,14 @@ export class UserCachesStore {
     [userAddress: string]: Promise<IUserCachesIdentity>,
   } = {}
 
-  constructor({
-    usersStore,
-    metaMaskStore,
-  }: {
-      usersStore: UsersStore
-      metaMaskStore: MetaMaskStore,
-    }) {
-    this.usersStore = usersStore
-    this.metaMaskStore = metaMaskStore
+  public get networkID(): ETHEREUM_NETWORKS {
+    return this.metaMaskStore.currentEthereumNetwork!
+  }
 
-    reaction(
-      () => this.metaMaskStore.currentEthereumNetwork,
-      (networkId) => {
-        if (typeof networkId === 'undefined') {
-          this.networkID = -1
-        } else {
-          this.networkID = networkId
-        }
-      })
+  constructor(
+    private usersStore: UsersStore,
+    private metaMaskStore: MetaMaskStore,
+  ) {
   }
 
   public async getVerification(userAddress: string): Promise<IUserCachesVerification> {
