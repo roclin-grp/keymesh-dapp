@@ -131,7 +131,7 @@ class App extends React.Component<IProps> {
   }
 }
 
-type IProps = {}
+interface IProps { }
 
 interface IInjectedProps extends IProps {
   metaMaskStore: MetaMaskStore
@@ -148,11 +148,11 @@ const ConditionalRoute = ({
   component,
   elseComponent,
   redirectTo,
-  ...rest
+  ...rest,
 }: {
   predicate: boolean
   elseComponent?: typeof component
-  redirectTo?: string
+  redirectTo?: string,
 } & RouteProps) => {
   let returnComponent: typeof component
   if (predicate) {

@@ -30,11 +30,14 @@ async function sleep(ms: number) {
 }
 
 export class MetaMaskStore {
+  // FIXME: would it be better to just collapse
   @observable public connectStatus: METAMASK_CONNECT_STATUS = METAMASK_CONNECT_STATUS.PENDING
   @observable public connectFailCode: METAMASK_CONNECT_FAIL_CODE
-  @observable public connectError: Error | undefined
+
   @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
+
+  private web3: Web3Instance
 
   @computed
   public get isPending() {
@@ -64,8 +67,6 @@ export class MetaMaskStore {
   constructor() {
     this.connect()
   }
-
-  private web3: Web3Instance
 
   public getBlockHash = (blockNumber: number) => {
     return this.web3.eth.getBlock(blockNumber)
@@ -139,7 +140,6 @@ export class MetaMaskStore {
       this.currentEthereumNetwork = undefined
 
       delete this.connectFailCode
-      delete this.connectError
 
       if (account && networkID) {
         // metamask is available and unlocked
