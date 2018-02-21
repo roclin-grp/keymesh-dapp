@@ -5,17 +5,7 @@ import {
   runInAction,
 } from 'mobx'
 
-import {
-  setWeb3 as setTrustbaseWeb3,
-} from 'trustbase'
-
-import * as Web3 from 'web3'
-
-import {
-  Web3 as Web3Instance,
-  JsonRPCRequest,
-  JsonRPCResponse,
-} from 'trustbase/typings/web3.d'
+import Web3 from 'web3'
 
 import {
   storeLogger,
@@ -29,15 +19,35 @@ async function sleep(ms: number) {
   })
 }
 
+function getMetaMaskProvider(): { isMetaMask: true } | null {
+  const win = window as any
+  if (!win.web3) {
+    return null
+  }
+
+  if (win.web3.currentProvider.isMetaMask) {
+    return win.web3.currentProvider
+  }
+
+  return null
+}
+
+export function getMetaMaskWeb3(): Web3 | null {
+  const provider = getMetaMaskProvider()
+  if (!provider) {
+    return null
+  }
+
+  return new Web3(provider as any)
+}
+
 export class MetaMaskStore {
   // FIXME: would it be better to just collapse
   @observable public connectStatus: METAMASK_CONNECT_STATUS = METAMASK_CONNECT_STATUS.PENDING
-  @observable public connectFailCode: METAMASK_CONNECT_FAIL_CODE
+  @observable public connectFailCode?: METAMASK_CONNECT_FAIL_CODE
 
   @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
-
-  private web3: Web3Instance
 
   @computed
   public get isPending() {
@@ -64,7 +74,7 @@ export class MetaMaskStore {
     return this.connectFailCode === METAMASK_CONNECT_FAIL_CODE.LOCKED
   }
 
-  constructor() {
+  constructor(private web3: Web3) {
     this.connect()
   }
 
@@ -86,30 +96,8 @@ export class MetaMaskStore {
     return this.web3.eth.getTransactionReceipt(transactionHash)
   }
 
-  private getMetaMaskProvider(): IAsyncProvider | null {
-    const win = window as any
-    if (!win.web3) {
-      return null
-    }
-
-    if (win.web3.currentProvider.isMetaMask) {
-      return win.web3.currentProvider
-    }
-
-    return null
-  }
-
   @action
   private async connect() {
-    const provider = this.getMetaMaskProvider()
-
-    if (provider == null) {
-      this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.NO_METAMASK
-      return
-    }
-
-    this.web3 = new Web3(provider as any)
-    setTrustbaseWeb3(this.web3)
     this.startStatusPoll()
   }
 
@@ -162,6 +150,8 @@ export class MetaMaskStore {
 
   private async getMetamaskInfo() {
     const networkID: ETHEREUM_NETWORKS = await this.web3.eth.net.getId()
+
+    // MetaMask would always return just one account, or empty array if locked.
     const accounts = await this.web3.eth.getAccounts()
     const account = accounts[0]
 
@@ -170,10 +160,6 @@ export class MetaMaskStore {
       account,
     }
   }
-}
-
-interface IAsyncProvider {
-  sendAsync(payload: JsonRPCRequest, callback: (e: Error, val: JsonRPCResponse) => void): void
 }
 
 export enum METAMASK_CONNECT_STATUS {

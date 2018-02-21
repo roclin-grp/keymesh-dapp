@@ -9,60 +9,59 @@ import {
   Messages,
   BroadcastMessages,
   BoundSocials,
-} from 'trustbase'
+  ITrustMeshContracts,
+  getContracts,
+} from 'trustmesh'
 
 import {
   MetaMaskStore,
 } from './MetaMaskStore'
+import Web3 from 'web3'
 
 export class ContractStore {
-  @observable.ref public identitiesContract: Identities
-  @observable.ref public messagesContract: Messages
-  @observable.ref public broadcastMessagesContract: BroadcastMessages
-  @observable.ref public boundSocialsContract: BoundSocials
-  @observable public instantiationError: Error | undefined
+  /**
+   * All TrustMesh contracts
+   */
+  @observable.ref public trustmesh?: ITrustMeshContracts
 
   @computed
-  public get isNotAvailable() {
-    return typeof this.instantiationError !== 'undefined'
+  public get identitiesContract() {
+    return this.trustmesh!.identities
   }
 
-  constructor({
-    metaMaskStore,
-  }: {
-    metaMaskStore: MetaMaskStore
-  }) {
-    this.metaMaskStore = metaMaskStore
+  @computed
+  public get messagesContract() {
+    return this.trustmesh!.messages
+  }
+
+  @computed
+  public get broadcastMessagesContract() {
+    return this.trustmesh!.broadcastMessages
+  }
+
+  @computed
+  public get boundSocialsContract() {
+    return this.trustmesh!.boundSocials
+  }
+
+  @computed
+  public get isNotAvailable(): boolean {
+    return !!this.trustmesh
+  }
+
+  constructor(
+    private web3: Web3,
+    private metaMaskStore: MetaMaskStore,
+  ) {
     reaction(
-      () => ({
-        isActive: this.metaMaskStore.isActive,
-        networkId: this.metaMaskStore.currentEthereumNetwork,
-      }),
-      ({
-        networkId,
-        isActive,
-      }) => {
-        if (isActive) {
-          try {
-            this.identitiesContract = new Identities({ networkId })
-            this.messagesContract = new Messages({ networkId })
-            this.broadcastMessagesContract = new BroadcastMessages({ networkId })
-            this.boundSocialsContract = new BoundSocials({ networkId })
-            this.instantiationError = undefined
-          } catch (err) {
-            this.instantiationError = err
-          }
-        } else {
-          delete this.identitiesContract
-          delete this.messagesContract
-          delete this.broadcastMessagesContract
-          delete this.boundSocialsContract
-        }
-      }
+      () => this.metaMaskStore.currentEthereumNetwork,
+      () => this.configureTrustMesh(),
     )
   }
 
-  private metaMaskStore: MetaMaskStore
+  private async configureTrustMesh() {
+    this.trustmesh = await getContracts(this.web3)
+  }
 }
 
 export interface ITransactionLifecycle {
