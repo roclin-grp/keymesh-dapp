@@ -10,7 +10,7 @@ import {
 import HashAvatar from '../../components/HashAvatar'
 
 import * as styles from './index.css'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 
 import {
   MetaMaskStore,

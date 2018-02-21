@@ -23,7 +23,7 @@ import {
   isUndefined,
 } from '../../utils'
 import { timeAgo, beforeOneDay } from '../../utils/time'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 
 import {
   SOCIALS,

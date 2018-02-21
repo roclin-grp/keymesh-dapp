@@ -8,12 +8,12 @@
     "build": "parcel build src/index.html --public-url /",
     "test": "node scripts/test.js --env=jsdom",
     "analyze": "source-map-explorer build/static/js/main.*",
+    "linkdevs": "yarn link web3 trustmesh",
     "css-types": "tcm src",
     "postinstall": "yarn css-types"
   },
   "devDependencies": {
     "@types/bignumber.js": "^4.0.3",
-    "@types/classnames": "^2.2.3",
     "@types/lodash": "^4.14.102",
     "@types/react": "^16.0.31",
     "@types/react-dom": "^16.0.3",

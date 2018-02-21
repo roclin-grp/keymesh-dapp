@@ -12,7 +12,7 @@ import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
 import { sha3 } from '../../cryptos'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 
 interface IProps {
   usersStore: UsersStore

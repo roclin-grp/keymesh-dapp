@@ -12,7 +12,7 @@ import {
   IVerifyStatus,
 } from '../../stores/BoundSocialsStore'
 import { beforeOneDay } from '../../utils/time'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 
 interface IProps {
   platform: SOCIALS

@@ -11,7 +11,7 @@ import Dialog from '../Dialog'
 
 // style
 import * as styles from './index.css'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 
 // state management
 import {
