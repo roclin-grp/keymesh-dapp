@@ -45,14 +45,15 @@ interface IProps extends RouteComponentProps<IParams> {
   contractStore,
   metaMaskStore,
 }: IStores) => ({
-    usersStore,
-    contractStore,
-    metaMaskStore,
-  }))
+  usersStore,
+  contractStore,
+  metaMaskStore,
+}))
 
 @observer
 class Proving extends React.Component<IProps> {
   public data: ProvingState
+  private isValidPlatform: boolean = false
 
   constructor(props: IProps) {
     super(props)
@@ -64,8 +65,6 @@ class Proving extends React.Component<IProps> {
       this.data = this.getSocialProvingState(platform as SOCIALS)
     }
   }
-
-  private isValidPlatform: boolean = false
 
   public render() {
     const {
@@ -117,8 +116,8 @@ class Proving extends React.Component<IProps> {
       </div>
     } else {
       body = <div className={styles.provingComponentContainer}>
-          {provingComponent}
-        </div>
+        {provingComponent}
+      </div>
     }
 
     const label = SOCIAL_LABELS[platform]

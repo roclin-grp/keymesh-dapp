@@ -6,20 +6,17 @@ export interface ITweet {
 }
 
 export class TwitterResource {
+  private accessToken: string = ''
+
   constructor(
-    consumerKey: string,
-    consumerSecret: string,
-    apiPrefix: string = 'https://cors-anywhere.herokuapp.com/https://api.twitter.com',
+    private consumerKey: string,
+    private consumerSecret: string,
+    private apiPrefix: string = 'https://cors-anywhere.herokuapp.com/https://api.twitter.com',
   ) {
     this.consumerKey = consumerKey
     this.consumerSecret = consumerSecret
     this.apiPrefix = apiPrefix
   }
-
-  private apiPrefix: string
-  private accessToken: string = ''
-  private consumerKey: string
-  private consumerSecret: string
 
   public getTweet = async (id: string): Promise<ITweet> => {
     const uri = `/1.1/statuses/show.json?id=${id}&exclude_replies=true&tweet_mode=extended`

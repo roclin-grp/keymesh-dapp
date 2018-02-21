@@ -11,7 +11,7 @@ import HashAvatar from '../../components/HashAvatar'
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
-import { sha3 } from 'trustbase'
+import { sha3 } from '../../cryptos'
 import * as classnames from 'classnames'
 
 interface IProps {
@@ -67,7 +67,7 @@ class Broadcast extends React.Component<IProps> {
           )}
           message={message}
         />
-        <Divider/>
+        <Divider />
       </div>
     })
     return <div className={classnames(styles.broadcast, 'container')}>

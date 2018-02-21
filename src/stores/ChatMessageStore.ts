@@ -31,19 +31,18 @@ import {
 
 export class ChatMessageStore {
   @observable public messageStatus: MESSAGE_STATUS
+  private metaMaskStore: MetaMaskStore
+  private messagesDB: MessagesDB
 
   constructor(private message: IMessage, {
     metaMaskStore,
   }: {
-    metaMaskStore: MetaMaskStore,
-  }) {
+      metaMaskStore: MetaMaskStore,
+    }) {
     this.messageStatus = message.status
     this.metaMaskStore = metaMaskStore
     this.messagesDB = getDatabases().messagesDB
   }
-
-  private metaMaskStore: MetaMaskStore
-  private messagesDB: MessagesDB
 
   public checkMessageStatus = async (
     {

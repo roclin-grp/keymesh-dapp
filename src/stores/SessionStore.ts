@@ -28,15 +28,24 @@ import {
   ICreateMessageArgs,
 } from '../databases/MessagesDB'
 
-import { sha3 } from 'trustbase'
+import { sha3 } from '../cryptos'
 
 export class SessionStore {
+  public static getAvatarHashByContact = (contract: IContact) => {
+    return sha3(`${contract.userAddress}${contract.blockHash}`)
+  }
+
   @observable public session: ISession
   @observable.ref public messages: IMessage[] = []
   @observable public isLoading = true
   @observable public isLoadingOldMessages = false
   @observable public newUnreadCount = 0
   @observable public draftMessage = ''
+
+  private sessionRef: ISession
+  private sessionsStore: SessionsStore
+  private isClearing = false
+  private shouldAddUnread = true
 
   @computed
   public get isCurrentSession() {
@@ -46,8 +55,8 @@ export class SessionStore {
   constructor(session: ISession, {
     sessionsStore,
   }: {
-    sessionsStore: SessionsStore,
-  }) {
+      sessionsStore: SessionsStore,
+    }) {
     this.session = this.sessionRef = session
     this.sessionsStore = sessionsStore
 
@@ -62,11 +71,6 @@ export class SessionStore {
         Object.assign(this.sessionRef, observableUserData)
       })
   }
-
-  private sessionRef: ISession
-  private sessionsStore: SessionsStore
-  private isClearing = false
-  private shouldAddUnread = true
 
   @action
   public setDraft(message: string) {
@@ -98,10 +102,6 @@ export class SessionStore {
         }
       },
     )
-  }
-
-  public static getAvatarHashByContact = (contract: IContact) => {
-    return sha3(`${contract.userAddress}${contract.blockHash}`)
   }
 
   public loadNewMessages = async (limit?: number) => {
@@ -148,7 +148,7 @@ export class SessionStore {
   public loadOldMessages = async (limit?: number) => {
     const messagesLength = this.messages.length
     if (messagesLength === 0) {
-       return
+      return
     }
 
     const {
@@ -186,7 +186,7 @@ export class SessionStore {
   public createMessage = async (args: ICreateMessageArgs) => {
     const message = await getDatabases().messagesDB.createMessage(
       this.session,
-      Object.assign<{shouldAddUnread: ICreateMessageArgs['shouldAddUnread']}, ICreateMessageArgs>(
+      Object.assign<{ shouldAddUnread: ICreateMessageArgs['shouldAddUnread'] }, ICreateMessageArgs>(
         {
           shouldAddUnread: this.shouldAddUnread,
         },
@@ -199,7 +199,7 @@ export class SessionStore {
   }
 
   public clearNewUnreadCount = async () => {
-    const {newUnreadCount} = this
+    const { newUnreadCount } = this
     if (!this.isClearing && newUnreadCount > 0) {
       this.isClearing = true
       await this.updateSession({

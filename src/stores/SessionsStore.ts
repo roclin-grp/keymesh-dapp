@@ -27,6 +27,12 @@ export class SessionsStore {
   @observable public isSwitchingSession = false
   @observable public isLoaded = false
 
+  private sessionsDB: SessionsDB
+  private userStore: UserStore
+  private cachedSessionStores: {
+    [primaryKey: string]: SessionStore,
+  } = {}
+
   @computed
   public get hasSelectedSession() {
     return typeof this.currentSessionStore !== 'undefined'
@@ -35,17 +41,11 @@ export class SessionsStore {
   constructor({
     userStore,
   }: {
-    userStore: UserStore,
-  }) {
+      userStore: UserStore,
+    }) {
     this.userStore = userStore
     this.sessionsDB = getDatabases().sessionsDB
   }
-
-  private sessionsDB: SessionsDB
-  private userStore: UserStore
-  private cachedSessionStores: {
-    [primaryKey: string]: SessionStore,
-  } = {}
 
   public isCurrentSession = (userAddress: string, sessionTag: string) => {
     return (
@@ -74,7 +74,7 @@ export class SessionsStore {
   }
 
   public createSession = async (args: ICreateSessionArgs) => {
-    const {user} = this.userStore
+    const { user } = this.userStore
 
     const session = await this.sessionsDB.createSession(
       user,

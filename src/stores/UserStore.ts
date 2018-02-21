@@ -91,6 +91,14 @@ export class UserStore {
   public boundSocialsStore: BoundSocialsStore
   public chatMessagesStore: ChatMessagesStore
 
+  private userRef: IUser
+  private usersDB: UsersDB
+  private metaMaskStore: MetaMaskStore
+  private contractStore: ContractStore
+  private usersStore: UsersStore
+  private indexedDBStore: IndexedDBStore
+  private cryptoBox: Cryptobox
+
   @computed
   public get avatarHash() {
     return UsersStore.getAvatarHashByUser(this.user)
@@ -161,14 +169,6 @@ export class UserStore {
         }
       })
   }
-
-  private userRef: IUser
-  private usersDB: UsersDB
-  private metaMaskStore: MetaMaskStore
-  private contractStore: ContractStore
-  private usersStore: UsersStore
-  private indexedDBStore: IndexedDBStore
-  private cryptoBox: Cryptobox
 
   /**
    * Initialise cryptobox

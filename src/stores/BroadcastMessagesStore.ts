@@ -8,18 +8,6 @@ import { ContractStore, ITransactionLifecycle } from './ContractStore'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
-
-  constructor({
-    usersStore,
-    contractStore,
-  }: {
-    usersStore: UsersStore
-    contractStore: ContractStore,
-  }) {
-    this.usersStore = usersStore
-    this.contractStore = contractStore
-  }
-
   private usersStore: UsersStore
   private contractStore: ContractStore
 
@@ -30,6 +18,17 @@ export class BroadcastMessagesStore {
   private cachedUserPublicKeys: {
     [userAddress: string]: keys.PublicKey,
   } = {}
+
+  constructor({
+    usersStore,
+    contractStore,
+  }: {
+      usersStore: UsersStore
+      contractStore: ContractStore,
+    }) {
+    this.usersStore = usersStore
+    this.contractStore = contractStore
+  }
 
   public publishBroadcastMessage = (
     message: string,
@@ -51,9 +50,9 @@ export class BroadcastMessagesStore {
     const signature = currentUserStore!.sign(message)
     const timestamp = Date.now()
     const signedMessage: ISignedBroadcastMessage = {
-        message,
-        signature,
-        timestamp: Math.floor(timestamp / 1000),
+      message,
+      signature,
+      timestamp: Math.floor(timestamp / 1000),
     }
     const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
     const contract = this.contractStore.broadcastMessagesContract

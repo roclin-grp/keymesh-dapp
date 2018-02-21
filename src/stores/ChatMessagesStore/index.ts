@@ -72,6 +72,18 @@ import {
 export class ChatMessagesStore {
   @observable public isFetching = false
 
+  private userStore: UserStore
+  private contractStore: ContractStore
+  private metaMaskStore: MetaMaskStore
+
+  private indexedDBStore: IndexedDBStore
+  private cryptoBox: Cryptobox
+
+  private cachedMessageStores: {
+    [primaryKey: string]: ChatMessageStore,
+  } = {}
+  private fetchTimeout: number
+
   constructor({
     userStore,
     contractStore,
@@ -91,18 +103,6 @@ export class ChatMessagesStore {
     this.indexedDBStore = indexedDBStore
     this.cryptoBox = cryptoBox
   }
-
-  private userStore: UserStore
-  private contractStore: ContractStore
-  private metaMaskStore: MetaMaskStore
-
-  private indexedDBStore: IndexedDBStore
-  private cryptoBox: Cryptobox
-
-  private cachedMessageStores: {
-    [primaryKey: string]: ChatMessageStore,
-  } = {}
-  private fetchTimeout: number
 
   public sendMessage = async (
     toUserAddress: string,

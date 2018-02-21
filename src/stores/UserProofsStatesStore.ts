@@ -12,22 +12,22 @@ import {
 } from './ContractStore'
 
 export class UserProofsStatesStore {
-  constructor({
-    usersStore,
-    contractStore,
-  }: {
-    usersStore: UsersStore
-    contractStore: ContractStore,
-  }) {
-    this.usersStore = usersStore
-    this.contractStore = contractStore
-  }
-
   private contractStore: ContractStore
   private usersStore: UsersStore
   private cachedUserProofsStateStores: {
     [primaryKey: string]: UserProofsStateStore,
   } = {}
+
+  constructor({
+    usersStore,
+    contractStore,
+  }: {
+      usersStore: UsersStore
+      contractStore: ContractStore,
+    }) {
+    this.usersStore = usersStore
+    this.contractStore = contractStore
+  }
 
   public getUserProofsStateStore = (networkId: ETHEREUM_NETWORKS, userAddress: string): UserProofsStateStore => {
     const primaryKey = `${networkId}${userAddress}`

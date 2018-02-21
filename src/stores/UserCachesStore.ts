@@ -2,17 +2,27 @@ import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifyStatuses, IBoundSocials, NewIVerifyStatuses } from './BoundSocialsStore'
-import { sha3 } from 'trustbase'
+import { sha3 } from '../cryptos'
 import { reaction } from 'mobx'
 
 export class UserCachesStore {
+  private usersStore: UsersStore
+  private networkID: ETHEREUM_NETWORKS
+  private metaMaskStore: MetaMaskStore
+  private cachedUserAvatarPromises: {
+    [userAddress: string]: Promise<string>,
+  } = {}
+  private cachedUserIdentityPromises: {
+    [userAddress: string]: Promise<IUserCachesIdentity>,
+  } = {}
+
   constructor({
     usersStore,
     metaMaskStore,
   }: {
-    usersStore: UsersStore
-    metaMaskStore: MetaMaskStore,
-  }) {
+      usersStore: UsersStore
+      metaMaskStore: MetaMaskStore,
+    }) {
     this.usersStore = usersStore
     this.metaMaskStore = metaMaskStore
 
@@ -27,16 +37,6 @@ export class UserCachesStore {
       })
   }
 
-  private usersStore: UsersStore
-  private networkID: ETHEREUM_NETWORKS
-  private metaMaskStore: MetaMaskStore
-  private cachedUserAvatarPromises: {
-    [userAddress: string]: Promise<string>,
-  } = {}
-  private cachedUserIdentityPromises: {
-    [userAddress: string]: Promise<IUserCachesIdentity>,
-  } = {}
-
   public async getVerification(userAddress: string): Promise<IUserCachesVerification> {
     const user = await this.userCachesDB.get(this.networkID, userAddress)
     if (user && user.verification) {
@@ -47,7 +47,7 @@ export class UserCachesStore {
   }
 
   public async setVerification(userAddress: string, verification: IUserCachesVerification) {
-    return this.userCachesDB.update(userAddress, this.networkID, {verification})
+    return this.userCachesDB.update(userAddress, this.networkID, { verification })
   }
 
   public getAvatarHashByUserAddress = (userAddress: string): Promise<string> => {
@@ -91,7 +91,7 @@ export class UserCachesStore {
       return _newUser.identity!
     }
 
-    const newUser = await this.userCachesDB.update(userAddress, this.networkID, {identity})
+    const newUser = await this.userCachesDB.update(userAddress, this.networkID, { identity })
     return newUser.identity!
   }
 
@@ -106,9 +106,9 @@ export class UserCachesStore {
 }
 
 export interface IUserCachesIdentity {
-    blockHash: string
-    publicKey: string
-    blockNumber: number
+  blockHash: string
+  publicKey: string
+  blockNumber: number
 }
 export interface IUserCachesVerification {
   boundSocials: IBoundSocials
@@ -125,7 +125,7 @@ export interface IUserCaches {
 
 export function newEmptyVerification(): IUserCachesVerification {
   return {
-    boundSocials: {nonce: 0},
+    boundSocials: { nonce: 0 },
     lastFetchBlock: 0,
     verifyStatues: NewIVerifyStatuses(),
   }

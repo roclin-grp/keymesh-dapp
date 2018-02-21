@@ -5,7 +5,7 @@ import {
   action,
 } from 'mobx'
 
-import { sha3 } from 'trustbase'
+import { sha3 } from '../cryptos'
 import { FacebookResource } from '../resources/facebook'
 import { TwitterResource } from '../resources/twitter'
 import { UsersStore } from '../stores/UsersStore'
@@ -49,23 +49,6 @@ export class UserProofsStateStore {
 
   public isFetchingUserProofs: boolean = false
 
-  constructor({
-      usersStore,
-      contractStore,
-      userAddress,
-    }: {
-      usersStore: UsersStore
-      contractStore: ContractStore
-      userAddress: string,
-    },
-  ) {
-    this.usersStore = usersStore
-    this.contractStore = contractStore
-    this.userCachesStore = usersStore.userCachesStore
-    this.userAddress = userAddress
-    this.init()
-  }
-
   private usersStore: UsersStore
   private contractStore: ContractStore
   private userCachesStore: UserCachesStore
@@ -82,6 +65,23 @@ export class UserProofsStateStore {
     process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
     process.env.REACT_APP_TWITTER_SECRET_KEY!,
   )
+
+  constructor({
+    usersStore,
+    contractStore,
+    userAddress,
+  }: {
+      usersStore: UsersStore
+      contractStore: ContractStore
+      userAddress: string,
+    },
+  ) {
+    this.usersStore = usersStore
+    this.contractStore = contractStore
+    this.userCachesStore = usersStore.userCachesStore
+    this.userAddress = userAddress
+    this.init()
+  }
 
   @computed
   public get isLoadingProofs() {
@@ -235,10 +235,12 @@ export class UserProofsStateStore {
     })
     return (verifyStatus: VERIFY_SOCIAL_STATUS) => {
       runInAction(() => {
-        const verifyStatues = Object.assign(this.verifyStatuses, { [platform]: {
-          status: verifyStatus,
-          lastVerifiedAt: new Date().getTime(),
-        }})
+        const verifyStatues = Object.assign(this.verifyStatuses, {
+          [platform]: {
+            status: verifyStatus,
+            lastVerifiedAt: new Date().getTime(),
+          },
+        })
         this.verifyStatuses = verifyStatues
         this.isVerifying[platform] = false
       })

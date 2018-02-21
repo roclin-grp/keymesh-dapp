@@ -76,6 +76,12 @@ export class UsersStore {
   public userCachesStore: UserCachesStore
   public userProofsStatesStore: UserProofsStatesStore
 
+  private usersDB: UsersDB
+  private lastNetworkId: ETHEREUM_NETWORKS | undefined
+  private cachedUserStores: {
+    [primaryKey: string]: UserStore,
+  } = {}
+
   constructor(
     private metaMaskStore: MetaMaskStore,
     private contractStore: ContractStore,
@@ -103,12 +109,6 @@ export class UsersStore {
       this.reloadUsersIfNetworkChanged,
     )
   }
-
-  private usersDB: UsersDB
-  private lastNetworkId: ETHEREUM_NETWORKS | undefined
-  private cachedUserStores: {
-    [primaryKey: string]: UserStore,
-  } = {}
 
   @computed
   public get usableUsers() {

@@ -8,7 +8,7 @@ import {
 
 import {
   noop,
- } from '../utils'
+} from '../utils'
 import {
   utf8ToHex,
 } from '../utils/hex'
@@ -19,23 +19,23 @@ import {
 import { UserCachesStore } from './UserCachesStore'
 
 export class BoundSocialsStore {
+  private userStore: UserStore
+  private contractStore: ContractStore
+  private userCachesStore: UserCachesStore
+
   constructor({
     userStore,
     contractStore,
     userCachesStore,
   }: {
-    userStore: UserStore
-    contractStore: ContractStore
-    userCachesStore: UserCachesStore,
-  }) {
+      userStore: UserStore
+      contractStore: ContractStore
+      userCachesStore: UserCachesStore,
+    }) {
     this.userStore = userStore
     this.contractStore = contractStore
     this.userCachesStore = userCachesStore
   }
-
-  private userStore: UserStore
-  private contractStore: ContractStore
-  private userCachesStore: UserCachesStore
 
   public uploadBindingSocial = async (
     social: IBindingSocial,
@@ -50,10 +50,10 @@ export class BoundSocialsStore {
     const newBoundSocials: IBoundSocials = Object.assign({}, verification.boundSocials)
 
     const { username, proofURL, platform } = social
-    newBoundSocials[platform] = {username, proofURL}
+    newBoundSocials[platform] = { username, proofURL }
 
     const signature = this.userStore.sign(JSON.stringify(newBoundSocials))
-    const signedBoundSocials: ISignedBoundSocials = {signature, socialMedias: newBoundSocials}
+    const signedBoundSocials: ISignedBoundSocials = { signature, socialMedias: newBoundSocials }
     const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
 
     transactionWillCreate()
@@ -107,14 +107,14 @@ export enum SOCIALS {
 
 export const SOCIAL_LABELS = Object.freeze({
   [SOCIALS.GITHUB]: 'Github',
-  [SOCIALS.TWITTER]:  'Twitter',
-  [SOCIALS.FACEBOOK]:  'Facebook',
+  [SOCIALS.TWITTER]: 'Twitter',
+  [SOCIALS.FACEBOOK]: 'Facebook',
 })
 
 export const SOCIAL_PROFILE_URLS = Object.freeze({
   [SOCIALS.GITHUB]: (username: string) => 'https://github.com/' + username,
-  [SOCIALS.TWITTER]:  (username: string) => 'https://twitter.com/' + username,
-  [SOCIALS.FACEBOOK]:  (proofURL: string) => {
+  [SOCIALS.TWITTER]: (username: string) => 'https://twitter.com/' + username,
+  [SOCIALS.FACEBOOK]: (proofURL: string) => {
     const res = /(^.*?[0-9]+)/.exec(proofURL)
     return res === null ? '' : res[0]
   },

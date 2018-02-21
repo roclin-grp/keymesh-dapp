@@ -30,10 +30,11 @@ export default abstract class ProvingState {
   @observable
   public checkProofButtonDisabled = false
 
-  constructor( protected usersStore: UsersStore) {
+  protected checkingErrorContent: string
+
+  constructor(protected usersStore: UsersStore) {
     this.init()
   }
-  protected checkingErrorContent: string
 
   public continueHandler = async () => {
     const userAddress = this.usersStore.currentUserStore!.user.userAddress
