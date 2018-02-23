@@ -8,8 +8,7 @@ import {
 import { IUserCaches, IUserCachesVerification , IUserCachesIdentity } from '../stores/UserCachesStore'
 
 export class UserCachesDB {
-  constructor(private dexieDB: TypeDexieWithTables) {
-  }
+  constructor(private dexieDB: TypeDexieWithTables) {}
 
   public get(networkId: ETHEREUM_NETWORKS, userAddress: string): Dexie.Promise<IUserCaches | undefined> {
     return this.table.get([networkId, userAddress]).catch(() => undefined)

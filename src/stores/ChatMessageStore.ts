@@ -6,8 +6,6 @@ import {
 
 import {
   MetaMaskStore,
-  CONFIRMATION_NUMBER,
-  AVERAGE_BLOCK_TIME,
   TRANSACTION_STATUS,
 } from './MetaMaskStore'
 import {
@@ -28,6 +26,7 @@ import {
 import {
   noop,
 } from '../utils'
+import ENV from '../config'
 
 export class ChatMessageStore {
   @observable public messageStatus: MESSAGE_STATUS
@@ -57,7 +56,7 @@ export class ChatMessageStore {
       try {
         const receipt = await this.metaMaskStore.getTransactionReceipt(transactionHash)
         if (receipt !== null) {
-          if (confirmationCounter >= CONFIRMATION_NUMBER) {
+          if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
             const hasStatus = receipt.status !== 'undefined'
             const hasTransactionError = hasStatus
               ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
@@ -70,12 +69,14 @@ export class ChatMessageStore {
             await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
             messageDidSend()
           } else {
-            window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1)
+            window.setTimeout(
+              waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1,
+            )
           }
           return
         }
 
-        window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1)
+        window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
       } catch (err) {
         storeLogger.error(err)
         checkingDidFail(err)

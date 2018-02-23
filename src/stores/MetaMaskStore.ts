@@ -201,9 +201,6 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
 })
 
-export const CONFIRMATION_NUMBER = Number(process.env.REACT_APP_CONFIRMATION_NUMBER)
-export const AVERAGE_BLOCK_TIME = Number(process.env.REACT_APP_AVERAGE_BLOCK_TIME)
-export const TRANSACTION_TIME_OUT_BLOCK_NUMBER = Number(process.env.REACT_APP_TRANSACTION_TIME_OUT_BLOCK_NUMBER)
 export enum TRANSACTION_STATUS {
   FAIL = 0,
   SUCCESS,

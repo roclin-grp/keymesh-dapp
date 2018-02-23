@@ -33,6 +33,8 @@ import {
   IEnvelopeHeader,
 } from '../../Envelope'
 
+import ENV from '../../config'
+
 import {
   ISender,
   IReceiver,
@@ -200,7 +202,7 @@ export function makeSessionTag() {
 }
 
 export async function getPreKeys(userAddress: string, identityFingerprint: string) {
-  const uploadPreKeysUrl = process.env.REACT_APP_KVASS_ENDPOINT + userAddress
+  const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${userAddress}`
   const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
   const userPublicKey = generatePublicKeyFromHexStr(identityFingerprint)
 

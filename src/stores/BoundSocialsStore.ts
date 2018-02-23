@@ -17,6 +17,7 @@ import {
   GithubResource,
 } from '../resources/github'
 import { UserCachesStore } from './UserCachesStore'
+import ENV from '../config'
 
 export class BoundSocialsStore {
   private userStore: UserStore
@@ -62,7 +63,7 @@ export class BoundSocialsStore {
         transactionDidCreate(hash)
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+        if (confirmationNumber === ENV.REQUIRED_CONFIRMATION_NUMBER) {
           if (!receipt.events) {
             uploadingDidFail(new Error('Unknown error'))
             return

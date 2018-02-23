@@ -11,6 +11,7 @@ import * as styles from './index.css'
 import {
   Link,
 } from 'react-router-dom'
+import ENV from '../../../config'
 
 interface IProps {
   state: FacebookProvingState
@@ -34,7 +35,7 @@ class FacebookProving extends React.Component<IProps> {
       return <div>
         <p className={styles.authorizeNotice}>Please login and authorize</p>
         <FacebookLogin
-          appId={process.env.REACT_APP_FACEBOOK_APP_ID!}
+          appId={ENV.FACEBOOK_APP_ID}
           autoLoad={false}
           fields="name"
           scope="user_posts"

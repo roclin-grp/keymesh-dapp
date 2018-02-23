@@ -17,9 +17,7 @@ import {
 } from '../stores/ChatMessageStore'
 
 export class SessionsDB {
-  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {
-    //
-  }
+  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {}
 
   public getSessions(
     {

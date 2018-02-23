@@ -19,8 +19,7 @@ import {
 } from '../stores/UserStore'
 
 export class UsersDB {
-  constructor(private dexieDB: TypeDexieWithTables, private databases: Databases) {
-  }
+  constructor(private dexieDB: TypeDexieWithTables, private databases: Databases) {}
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users

@@ -32,6 +32,7 @@ const {
 import {
   UserCachesStore,
 } from './UserCachesStore'
+import ENV from '../config'
 
 export class UserProofsStateStore {
   @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
@@ -62,8 +63,8 @@ export class UserProofsStateStore {
   private publicKey: keys.PublicKey
 
   private readonly twitterResource = new TwitterResource(
-    process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
-    process.env.REACT_APP_TWITTER_SECRET_KEY!,
+    ENV.TWITTER_CONSUMER_KEY,
+    ENV.TWITTER_SECRET_KEY,
   )
 
   constructor({

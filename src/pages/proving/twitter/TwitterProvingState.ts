@@ -12,6 +12,7 @@ import {
   BINDING_SOCIAL_STATUS,
   ITwitterClaim,
 } from '../../../stores/BoundSocialsStore'
+import ENV from '../../../config'
 
 export class TwitterProvingState extends ProvingState {
   @observable public claim: ISignedTwitterClaim
@@ -19,8 +20,8 @@ export class TwitterProvingState extends ProvingState {
   protected checkingErrorContent = 'Please tweet the text exactly as it appears, then check again!'
 
   private readonly twitterResource = new TwitterResource(
-      process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
-      process.env.REACT_APP_TWITTER_SECRET_KEY!,
+      ENV.TWITTER_CONSUMER_KEY,
+      ENV.TWITTER_SECRET_KEY,
     )
 
   protected init() {

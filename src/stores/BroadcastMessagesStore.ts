@@ -5,6 +5,7 @@ import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
+import ENV from '../config'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
@@ -73,7 +74,7 @@ export class BroadcastMessagesStore {
         this.broadcastMessagesSignatures.push(signature)
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+        if (confirmationNumber === ENV.REQUIRED_CONFIRMATION_NUMBER) {
           const isCurrentMessage = (_message: IBroadcastMessage) => {
             return _message.author === author &&
               _message.timestamp === timestamp &&
