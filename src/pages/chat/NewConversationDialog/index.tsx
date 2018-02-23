@@ -41,7 +41,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
 
   private unmounted = false
 
-  private userAddressInput: Input | null
+  private userAddressInput: Input | null = null
 
   public componentWillUnmount() {
     this.unmounted = true
@@ -172,7 +172,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private validUserAddress = (
-    _: Object,
+    _: object,
     userAddress: string | undefined,
     done: (isValid?: boolean) => void,
   ) => {

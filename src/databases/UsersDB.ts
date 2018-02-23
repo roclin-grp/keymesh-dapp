@@ -64,9 +64,9 @@ export class UsersDB {
       await restoreDB(this.dexieDB, data.keymesh, () => undefined)
       const users = await this.getUsers(networkId)
 
-      const oldUserAddress = oldUsers.reduce(
+      const oldUserAddress = oldUsers.reduce<{ [userAddress: string]: boolean }>(
         (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
-        {} as { [userAddress: string]: boolean },
+        {},
       )
       const newUser = users.find((_user) => !oldUserAddress[_user.userAddress])
       if (typeof newUser === 'undefined') {

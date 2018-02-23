@@ -51,7 +51,6 @@ import {
   UsersDB,
   ICreateUserArgs,
 } from '../databases/UsersDB'
-import Web3 from 'web3'
 
 import { sha3 } from '../cryptos'
 

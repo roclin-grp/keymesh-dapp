@@ -290,12 +290,11 @@ class Accounts extends React.Component<IProps, IState> {
         storeLogger.error(err)
         message.error('Something went wrong! Please retry.')
       } finally {
-        if (this.unmounted) {
-          return
+        if (!this.unmounted) {
+          this.setState({
+            isImporting: false,
+          })
         }
-        this.setState({
-          isImporting: false,
-        })
       }
     }
     reader.readAsText(file)

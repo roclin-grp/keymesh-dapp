@@ -12,9 +12,9 @@ export class BroadcastMessagesStore {
   private usersStore: UsersStore
   private contractStore: ContractStore
 
-  private fetchTimeout: number
-  private isFetching: boolean
-  private lastFetchBlock: number
+  private fetchTimeout!: number
+  private isFetching: boolean = false
+  private lastFetchBlock: number = 0
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
     [userAddress: string]: keys.PublicKey,
@@ -59,7 +59,8 @@ export class BroadcastMessagesStore {
     const contract = this.contractStore.broadcastMessagesContract
     const author = currentUserStore!.user.userAddress
 
-    contract.publish(signedMessageHex, author)
+    transactionWillCreate()
+    contract.publish(author, signedMessageHex)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
         runInAction(() => {
@@ -154,7 +155,7 @@ export class BroadcastMessagesStore {
   private fetchNewBroadcastMessages = async () => {
     const {
       lastBlock,
-      broadcastMessages,
+      result: broadcastMessages,
     } = await this.contractStore.broadcastMessagesContract.getBroadcastMessages({
       fromBlock: this.lastFetchBlock > 0 ? this.lastFetchBlock : 0,
     })

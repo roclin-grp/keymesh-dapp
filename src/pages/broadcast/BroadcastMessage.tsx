@@ -38,12 +38,12 @@ interface IProps {
 
 @observer
 export default class BroadcastMessage extends React.Component<IProps> {
+  // FIXME: no @observable inside React component
   @observable
   private avatarHash: string = ''
-  private time: number
   @observable
   private timeText: string = ''
-  private updateTimeTimeout: number
+  private updateTimeTimeout!: number
 
   public async componentDidMount() {
     const {
@@ -53,11 +53,9 @@ export default class BroadcastMessage extends React.Component<IProps> {
       userProofsStateStore,
       message: {
         author,
-        timestamp,
       },
     } = this.props
     const avatarHash = await getAvatarHashByUserAddress(author!)
-    this.time = timestamp
     this.updateTimeText()
     runInAction(() => {
       this.avatarHash = avatarHash
@@ -127,7 +125,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   private updateTimeText() {
     runInAction(() => {
-      this.timeText = timeAgo(this.time)
+      this.timeText = timeAgo(this.props.message.timestamp)
     })
 
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
@@ -141,8 +139,8 @@ export default class BroadcastMessage extends React.Component<IProps> {
       verifyFacebook,
       verifyGithub,
     } = this.props.userProofsStateStore
-    return Object.keys(userBoundSocials).filter((key) => key !== 'nonce')
-      .forEach((platform: SOCIALS) => {
+    return (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
+      .forEach((platform) => {
         if (
           !isUndefined(userBoundSocials[platform])
           && beforeOneDay(verifyStatuses[platform].lastVerifiedAt)
@@ -163,11 +161,11 @@ export default class BroadcastMessage extends React.Component<IProps> {
       userBoundSocials,
       verifyStatuses,
     } = this.props.userProofsStateStore
-    const validPlatform = Object.keys(userBoundSocials).filter((key) => key !== 'nonce')
-      .find((platform: SOCIALS) => (
+    const validPlatform = (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
+      .find((platform) => (
           !isUndefined(userBoundSocials[platform])
           && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID
-      )) as SOCIALS
+      ))
 
     if (!isUndefined(validPlatform)) {
       return userBoundSocials[validPlatform]!.username
@@ -181,23 +179,25 @@ export default class BroadcastMessage extends React.Component<IProps> {
       userBoundSocials,
       verifyStatuses,
     } = this.props.userProofsStateStore
-    return Object.keys(userBoundSocials).filter((key) => key !== 'nonce')
-      .map((platform: SOCIALS) => {
-        if (
-          !isUndefined(userBoundSocials[platform])
-          && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID
-        ) {
-          return (
-            <Icon
-              key={platform}
-              type={platform}
-              className={classnames(styles.socialIcon, PALTFORM_MODIFIER_CLASSES[platform])}
-            />
-          )
-        }
-        return null
-      })
-      .filter((element) => element !== null)
+    return (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
+      .reduce<JSX.Element[]>(
+        (result, platform) => {
+          if (
+            !isUndefined(userBoundSocials[platform])
+            && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID
+          ) {
+            return result.concat((
+              <Icon
+                key={platform}
+                type={platform}
+                className={classnames(styles.socialIcon, PALTFORM_MODIFIER_CLASSES[platform])}
+              />
+            ))
+          }
+          return result
+        },
+        [],
+      )
   }
 }
 

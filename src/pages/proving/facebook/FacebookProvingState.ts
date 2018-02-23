@@ -14,14 +14,14 @@ import {
 } from '../../../stores/BoundSocialsStore'
 
 export class FacebookProvingState extends ProvingState {
-  @observable public claim: ISignedFacebookClaim
+  @observable public claim!: ISignedFacebookClaim
   public platform = SOCIALS.FACEBOOK
   protected checkingErrorContent = `Please post the your proof to Facebook, `
     + `the content must be exactly as the screen appears and make sure that is public. `
     + `Then check again!`
 
-  private facebookAccessToken: string
-  private facebookUserID: string
+  private facebookAccessToken!: string
+  private facebookUserID!: string
 
   public loginCallback = (response: any) => {
     this.facebookAccessToken = response.accessToken
@@ -74,14 +74,14 @@ export class FacebookProvingState extends ProvingState {
     }
   }
 
-  protected setClaim(username: string, userAddress: string, publicKey: string): void {
+  protected setClaim(userAddress: string, publicKey: string): void {
     runInAction(() => {
       this.isProving = true
-      this.claim = this.generateSignedClaim(username, userAddress, publicKey)
+      this.claim = this.generateSignedClaim(userAddress, publicKey)
     })
   }
 
-  private generateSignedClaim = (username: string, userAddress: string, publicKey: string) => {
+  private generateSignedClaim = (userAddress: string, publicKey: string) => {
     const claim: IFacebookClaim = {
       userAddress,
       publicKey,

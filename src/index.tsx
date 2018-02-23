@@ -1,6 +1,6 @@
 import 'antd/dist/antd.css'
-
 import 'font-awesome/css/font-awesome.css'
+
 import './global.css'
 
 import * as React from 'react'
@@ -26,8 +26,9 @@ function renderApp() {
   )
 }
 
-if (module.hot) {
-  module.hot.accept(renderApp)
+const {hot} = module as NodeModule & {hot: any}
+if (hot) {
+  hot.accept(renderApp)
 }
 
 window.addEventListener('load', renderApp)

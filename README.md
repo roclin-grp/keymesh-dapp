@@ -10,13 +10,7 @@ Install project dependencies:
 yarn install
 ```
 
-This project uses the [Parcel](https://github.com/parcel-bundler/parcel) bundler for hot-reload development server, as well as project building. Install `parcel` globally first:
-
-```
-yarn global add parcel fsevents
-```
-
-Then start the dev server:
+Start the dev server:
 
 ```
 yarn start

@@ -40,7 +40,7 @@ class SwitchUserOption extends React.Component<IProps, IState> {
       </a>
     )
   }
-  private handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  private handleClick = (_: React.MouseEvent<HTMLAnchorElement>) => {
     const selection = window.getSelection()
     if (selection.type === 'Range') {
       return
