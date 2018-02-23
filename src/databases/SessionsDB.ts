@@ -31,24 +31,24 @@ export class SessionsDB {
       offset,
       limit,
     }: IGetSessionsOptions = {}) {
-      const collect = (() => {
-        let _collect = this.dexieDB.sessions
-          .orderBy('lastUpdate')
-          .reverse()
-          .filter((session) =>
-            session.networkId === networkId
-            && session.userAddress === userAddress
-            && (contact ? session.contact === contact : true),
-          )
-        if (offset >= 0) {
-          _collect = _collect.offset(offset)
-        }
-        if (limit >= 0) {
-          _collect = _collect.limit(limit)
-        }
-        return _collect
-      })()
-      return collect.toArray()
+    const collect = (() => {
+      let _collect = this.dexieDB.sessions
+        .orderBy('lastUpdate')
+        .reverse()
+        .filter((session) =>
+          session.networkId === networkId
+          && session.userAddress === userAddress
+          && (contact ? session.contact === contact : true),
+      )
+      if (offset >= 0) {
+        _collect = _collect.offset(offset)
+      }
+      if (limit >= 0) {
+        _collect = _collect.limit(limit)
+      }
+      return _collect
+    })()
+    return collect.toArray()
   }
 
   public deleteSessions(
@@ -74,8 +74,8 @@ export class SessionsDB {
             networkId,
             userAddress,
           },
-          contact ? {contact} : null),
-        )
+          contact ? { contact } : null),
+      )
         .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
         .each((session) => this.deleteSession(session))
     })
@@ -191,7 +191,7 @@ export class SessionsDB {
       await messagesDB.deleteMessagesOfSession(session)
 
       const remainSessions = await sessions
-        .where({'contact.userAddress': contact.userAddress})
+        .where({ 'contact.userAddress': contact.userAddress })
         .toArray()
 
       if (remainSessions.length === 0) {
@@ -218,16 +218,9 @@ export class SessionsDB {
 }
 
 export interface ICreateSessionArgs {
-  messageId: string
-  contact: IContact
   sessionTag: string
-  messageType: MESSAGE_TYPE
-  timestamp: number
   subject?: string
-  plainText?: string
-  isFromYourself?: boolean
-  transactionHash?: string
-  status?: MESSAGE_STATUS
+  contact: IContact
 }
 
 interface IGetSessionsOptions {

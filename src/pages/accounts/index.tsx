@@ -98,7 +98,7 @@ class Accounts extends React.Component<IProps, IState> {
               Create new account
             </h2>
           )
-          : this.getUserList()
+          : this.renderUserList()
         }
         <h3>
           Wallet Address: {currentEthereumAccount}
@@ -167,7 +167,7 @@ class Accounts extends React.Component<IProps, IState> {
     )
   }
 
-  private getUserList() {
+  private renderUserList() {
     const {
       usersStore: {
         users,

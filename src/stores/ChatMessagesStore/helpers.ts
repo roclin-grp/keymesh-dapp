@@ -39,6 +39,149 @@ import {
   IGenerateMessageOptions,
   IRawUnppaddedMessage,
 } from './typings'
+import { Cryptobox } from 'wire-webapp-cryptobox'
+
+export interface ICryptoMessage {
+  messageType: MESSAGE_TYPE,
+  sessionTag: string
+  envelope: Envelope,
+  mac: Uint8Array,
+  timestamp: number,
+}
+
+export interface IEncryptedCryptoMessage extends ICryptoMessage {
+  messageId: string,
+  cipherText: string,
+}
+
+export interface IMessageRequest {
+  messageType: MESSAGE_TYPE,
+  toAddress: string,
+
+  plainText?: string,  // optional for "close session"
+
+  subject?: string,
+  sessionTag?: string, // if empty, create hello message
+}
+
+export interface IMessageSender {
+  userAddress: string,
+  cryptoBox: Cryptobox,
+}
+
+export interface IMessageReceiver {
+  userAddress: string,
+  identityKey: keys.IdentityKey,
+  pubkeyHex: string,
+  preKeyPublicKey: keys.PublicKey,
+  preKeyID: number,
+  blockHash: string,
+}
+
+export async function encryptMessage(
+  sender: IMessageSender,
+  receiver: IMessageReceiver,
+  req: IMessageRequest,
+): Promise<IEncryptedCryptoMessage> {
+  const factory = new MessageFactory(sender, receiver, req)
+  return factory.generateEncryptedMessage()
+}
+
+class MessageFactory {
+  constructor(
+    private readonly sender: IMessageSender,
+    private readonly receiver: IMessageReceiver,
+    private readonly req: IMessageRequest,
+  ) {
+  }
+
+  public async generateEncryptedMessage(): Promise<IEncryptedCryptoMessage> {
+    const msg = await this.generateMessage()
+
+    const {
+      mac,
+      envelope,
+    } = msg
+
+    const messageId = generateMessageIDFromMAC(mac)
+
+    const {
+      preKeyID,
+      preKeyPublicKey,
+    } = this.receiver
+
+    const cipherText = msg.envelope.encrypt(preKeyID, preKeyPublicKey)
+
+    return {
+      ...msg,
+      cipherText,
+      messageId,
+    }
+  }
+
+  private async generateHelloMessage(
+    plainText: string,
+    subject?: string,
+  ) {
+    return generateHelloMessage(
+      this.sender,
+      this.receiver,
+      plainText,
+      {
+        subject,
+      },
+    )
+  }
+
+  private async generateNormalMessage(
+    sessionTag: string,
+    plainText: string,
+    subject?: string,
+  ) {
+    return generateNormalMessage(
+      this.sender,
+      plainText,
+      sessionTag,
+      {
+        subject,
+      },
+    )
+  }
+
+  private async generateMessage(): Promise<ICryptoMessage> {
+    const {
+      toAddress,
+      messageType,
+
+      plainText,
+      // optional
+      subject,
+      sessionTag,
+    } = this.req
+
+    switch (messageType) {
+      case MESSAGE_TYPE.HELLO:
+        if (plainText == null) {
+          throw new Error('no message')
+        }
+        return this.generateHelloMessage(plainText, subject)
+      case MESSAGE_TYPE.NORMAL:
+        if (plainText == null) {
+          throw new Error('no message')
+        }
+
+        if (sessionTag == null) {
+          throw new Error('no session specified')
+        }
+
+        return this.generateNormalMessage(toAddress, plainText, subject)
+      case MESSAGE_TYPE.CLOSE_SESSION:
+      default:
+        throw new Error('unknown message type')
+    }
+  }
+
+}
 
 export async function generateHelloMessage(
   {
@@ -55,7 +198,7 @@ export async function generateHelloMessage(
     closeSession = false,
     subject,
   }: IGenerateMessageOptions = {},
-) {
+): Promise<ICryptoMessage> {
   const messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.HELLO
   const timestamp = Date.now()
   const rawMessage: IRawUnppaddedMessage = {
@@ -228,10 +371,10 @@ export function getPreKey({
   lastPrekeyDate,
   preKeyPublicKeyFingerprints,
 }: {
-  interval: number,
-  lastPrekeyDate: number,
-  preKeyPublicKeyFingerprints: IPreKeyPublicKeyFingerprints,
-}) {
+    interval: number,
+    lastPrekeyDate: number,
+    preKeyPublicKeyFingerprints: IPreKeyPublicKeyFingerprints,
+  }) {
   let preKeyPublicKeyFingerprint
   let preKeyID = unixToday()
   if (preKeyID > lastPrekeyDate) {

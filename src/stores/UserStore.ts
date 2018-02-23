@@ -294,6 +294,7 @@ export class UserStore {
 
   public uploadPreKeys = async (
     {
+      // FIXME: what the hell? should not need callback. throw if fail, return if didUpload...
       preKeysDidUpload = noop,
       preKeysUploadDidFail = noop,
       isRegister = false,
@@ -435,6 +436,8 @@ export interface IUser extends IUserIdentityKeys {
   blockHash: string
   identityTransactionHash: string
   lastFetchBlockOfChatMessages: number
+
+  // FIXME: should not belong here. Should not require `refreshMemoryUser` when `sendMessage`
   contacts: IContact[]
 }
 
