@@ -59,6 +59,11 @@ import {
   generateNormalMessage,
   generateMessageIDFromMAC,
   unpad512BytesMessage,
+  ICryptoMessage,
+  IMessageRequest,
+  IMessageReceiver,
+  IMessageSender,
+  encryptMessage,
 } from './helpers'
 import {
   ISendMessageOptions,
@@ -68,6 +73,20 @@ import {
   IReceivedMessage,
   IDecryptedTrustbaseMessage,
 } from './typings'
+import { SessionStore } from '../SessionStore'
+
+// FIXME: Too similar to IMessage. Can we make them the same?
+export interface IChatMessage {
+  messageId: string
+  messageType: MESSAGE_TYPE
+  timestamp: number
+  // FIXME: can just compare IUserIdentityKeys isFromYourself
+  isFromYourself: boolean
+  plainText?: string
+
+  transactionHash?: string
+  status?: MESSAGE_STATUS
+}
 
 export class ChatMessagesStore {
   @observable public isFetching = false
@@ -91,12 +110,12 @@ export class ChatMessagesStore {
     indexedDBStore,
     cryptoBox,
   }: {
-    userStore: UserStore
-    contractStore: ContractStore
-    metaMaskStore: MetaMaskStore
-    indexedDBStore: IndexedDBStore
-    cryptoBox: Cryptobox,
-  }) {
+      userStore: UserStore
+      contractStore: ContractStore
+      metaMaskStore: MetaMaskStore
+      indexedDBStore: IndexedDBStore
+      cryptoBox: Cryptobox,
+    }) {
     this.userStore = userStore
     this.contractStore = contractStore
     this.metaMaskStore = metaMaskStore
@@ -104,32 +123,137 @@ export class ChatMessagesStore {
     this.cryptoBox = cryptoBox
   }
 
+  public get getMessageSender(): IMessageSender {
+
+    return {
+      userAddress: this.userStore.user.userAddress,
+      cryptoBox: this.cryptoBox,
+    }
+  }
+
+  // select a prekey
+  public async getPrekey(address: string, pubkeyHex: string) {
+    const {
+      interval,
+      lastPrekeyDate,
+      preKeyPublicKeys,
+    } = await getPreKeys(address, pubkeyHex)
+
+    if (Object.keys(preKeyPublicKeys).length === 0) {
+      throw new Error('no prekeys uploaded yet')
+    }
+
+    const {
+      id: preKeyID,
+      publicKey: preKeyPublicKey,
+    } = getPreKey({
+      interval,
+      lastPrekeyDate,
+      preKeyPublicKeyFingerprints: preKeyPublicKeys,
+    })
+
+    return {
+      preKeyID,
+      preKeyPublicKey,
+    }
+  }
+
+  public async getMessageReceiver(address: string): Promise<IMessageReceiver> {
+    const {
+      publicKey: pubkeyHex,
+      blockNumber,
+    } = await this.contractStore.identitiesContract.getIdentity(address)
+
+    if (isHexZeroValue(pubkeyHex)) {
+      throw new Error('cannot find identity')
+    }
+
+    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
+    if (isHexZeroValue(blockHash)) {
+      throw new Error('cannot find identity block hash')
+    }
+
+    const {
+      preKeyPublicKey,
+      preKeyID,
+    } = await this.getPrekey(address, pubkeyHex)
+
+    return {
+      userAddress: address,
+      pubkeyHex,
+      identityKey: generateIdentityKeyFromHexStr(pubkeyHex),
+      blockHash,
+      preKeyPublicKey,
+      preKeyID,
+    }
+  }
+
+  public async getCryptoboxSession(sessionTag: string): Promise<CryptoboxSession> {
+    return this.cryptoBox.session_load(sessionTag)
+  }
+
+  public async getSessionStore(sessionTag: string): Promise<SessionStore> {
+    const {
+      sessionsDB,
+    } = getDatabases()
+
+    // why not just search for session store with a unique session string id?
+    const sessionInfo = await sessionsDB.getSession(sessionTag, this.getMessageSender.userAddress)
+
+    if (!sessionInfo) {
+      throw new Error(`Cannot find session: ${sessionTag}`)
+    }
+
+    return this.userStore.sessionsStore.getSessionStore(sessionInfo)
+  }
+
+  public async addMessageToSession(blockHash: string, sessionTag: string, req: IMessageRequest, chatmsg: IChatMessage) {
+    const { sessionsStore } = this.userStore
+    const isNewSession = req.sessionTag == null
+
+    if (isNewSession) {
+      // will create a sesssion and add the message to it in a transaction
+      const sessionInfo = {
+        sessionTag,
+        contact: {
+          userAddress: req.toAddress,
+          // blockhash is used to generate identicon
+          blockHash,
+        },
+        subject: req.subject,
+      }
+
+      const newSession = await sessionsStore.createSession(sessionInfo, chatmsg)
+
+      // switch to new session
+      sessionsStore.selectSession(newSession)
+
+      // FIXME: can remove this later
+      this.userStore.refreshMemoryUser()
+
+      return
+    }
+
+    // Add the message
+    const sessionStore = await this.getSessionStore(sessionTag)
+    await sessionStore.createMessage(chatmsg)
+
+    return
+  }
+
   public sendMessage = async (
-    toUserAddress: string,
-    messageType: MESSAGE_TYPE,
+    req: IMessageRequest,
     {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
       messageDidCreate = noop,
       sendingDidFail = noop,
-
-      subject,
-      plainText,
-      sessionTag,
     }: ISendMessageOptions = {},
   ) => {
-    if (toUserAddress === '') {
-      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
-    }
 
-    // cache enviorment
     const {
-      identitiesContract,
       messagesContract,
     } = this.contractStore
-    const {
-      cryptoBox,
-    } = this
     const {
       user: {
         userAddress: fromUserAddress,
@@ -141,211 +265,56 @@ export class ChatMessagesStore {
       messagesDB,
     } = getDatabases()
 
-    if (toUserAddress === fromUserAddress) {
+    if (req.toAddress === fromUserAddress) {
       return sendingDidFail(null, SENDING_FAIL_CODE.SEND_TO_YOURSELF)
     }
 
-    let identityFingerprint = '0x0'
-    let blockNumber = 0
-    try {
-      const {
-        publicKey,
-        blockNumber: _blockNumber,
-      } = await identitiesContract.getIdentity(toUserAddress)
-      identityFingerprint = publicKey
-      blockNumber = _blockNumber
-    } catch (err) {
-      // if `toUserAddress` is not starts with '0x0', getIdentity will throw
-      // but you can't use .catch here... wtf
-    }
+    const sender = this.getMessageSender
+    const receiver = await this.getMessageReceiver(req.toAddress)
+    const msg = await encryptMessage(sender, receiver, req)
 
-    if (isHexZeroValue(identityFingerprint)) {
-      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
-    }
-
-    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
-    if (isHexZeroValue(blockHash)) {
-      throw new Error(`Can't not get blockhash`)
-    }
-
-    const {
-      interval,
-      lastPrekeyDate,
-      preKeyPublicKeys: preKeyPublicKeyFingerprints,
-    } = await getPreKeys(toUserAddress, identityFingerprint)
-    if (Object.keys(preKeyPublicKeyFingerprints).length === 0) {
-      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_USER_ADDRESS)
-    }
-
-    let session: CryptoboxSession | null = null
-    if (sessionTag != null) {
-      // Is reply
-      // Try to load local session and save to cache..
-      session = await cryptoBox.session_load(sessionTag).catch((err) => {
-        if (err.name !== 'RecordNotFoundError') {
-          // Maybe we have a corrupted session on local, delete it.
-          return Promise.all([
-            cryptoBox.session_delete(sessionTag),
-            sessionsDB.getSession(sessionTag, fromUserAddress).then((_session) => {
-              if (_session) {
-                return sessionsDB.deleteSession(_session)
-              }
-              return
-            }),
-          ]).then(() => null)
-        }
-        return null
-      })
-    }
-
-    if (session === null) {
-      messageType = MESSAGE_TYPE.HELLO
-    }
-
-    const {
-      id: preKeyID,
-      publicKey: preKeyPublicKey,
-    } = getPreKey({
-      interval,
-      lastPrekeyDate,
-      preKeyPublicKeyFingerprints,
-    })
-
-    const closeSession = messageType === MESSAGE_TYPE.CLOSE_SESSION
-
-    let usingMessageType: MESSAGE_TYPE
-    let usingSessionTag: string
-    let envelope: Envelope
-    let mac: Uint8Array
-    let timestamp: number
-
-    switch (messageType) {
-      case MESSAGE_TYPE.HELLO:
-        if (!closeSession && plainText === '') {
-          return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE)
-        }
-        ({
-          messageType: usingMessageType,
-          sessionTag: usingSessionTag,
-          envelope,
-          mac,
-          timestamp,
-        } = await generateHelloMessage(
-          {
-            userAddress: fromUserAddress,
-            cryptoBox,
-          },
-          {
-            userAddress: toUserAddress,
-            identityKey: generateIdentityKeyFromHexStr(identityFingerprint),
-            preKeyPublicKey,
-            preKeyID,
-          },
-          plainText,
-          {
-            closeSession,
-            subject,
-          },
-        ))
-        break
-      case MESSAGE_TYPE.CLOSE_SESSION:
-      case MESSAGE_TYPE.NORMAL:
-        if (!closeSession && plainText === '') {
-          return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE)
-        }
-        ({
-          messageType: usingMessageType,
-          sessionTag: usingSessionTag,
-          envelope,
-          mac,
-          timestamp,
-        } = await generateNormalMessage(
-          {
-            userAddress: fromUserAddress,
-            cryptoBox,
-          },
-          plainText,
-          sessionTag,
-          {
-            closeSession,
-            subject,
-          },
-        ))
-        break
-      default:
-      return sendingDidFail(null, SENDING_FAIL_CODE.INVALID_MESSAGE_TYPE)
-    }
+    const isClosingSession = req.messageType === MESSAGE_TYPE.CLOSE_SESSION
 
     transactionWillCreate()
-    const messageId = generateMessageIDFromMAC(mac)
-    messagesContract.publish(envelope.encrypt(preKeyID, preKeyPublicKey))
+
+    const tx = await messagesContract.publish(msg.cipherText)
+
+    messagesContract.publish(msg.cipherText)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
-        if (closeSession) {
+        if (isClosingSession) {
           return
         }
-        const createNewSession = async () => {
-          const newSession = await sessionsStore.createSession({
-            sessionTag: usingSessionTag,
-            contact: {
-              userAddress: toUserAddress,
-              blockHash,
-            },
-            subject,
-            // create message args
-            messageId,
-            messageType: usingMessageType,
-            timestamp,
-            plainText,
-            isFromYourself: true,
-            transactionHash: hash,
-          })
 
-          // refresh contacts
-          this.userStore.refreshMemoryUser()
-
-          sessionsStore.selectSession(newSession)
-          return messagesDB.getMessage(messageId, fromUserAddress)
+        const chatmsg: IChatMessage = {
+          messageId: msg.messageId,
+          messageType: req.messageType,
+          timestamp: msg.timestamp,
+          plainText: req.plainText,
+          isFromYourself: true,
+          transactionHash: hash,
         }
 
         try {
-          if (sessionTag !== usingSessionTag) {
-            const newMessage = await createNewSession()
-            if (newMessage != null) {
-              messageDidCreate(newMessage)
-            } else {
-              sendingDidFail(new Error(`Can't create message`))
-            }
-          } else {
-            const oldSession = await sessionsDB.getSession(sessionTag, fromUserAddress)
-            if (!oldSession) {
-              // cryptobox session corrupted
-              await createNewSession()
-            } else {
-              const newMessage = await sessionsStore.getSessionStore(oldSession).createMessage({
-                messageId,
-                messageType,
-                timestamp,
-                plainText,
-                isFromYourself: true,
-                transactionHash: hash,
-              })
-              messageDidCreate(newMessage)
-            }
-          }
+          await this.addMessageToSession(
+            receiver.blockHash,
+            msg.sessionTag,
+            req,
+            chatmsg,
+          )
         } catch (err) {
           sendingDidFail(err)
         }
       })
       .on('error', async (error: Error) => {
         if (error.message.includes('Transaction was not mined within 50 blocks')) {
-          // we don't care here
-          // we handle timeout in UserStore.checkIdentityUploadStatus
+          // we don't know whether the tx was confirmed or not. don't do anything.
           return
         }
 
         try {
-          const message = await messagesDB.getMessage(messageId, fromUserAddress)
+          // mark the message as sending failed
+          const message = await messagesDB.getMessage(msg.messageId, fromUserAddress)
           if (message != null) {
             this.getMessageStore(message).updateMessageStatus(MESSAGE_STATUS.FAILED)
           }
@@ -425,7 +394,7 @@ export class ChatMessagesStore {
     const {
       user,
       sessionsStore,
-     } = this.userStore
+    } = this.userStore
 
     const newLastBlock = lastBlock < 3 ? 0 : lastBlock - 3
     if (messages.length === 0) {

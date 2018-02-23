@@ -55,28 +55,36 @@ export class ChatMessageStore {
     const waitForTransactionReceipt = async (blockCounter = 0, confirmationCounter = 0) => {
       try {
         const receipt = await this.metaMaskStore.getTransactionReceipt(transactionHash)
-        if (receipt !== null) {
-          if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
-            const hasStatus = receipt.status != null
-            const hasTransactionError = hasStatus
-              ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
-              : receipt.gasUsed === receipt.cumulativeGasUsed
-            if (hasTransactionError) {
-              await this.updateMessageStatus(MESSAGE_STATUS.FAILED)
-              return sendingDidFail(SENDING_FAIL_CODE.TRANSACTION_ERROR)
-            }
-
-            await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
-            messageDidSend()
-          } else {
-            window.setTimeout(
-              waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1,
-            )
-          }
+        // not yet confirmed
+        if (receipt == null) {
+          window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
           return
         }
 
-        window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
+        // check out of gas (or error)
+        const hasStatus = receipt.status != null
+        const hasTransactionError = hasStatus
+          ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
+          : receipt.gasUsed === receipt.cumulativeGasUsed
+
+        if (hasTransactionError) {
+          await this.updateMessageStatus(MESSAGE_STATUS.FAILED)
+          sendingDidFail(SENDING_FAIL_CODE.TRANSACTION_ERROR)
+          return
+        }
+
+        // wait for more confirmations
+        if (confirmationCounter < ENV.REQUIRED_CONFIRMATION_NUMBER) {
+          window.setTimeout(
+            waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1,
+          )
+          return
+        }
+
+        // enough confirmation, success
+        await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
+        messageDidSend()
+
       } catch (err) {
         storeLogger.error(err)
         checkingDidFail(err)
@@ -124,8 +132,10 @@ export interface IMessage extends IUserIdentityKeys {
   sessionTag: string
   messageType: MESSAGE_TYPE
   timestamp: number
+  // FIXME: can just compare IUserIdentityKeys isFromYourself
   isFromYourself: boolean
   plainText?: string
+
   transactionHash?: string
   status: MESSAGE_STATUS
 }

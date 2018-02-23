@@ -19,6 +19,7 @@ import {
   ICreateSessionArgs,
   SessionsDB,
 } from '../databases/SessionsDB'
+import { IChatMessage } from './ChatMessagesStore';
 
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
@@ -73,7 +74,7 @@ export class SessionsStore {
     }
   }
 
-  public createSession = async (args: ICreateSessionArgs) => {
+  public createSession = async (sessionInfo: ICreateSessionArgs, msg: IChatMessage) => {
     const { user } = this.userStore
 
     const session = await this.sessionsDB.createSession(
