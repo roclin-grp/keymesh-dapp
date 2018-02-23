@@ -14,7 +14,7 @@ import {
 } from '../../../stores/BoundSocialsStore'
 
 export class TwitterProvingState extends ProvingState {
-  @observable public claim: ISignedTwitterClaim
+  @observable public claim!: ISignedTwitterClaim
   public platform = SOCIALS.TWITTER
   protected checkingErrorContent = 'Please tweet the text exactly as it appears, then check again!'
 
@@ -60,14 +60,14 @@ export class TwitterProvingState extends ProvingState {
     }
   }
 
-  protected setClaim(username: string, userAddress: string, publicKey: string): void {
+  protected setClaim(userAddress: string, publicKey: string): void {
     runInAction(() => {
       this.isProving = true
-      this.claim = this.generateSignedClaim(username, userAddress, publicKey)
+      this.claim = this.generateSignedClaim(userAddress, publicKey)
     })
   }
 
-  private generateSignedClaim = (username: string, userAddress: string, publicKey: string): ISignedTwitterClaim => {
+  private generateSignedClaim = (userAddress: string, publicKey: string): ISignedTwitterClaim => {
     const claim: ITwitterClaim = {
       userAddress,
       publicKey,

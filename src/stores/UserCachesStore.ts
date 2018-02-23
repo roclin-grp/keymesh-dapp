@@ -3,7 +3,6 @@ import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifyStatuses, IBoundSocials, NewIVerifyStatuses } from './BoundSocialsStore'
 import { sha3 } from '../cryptos'
-import { reaction } from 'mobx'
 
 export class UserCachesStore {
   private cachedUserAvatarPromises: {

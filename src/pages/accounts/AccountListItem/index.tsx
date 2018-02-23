@@ -357,7 +357,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     })
   }
 
-  private identityUploadCheckingDidFail = (err: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
+  private identityUploadCheckingDidFail = (_: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return
     }

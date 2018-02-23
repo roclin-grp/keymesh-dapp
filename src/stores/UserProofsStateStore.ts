@@ -53,13 +53,13 @@ export class UserProofsStateStore {
   private contractStore: ContractStore
   private userCachesStore: UserCachesStore
 
-  private fetchUserProofTimeout: number
+  private fetchUserProofTimeout!: number
 
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
   @observable private userLastFetchBlock: number = 0
-  private publicKey: keys.PublicKey
+  private publicKey: keys.PublicKey | undefined
 
   private readonly twitterResource = new TwitterResource(
     process.env.REACT_APP_TWITTER_CONSUMER_KEY!,
@@ -103,15 +103,18 @@ export class UserProofsStateStore {
   }
 
   public fetchUserProofs = async () => {
-    const publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
+    const publicKey = this.publicKey
     if (typeof publicKey === 'undefined') {
       return
     }
 
     const {
       lastBlock,
-      bindEvents,
-    } = await this.getBindEvents(this.userLastFetchBlock, this.userAddress)
+      result: bindEvents,
+    } = await this.contractStore.boundSocialsContract.getBindings({
+      fromBlock: this.userLastFetchBlock,
+      userAddress: this.userAddress,
+    })
 
     runInAction(() => {
       this.userLastFetchBlock = lastBlock
@@ -143,15 +146,16 @@ export class UserProofsStateStore {
     }
 
     const loop = async () => {
-      if (this.finishedInit) {
-        try {
-          await this.fetchUserProofs()
-        } finally {
-          this.fetchUserProofTimeout = window.setTimeout(loop, interval)
-          return
-        }
+      if (!this.finishedInit) {
+        this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
+        return
       }
-      this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
+
+      try {
+        await this.fetchUserProofs()
+      } finally {
+        this.fetchUserProofTimeout = window.setTimeout(loop, interval)
+      }
     }
 
     this.isFetchingUserProofs = true
@@ -218,7 +222,7 @@ export class UserProofsStateStore {
       return
     }
 
-    if (this.publicKey.verify(
+    if (this.publicKey!.verify(
       uint8ArrayFromHex(claim.signature),
       JSON.stringify(claim.claim),
     )) {
@@ -267,21 +271,9 @@ export class UserProofsStateStore {
       this.verifyStatuses = verifyStatues
     })
 
-    this.publicKey = (await this.usersStore.getUserPublicKey(this.userAddress))!
+    this.publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
     runInAction(() => {
       this.finishedInit = true
-    })
-  }
-
-  private getBindEvents = (
-    lastFetchBlock: number,
-    userAddress: string,
-  ) => {
-    return this.contractStore.boundSocialsContract.getBindEvents({
-      fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
-      filter: {
-        userAddress,
-      },
     })
   }
 }

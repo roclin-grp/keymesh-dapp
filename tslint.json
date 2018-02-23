@@ -25,7 +25,8 @@
             "allow-leading-underscore",
             "allow-pascal-case"
         ],
-        "no-empty-interface": false
+        "no-empty-interface": false,
+        "no-unused-variable": true
     },
     "rulesDirectory": []
 }

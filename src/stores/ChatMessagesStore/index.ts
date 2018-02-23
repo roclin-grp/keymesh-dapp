@@ -82,7 +82,7 @@ export class ChatMessagesStore {
   private cachedMessageStores: {
     [primaryKey: string]: ChatMessageStore,
   } = {}
-  private fetchTimeout: number
+  private fetchTimeout!: number
 
   constructor({
     userStore,
@@ -412,7 +412,7 @@ export class ChatMessagesStore {
     } = getDatabases()
     const {
       lastBlock,
-      messages,
+      result: messages,
     } = await this.contractStore.messagesContract.getMessages({
       fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
     })

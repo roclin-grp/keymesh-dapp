@@ -302,7 +302,7 @@ export class UserStore {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
 
-    const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = preKeys.reduce(
+    const preKeysPublicKeyFingerprints = preKeys.reduce<IPreKeyPublicKeyFingerprints>(
       (result, preKey) => Object.assign(result, {
         [preKey.key_id]: getPublicKeyFingerPrint(preKey.key_pair.public_key),
       }),
@@ -345,6 +345,7 @@ export class UserStore {
       }
       preKeysDidUpload()
     } else {
+      preKeysUploadDidFail(new Error(resp.toString()))
       storeLogger.error(resp)
     }
   }

@@ -18,9 +18,9 @@ import { Modal } from 'antd'
 
 const defaultCheckProofButtonContent = 'OK posted! Check for it!'
 export default abstract class ProvingState {
-  @observable public isFinished: boolean
-  @observable public isProving: boolean
-  @observable public username: string
+  @observable public isFinished: boolean = false
+  @observable public isProving: boolean = false
+  @observable public username!: string
   @observable
   public currentStep: number = 0
   @observable.ref
@@ -30,7 +30,7 @@ export default abstract class ProvingState {
   @observable
   public checkProofButtonDisabled = false
 
-  protected checkingErrorContent: string
+  protected checkingErrorContent!: string
 
   constructor(protected usersStore: UsersStore) {
     this.init()
@@ -117,7 +117,7 @@ export default abstract class ProvingState {
       content: this.checkingErrorContent,
     })
   }
-  private uploadingDidFail = (err: Error | null, code = UPLOADING_FAIL_CODE.UNKNOWN) => {
+  private uploadingDidFail = (_: Error | null, code = UPLOADING_FAIL_CODE.UNKNOWN) => {
     if (code === UPLOADING_FAIL_CODE.NO_NEW_BINDING) {
       storeLogger.error('no new binding')
       runInAction(() => {
