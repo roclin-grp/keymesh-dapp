@@ -94,7 +94,7 @@ class Accounts extends React.Component<IProps, IState> {
         {
           users.length === 0
           ? (
-            <h2 className="title">
+            <h2 className={classnames(styles.title, 'title')}>
               Create new account
             </h2>
           )
@@ -175,7 +175,7 @@ class Accounts extends React.Component<IProps, IState> {
     } = this.injectedProps
     return (
       <>
-        <h2 className="title">
+        <h2 className={classnames(styles.title, 'title')}>
           Manage accounts
         </h2>
         <div className={classnames(styles.userListContainer, 'container')}>

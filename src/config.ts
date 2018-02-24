@@ -6,6 +6,7 @@ export default process.env.NODE_ENV === 'production' ? {
   TWITTER_CONSUMER_KEY: '8rBG1xrUBpFgE2T5bDOskGFpv',
   TWITTER_SECRET_KEY: 'WOL2SCR8RJr38LTBlPEqZz4r6fyU9qqCELBeCE7hmbOcuchnDi',
   FACEBOOK_APP_ID: '162817767674605',
+  DEPLOYED_ADDRESS: 'https://test.keymail.io',
 } : {
   REQUIRED_CONFIRMATION_NUMBER: 1,
   ESTIMATE_AVERAGE_BLOCK_TIME: 5000,
@@ -14,4 +15,5 @@ export default process.env.NODE_ENV === 'production' ? {
   TWITTER_CONSUMER_KEY: '8rBG1xrUBpFgE2T5bDOskGFpv',
   TWITTER_SECRET_KEY: 'WOL2SCR8RJr38LTBlPEqZz4r6fyU9qqCELBeCE7hmbOcuchnDi',
   FACEBOOK_APP_ID: '402106420236062',
+  DEPLOYED_ADDRESS: 'http://localhost:1234',
 }

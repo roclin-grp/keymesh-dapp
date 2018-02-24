@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import { TwitterProvingState, getTwitterClaim } from './TwitterProvingState'
+import { signedClaimToClaimText } from '../ProvingState'
+import { TwitterProvingState } from './TwitterProvingState'
 import ProvingTextarea from '../ProvingTextarea'
 
 import {
@@ -18,17 +19,15 @@ interface IProps {
 class TwitterProving extends React.Component<IProps> {
   public render() {
     const label = 'Twitter'
+    const { state } = this.props
     const {
       username,
-      updateUsername,
-      continueHandler,
       isProving,
       claim,
-      checkProof,
       platform,
       checkProofButtonContent,
       checkProofButtonDisabled,
-    } = this.props.state
+    } = state
 
     if (!isProving) {
       return <div className={styles.container}>
@@ -39,20 +38,20 @@ class TwitterProving extends React.Component<IProps> {
           <Input
             spellCheck={false}
             value={username}
-            onChange={(e: any) => updateUsername(e.target.value)}
+            onChange={(e: any) => state.updateUsername(e.target.value)}
             placeholder={`Your ${label} username`}
-            onPressEnter={continueHandler}
+            onPressEnter={() => state.continueHandler()}
           />
         </div>
 
         <div className={styles.buttonsContainer}>
           <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-          <Button type="primary" onClick={continueHandler}>Continue</Button>
+          <Button type="primary" onClick={() => state.continueHandler()}>Continue</Button>
         </div>
       </div>
     }
 
-    const twitterClaimText = getTwitterClaim(claim)
+    const twitterClaimText = signedClaimToClaimText(claim!)
     const tweetClaimURL = 'https://twitter.com/home?status=' + encodeURI(twitterClaimText)
     return <div>
       <div className={styles.iconContainer}>
@@ -67,7 +66,7 @@ class TwitterProving extends React.Component<IProps> {
       </div>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => state.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>

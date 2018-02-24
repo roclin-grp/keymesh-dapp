@@ -13,9 +13,6 @@ import {
   utf8ToHex,
 } from '../utils/hex'
 
-import {
-  GithubResource,
-} from '../resources/github'
 import { UserCachesStore } from './UserCachesStore'
 import ENV from '../config'
 
@@ -69,7 +66,7 @@ export class BoundSocialsStore {
             return
           }
 
-          await this.persistBoundSocials(newBoundSocials)
+          await this.saveBoundSocialsToDB(newBoundSocials)
 
           uploadingDidComplete()
         }
@@ -79,11 +76,11 @@ export class BoundSocialsStore {
       })
   }
 
-  private async persistBoundSocials(newBoundSocials: IBoundSocials) {
-    newBoundSocials.nonce++
+  private async saveBoundSocialsToDB(boundSocials: IBoundSocials) {
+    boundSocials.nonce++
     const { userAddress } = this.userStore.user
     const verification = await this.userCachesStore.getVerification(userAddress)
-    verification.boundSocials = newBoundSocials
+    verification.boundSocials = boundSocials
     verification.verifyStatues = NewIVerifyStatuses()
 
     return this.userCachesStore.setVerification(userAddress, verification)
@@ -100,25 +97,22 @@ interface IUploadingLifecycle extends ITransactionLifecycle {
   uploadingDidFail?: (err: Error | null, code?: UPLOADING_FAIL_CODE) => void
 }
 
-export enum SOCIALS {
+export enum PLATFORMS {
   GITHUB = 'github',
   TWITTER = 'twitter',
   FACEBOOK = 'facebook',
 }
 
-export const SOCIAL_LABELS = Object.freeze({
-  [SOCIALS.GITHUB]: 'Github',
-  [SOCIALS.TWITTER]: 'Twitter',
-  [SOCIALS.FACEBOOK]: 'Facebook',
+export const PLATFORM_LABELS = Object.freeze({
+  [PLATFORMS.GITHUB]: 'GitHub',
+  [PLATFORMS.TWITTER]: 'Twitter',
+  [PLATFORMS.FACEBOOK]: 'Facebook',
 })
 
-export const SOCIAL_PROFILE_URLS = Object.freeze({
-  [SOCIALS.GITHUB]: (username: string) => 'https://github.com/' + username,
-  [SOCIALS.TWITTER]: (username: string) => 'https://twitter.com/' + username,
-  [SOCIALS.FACEBOOK]: (proofURL: string) => {
-    const res = /(^.*?[0-9]+)/.exec(proofURL)
-    return res === null ? '' : res[0]
-  },
+export const PALTFORM_MODIFIER_CLASSES = Object.freeze({
+  [PLATFORMS.TWITTER]: 'twitterTone',
+  [PLATFORMS.FACEBOOK]: 'facebookTone',
+  [PLATFORMS.GITHUB]: 'gitHubTone',
 })
 
 export enum BINDING_SOCIAL_STATUS {
@@ -133,34 +127,6 @@ export enum VERIFY_SOCIAL_STATUS {
 }
 
 export const GITHUB_GIST_FILENAME = 'keymesh.md'
-
-export async function getGithubClaimByProofURL(url: string): Promise<ISignedGithubClaim | null> {
-  const id = /[0-9a-f]+$/.exec(url)
-  if (id === null) {
-    return null
-  }
-
-  const _id = id[0]
-  const gist = await GithubResource.getGist(_id)
-  return await getGithubClaimByRawURL(gist.files[GITHUB_GIST_FILENAME].raw_url)
-}
-
-export async function getGithubClaimByRawURL(rawURL: string): Promise<ISignedGithubClaim | null> {
-  return await GithubResource.getRawContent(rawURL)
-    .then((resp) => resp.text())
-    .then((text) => {
-      const matches = /\`\`\`json([\s\S]*?)\`\`\`[\s\S]*?\`\`\`\s*(.*?)\s*\`\`\`/g.exec(text)
-      if (matches === null || matches.length !== 3) {
-        return null
-      }
-      const _claim: IGithubClaim = JSON.parse(matches[1])
-      const _signature = matches[2]
-      return {
-        claim: _claim,
-        signature: _signature,
-      }
-    })
-}
 
 export interface IBoundSocial {
   username: string
@@ -179,45 +145,15 @@ export interface ISignedBoundSocials {
   signature: string
 }
 
-export interface IGithubClaim {
+export interface ISignedClaim {
   userAddress: string
-  service: {
-    name: string
-    username: string,
-  },
-  ctime: number
-  publicKey: string
-}
-
-export interface ISignedGithubClaim {
-  claim: IGithubClaim
-  signature: string
-}
-
-export interface ITwitterClaim {
-  userAddress: string
-  publicKey: string
-}
-
-export interface ISignedTwitterClaim {
-  claim: ITwitterClaim
-  signature: string
-}
-
-export interface IFacebookClaim {
-  userAddress: string
-  publicKey: string
-}
-
-export interface ISignedFacebookClaim {
-  claim: IFacebookClaim
   signature: string
 }
 
 export interface IBindingSocial extends IBoundSocial {
-  signedClaim: ISignedGithubClaim | ISignedTwitterClaim | ISignedFacebookClaim
+  signedClaim: ISignedClaim
   status: BINDING_SOCIAL_STATUS
-  platform: SOCIALS
+  platform: PLATFORMS
 }
 
 export interface IBindingSocials {

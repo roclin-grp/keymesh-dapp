@@ -31,7 +31,7 @@ import {
 } from '../../databases'
 
 import {
-  noop,
+  noop, isUndefined,
 } from '../../utils'
 import {
   generateIdentityKeyFromHexStr,
@@ -80,7 +80,7 @@ export class ChatMessagesStore {
   private cryptoBox: Cryptobox
 
   private cachedMessageStores: {
-    [primaryKey: string]: ChatMessageStore,
+    [messageId: string]: ChatMessageStore,
   } = {}
   private fetchTimeout!: number
 
@@ -394,15 +394,20 @@ export class ChatMessagesStore {
   }
 
   public getMessageStore = (message: IMessage): ChatMessageStore => {
-    const primaryKey = `${message.userAddress}${message.messageId}`
-    let store = this.cachedMessageStores[primaryKey]
-    if (typeof store === 'undefined') {
-      store = new ChatMessageStore(message, {
-        metaMaskStore: this.metaMaskStore,
-      })
-      this.cachedMessageStores[primaryKey] = store
+    const oldStore = this.cachedMessageStores[message.messageId]
+    if (!isUndefined(oldStore)) {
+      return oldStore
     }
-    return store
+
+    const newStore = new ChatMessageStore(message, {
+      metaMaskStore: this.metaMaskStore,
+    })
+    this.cachedMessageStores[message.messageId] = newStore
+    return newStore
+  }
+
+  public clearCachedStores() {
+    this.cachedMessageStores = {}
   }
 
   private fetchNewChatMessages = async () => {

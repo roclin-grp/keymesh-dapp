@@ -8,3 +8,7 @@
   justify-content: center;
   min-height: 30vh;
 }
+
+.title {
+  margin-top: 2rem;
+}

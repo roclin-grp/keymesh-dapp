@@ -1,4 +1,4 @@
-interface IGist {
+export interface IGist {
   files: {
     [filename: string]: {
       raw_url: string,
@@ -18,7 +18,13 @@ export class GithubResource {
       .then((resp) => resp.json())
   }
 
-  public static getGist(id: string): Promise<IGist> {
+  public static async getGist(url: string): Promise<IGist | null> {
+    const parts = /[0-9a-f]+$/.exec(url)
+    if (parts === null) {
+      return null
+    }
+
+    const id = parts[0]
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -28,12 +34,23 @@ export class GithubResource {
       .then((resp) => resp.json())
   }
 
-  public static getRawContent(rawURL: string): Promise<any> {
+  public static async getGistFileContent(url: string, filename: string): Promise<string | null> {
+    const gist = await this.getGist(url)
+
+    if (gist === null) {
+      return null
+    }
+
+    return this.getGistRawContent(gist.files[filename].raw_url)
+  }
+
+  public static getGistRawContent(rawURL: string): Promise<string> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
     }
 
     return fetch(rawURL, fetchOptions)
+      .then((resp) => resp.text())
   }
 }

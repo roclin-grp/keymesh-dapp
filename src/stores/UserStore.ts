@@ -82,7 +82,6 @@ import ENV from '../config'
  * sign/encrypt/decrypt messages
  */
 export class UserStore {
-  // FIXME consider @observable.ref
   @observable public user: IUser
   @observable public isCryptoboxReady = false
 
@@ -303,12 +302,11 @@ export class UserStore {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
 
-    const preKeysPublicKeyFingerprints = preKeys.reduce<IPreKeyPublicKeyFingerprints>(
-      (result, preKey) => Object.assign(result, {
-        [preKey.key_id]: getPublicKeyFingerPrint(preKey.key_pair.public_key),
-      }),
-      {},
-    )
+    const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = {}
+
+    for (const preKey of preKeys) {
+      preKeysPublicKeyFingerprints[preKey.key_id] = getPublicKeyFingerPrint(preKey.key_pair.public_key)
+    }
 
     // use last pre-key as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
@@ -375,6 +373,10 @@ export class UserStore {
     return Promise.all(preKeysFromStorage
       .filter((preKey) => Number(preKey.key_id) < today)
       .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
+  }
+
+  public disposeStore() {
+    this.usersStore.disposeUserStore(this.user)
   }
 
   private async deleteAllPreKeys() {

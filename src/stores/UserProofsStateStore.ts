@@ -4,83 +4,62 @@ import {
   runInAction,
   action,
 } from 'mobx'
+import { keys } from 'wire-webapp-proteus'
 
-import { sha3 } from '../cryptos'
-import { FacebookResource } from '../resources/facebook'
-import { TwitterResource } from '../resources/twitter'
-import { UsersStore } from '../stores/UsersStore'
-import { ContractStore } from './ContractStore'
-import { hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import {
   VERIFY_SOCIAL_STATUS,
   IBoundSocials,
   ISignedBoundSocials,
-  getGithubClaimByProofURL,
   IVerifyStatuses,
   NewIVerifyStatuses,
-  SOCIALS,
-  ISignedTwitterClaim,
-  ISignedFacebookClaim,
-  ISignedGithubClaim,
+  PLATFORMS,
+  GITHUB_GIST_FILENAME,
 } from './BoundSocialsStore'
-import { keys } from 'wire-webapp-proteus'
-const {
-  INVALID,
-  VALID,
-} = VERIFY_SOCIAL_STATUS
-
-import {
-  UserCachesStore,
-} from './UserCachesStore'
-import ENV from '../config'
+import { ContractStore } from './ContractStore'
+import { UserCachesStore } from './UserCachesStore'
+import { UserProofsStatesStore } from './UserProofsStatesStore'
+import { FacebookResource } from '../resources/facebook'
+import { twitterResource } from '../resources/twitter'
+import { GithubResource } from '../resources/github'
+import { UsersStore } from '../stores/UsersStore'
+import { sleep } from '../utils'
+import { sha3 } from '../utils/cryptos'
+import { hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
+import { beforeOneDay } from '../utils/time'
+import { claimTextToSignedClaim } from '../pages/proving/ProvingState'
 
 export class UserProofsStateStore {
   @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
   @observable public userBoundSocials: IBoundSocials = {
-    [SOCIALS.TWITTER]: undefined,
-    [SOCIALS.GITHUB]: undefined,
-    [SOCIALS.FACEBOOK]: undefined,
+    [PLATFORMS.TWITTER]: undefined,
+    [PLATFORMS.GITHUB]: undefined,
+    [PLATFORMS.FACEBOOK]: undefined,
     nonce: 0,
   }
   @observable public isVerifying = {
-    [SOCIALS.TWITTER]: false,
-    [SOCIALS.GITHUB]: false,
-    [SOCIALS.FACEBOOK]: false,
+    [PLATFORMS.TWITTER]: false,
+    [PLATFORMS.GITHUB]: false,
+    [PLATFORMS.FACEBOOK]: false,
   }
 
   public isFetchingUserProofs: boolean = false
-
-  private usersStore: UsersStore
-  private contractStore: ContractStore
-  private userCachesStore: UserCachesStore
-
-  private fetchUserProofTimeout!: number
 
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
   @observable private userLastFetchBlock: number = 0
   private publicKey: keys.PublicKey | undefined
+  private userCachesStore: UserCachesStore
+  private userProofsStatesStore: UserProofsStatesStore
 
-  private readonly twitterResource = new TwitterResource(
-    ENV.TWITTER_CONSUMER_KEY,
-    ENV.TWITTER_SECRET_KEY,
-  )
-
-  constructor({
-    usersStore,
-    contractStore,
-    userAddress,
-  }: {
-      usersStore: UsersStore
-      contractStore: ContractStore
-      userAddress: string,
-    },
+  constructor(
+    userAddress: string,
+    private contractStore: ContractStore,
+    private usersStore: UsersStore,
   ) {
-    this.usersStore = usersStore
-    this.contractStore = contractStore
-    this.userCachesStore = usersStore.userCachesStore
     this.userAddress = userAddress
+    this.userCachesStore = this.usersStore.userCachesStore
+    this.userProofsStatesStore = this.usersStore.userProofsStatesStore
     this.init()
   }
 
@@ -97,15 +76,71 @@ export class UserProofsStateStore {
     return ''
   }
 
-  @action
-  public stopFetchingUserProofs = () => {
-    window.clearTimeout(this.fetchUserProofTimeout)
+  public async startFetchUserProofs(interval = 1000) {
+    if (this.isFetchingUserProofs) {
+      return
+    }
+
+    this.isFetchingUserProofs = true
+    while (this.isFetchingUserProofs) {
+      if (!this.finishedInit) {
+        await sleep(1000)
+        continue
+      }
+
+      if (!this.publicKey) {
+        // could not load public key, address is invalid or some other things
+        // went wrong, stop fetching
+        this.isFetchingUserProofs = false
+        break
+      }
+
+      try {
+        await this.fetchUserProofs()
+      } finally {
+        await sleep(interval)
+      }
+    }
+  }
+
+  public stopFetchUserProofs() {
     this.isFetchingUserProofs = false
   }
 
-  public fetchUserProofs = async () => {
+  public async verify(platform: PLATFORMS, proofURL: string) {
+    if (!this.publicKey) {
+      return
+    }
+
+    this.setIsVerifying(platform, true)
+    try {
+      const claimText = await getClaimTextFunctions[platform](proofURL)
+      if (claimText === null) {
+        throw new Error('Claim text not found')
+      }
+
+      const signedClaim = claimTextToSignedClaim(claimText)
+      const isValid = this.publicKey.verify(
+        uint8ArrayFromHex(signedClaim.signature),
+        signedClaim.userAddress,
+      )
+
+      this.updateVerifyStatus(platform, isValid ? VERIFY_SOCIAL_STATUS.VALID : VERIFY_SOCIAL_STATUS.INVALID)
+    } catch (err) {
+      this.updateVerifyStatus(platform, VERIFY_SOCIAL_STATUS.INVALID)
+    } finally {
+      this.setIsVerifying(platform, false)
+      this.saveVerificationToDB()
+    }
+  }
+
+  public disposeStore() {
+    this.userProofsStatesStore.disposeUserProofsStateStore(this.userAddress)
+  }
+
+  private async fetchUserProofs() {
     const publicKey = this.publicKey
-    if (typeof publicKey === 'undefined') {
+    if (!publicKey) {
       return
     }
 
@@ -134,133 +169,35 @@ export class UserProofsStateStore {
         runInAction(() => {
           this.userBoundSocials = _signedBoundSocial.socialMedias
         })
-        this.verifyAllUserProofs()
+        this.verifyAll()
         break
       }
     }
-    this.persist()
+    this.saveVerificationToDB()
   }
 
-  public startFetchingUserProofs = (interval = 1000) => {
-    if (this.isFetchingUserProofs) {
-      return
-    }
+  private async verifyAll(onlyBeforeOneDay: boolean = false) {
+    const {
+      userBoundSocials,
+      verifyStatuses,
+    } = this
 
-    const loop = async () => {
-      if (!this.finishedInit) {
-        this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
-        return
-      }
-
-      try {
-        await this.fetchUserProofs()
-      } finally {
-        this.fetchUserProofTimeout = window.setTimeout(loop, interval)
+    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
+      const boundSocial = userBoundSocials[platform]
+      if (boundSocial && (!onlyBeforeOneDay || beforeOneDay(verifyStatuses[platform].lastVerifiedAt))) {
+        this.verify(platform, boundSocial.proofURL)
       }
     }
-
-    this.isFetchingUserProofs = true
-    this.fetchUserProofTimeout = window.setTimeout(loop, 1000)
   }
 
-  public verifyAllUserProofs = async () => {
-    const publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
-    if (!publicKey) {
-      return
-    }
-
-    const socials = this.userBoundSocials
-    if (typeof socials.facebook !== 'undefined') {
-      this.verifyFacebook()
-    }
-
-    if (typeof socials.github !== 'undefined') {
-      this.verifyGithub()
-    }
-
-    if (typeof socials.twitter !== 'undefined') {
-      this.verifyTwitter()
-    }
-  }
-
-  public async verify(
-    platform: SOCIALS,
-    getClaim: () => Promise<ISignedFacebookClaim | ISignedTwitterClaim | ISignedGithubClaim | null>,
-  ) {
-    const updateVerifyStatus = this.getUpdateVerifyStatusFunc(platform)
-    try {
-      const unverifiedSignedClaim = await getClaim()
-
-      this.checkSigAndUpdateStatus(unverifiedSignedClaim, updateVerifyStatus)
-    } catch (e) {
-      updateVerifyStatus(INVALID)
-    }
-  }
-
-  public verifyFacebook = async () => {
-    this.verify(SOCIALS.FACEBOOK, () => FacebookResource.getClaimByPostURL(this.userBoundSocials.facebook!.proofURL))
-  }
-
-  public verifyGithub = async () => {
-    this.verify(SOCIALS.GITHUB, () => getGithubClaimByProofURL(this.userBoundSocials.github!.proofURL))
-  }
-
-  public verifyTwitter = async () => {
-    return this.verify(
-      SOCIALS.TWITTER,
-      () => this.twitterResource.getSignedTwitterClaimByProofURL(this.userBoundSocials.twitter!.proofURL),
-    )
-  }
-
-  private checkSigAndUpdateStatus(
-    claim: ISignedTwitterClaim | ISignedFacebookClaim | ISignedGithubClaim | null,
-    updateFunc: (
-      verifyStatus: VERIFY_SOCIAL_STATUS,
-    ) => void,
-  ) {
-    if (claim === null) {
-      updateFunc(INVALID)
-      return
-    }
-
-    if (this.publicKey!.verify(
-      uint8ArrayFromHex(claim.signature),
-      JSON.stringify(claim.claim),
-    )) {
-      updateFunc(VALID)
-      return
-    }
-
-    updateFunc(INVALID)
-  }
-
-  private getUpdateVerifyStatusFunc(platform: SOCIALS) {
-    runInAction(() => {
-      this.isVerifying[platform] = true
-    })
-    return (verifyStatus: VERIFY_SOCIAL_STATUS) => {
-      runInAction(() => {
-        const verifyStatues = Object.assign(this.verifyStatuses, {
-          [platform]: {
-            status: verifyStatus,
-            lastVerifiedAt: new Date().getTime(),
-          },
-        })
-        this.verifyStatuses = verifyStatues
-        this.isVerifying[platform] = false
-      })
-
-      this.persist()
-    }
-  }
-
-  private persist() {
+  private saveVerificationToDB() {
     this.userCachesStore.setVerification(this.userAddress, {
       boundSocials: this.userBoundSocials,
       lastFetchBlock: this.userLastFetchBlock,
       verifyStatues: this.verifyStatuses,
     })
   }
+
   private async init() {
     const identity = await this.userCachesStore.getIdentityByUserAddress(this.userAddress)
     const verifications = await this.userCachesStore.getVerification(this.userAddress)
@@ -276,5 +213,28 @@ export class UserProofsStateStore {
     runInAction(() => {
       this.finishedInit = true
     })
+    this.verifyAll(true)
   }
+
+  @action
+  private setIsVerifying(platform: PLATFORMS, value: boolean) {
+    this.isVerifying[platform] = value
+  }
+
+  @action
+  private updateVerifyStatus(platform: PLATFORMS, verifyStatus: VERIFY_SOCIAL_STATUS) {
+    Object.assign(this.verifyStatuses, {
+      [platform]: {
+        status: verifyStatus,
+        lastVerifiedAt: new Date().getTime(),
+      },
+    })
+    this.isVerifying[platform] = false
+  }
+}
+
+const getClaimTextFunctions = {
+  [PLATFORMS.FACEBOOK]: (proofURL: string) => FacebookResource.getPost(proofURL),
+  [PLATFORMS.TWITTER]: (proofURL: string) => twitterResource.getTweet(proofURL),
+  [PLATFORMS.GITHUB]: (proofURL: string) => GithubResource.getGistFileContent(proofURL, GITHUB_GIST_FILENAME),
 }

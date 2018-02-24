@@ -22,12 +22,13 @@ import * as styles from './BroadcastMessage.css'
 import {
   isUndefined,
 } from '../../utils'
-import { timeAgo, beforeOneDay } from '../../utils/time'
+import { broadcastEstimateTime, broadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
 import {
-  SOCIALS,
+  PLATFORMS,
   VERIFY_SOCIAL_STATUS,
+  PALTFORM_MODIFIER_CLASSES,
 } from '../../stores/BoundSocialsStore'
 
 interface IProps {
@@ -62,10 +63,8 @@ export default class BroadcastMessage extends React.Component<IProps> {
     })
 
     if (!userProofsStateStore.isFetchingUserProofs) {
-      // verify existed proof
-      this.verifyIfBeforeOneDay()
       // fetch proving per 15 mins
-      userProofsStateStore.startFetchingUserProofs(15 * 60 * 1000)
+      userProofsStateStore.startFetchUserProofs(15 * 60 * 1000)
     }
   }
 
@@ -74,9 +73,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
       userProofsStateStore,
     } = this.props
     window.clearTimeout(this.updateTimeTimeout)
-    if (userProofsStateStore.isFetchingUserProofs) {
-      userProofsStateStore.stopFetchingUserProofs()
-    }
+    userProofsStateStore.stopFetchUserProofs()
   }
 
   public render() {
@@ -96,7 +93,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
         <div className={styles.infoWrapper}>
           <Link to={`/profile/${userAddress}`}>
             <span className={styles.username}>{username}</span>
-            {this.getSocialIcons()}
+            {this.getPlatformIcons()}
             <UserAddress
               className={classnames(styles.userAddress, {
                 [styles.userAddressHasUsername]: username !== null,
@@ -105,7 +102,9 @@ export default class BroadcastMessage extends React.Component<IProps> {
               address={userAddress}
             />
           </Link>
-          {` ${this.timeText}`}
+          <span title={broadcastTime(message.timestamp)}>
+            {` ${this.timeText}`}
+          </span>
         </div>
         <p className={styles.content}>{message.message}</p>
         {
@@ -125,35 +124,10 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   private updateTimeText() {
     runInAction(() => {
-      this.timeText = timeAgo(this.props.message.timestamp)
+      this.timeText = broadcastEstimateTime(this.props.message.timestamp)
     })
 
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
-  }
-
-  private verifyIfBeforeOneDay() {
-    const {
-      userBoundSocials,
-      verifyStatuses,
-      verifyTwitter,
-      verifyFacebook,
-      verifyGithub,
-    } = this.props.userProofsStateStore
-    return (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
-      .forEach((platform) => {
-        if (
-          !isUndefined(userBoundSocials[platform])
-          && beforeOneDay(verifyStatuses[platform].lastVerifiedAt)
-        ) {
-          switch (platform) {
-            case SOCIALS.TWITTER: return verifyTwitter()
-            case SOCIALS.FACEBOOK: return verifyFacebook()
-            case SOCIALS.GITHUB: return verifyGithub()
-            default:
-          }
-        }
-        return
-      })
   }
 
   private getUsername() {
@@ -161,43 +135,39 @@ export default class BroadcastMessage extends React.Component<IProps> {
       userBoundSocials,
       verifyStatuses,
     } = this.props.userProofsStateStore
-    const validPlatform = (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
-      .find((platform) => (
-          !isUndefined(userBoundSocials[platform])
-          && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID
-      ))
 
-    if (!isUndefined(validPlatform)) {
-      return userBoundSocials[validPlatform]!.username
+    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
+      const boundSocial = userBoundSocials[platform]
+      if (boundSocial && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID) {
+        return boundSocial.username
+      }
     }
 
     return null
   }
 
-  private getSocialIcons() {
+  private getPlatformIcons() {
     const {
       userBoundSocials,
       verifyStatuses,
     } = this.props.userProofsStateStore
-    return (Object.keys(userBoundSocials).filter((key) => key !== 'nonce') as SOCIALS[])
-      .reduce<JSX.Element[]>(
-        (result, platform) => {
-          if (
-            !isUndefined(userBoundSocials[platform])
-            && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID
-          ) {
-            return result.concat((
-              <Icon
-                key={platform}
-                type={platform}
-                className={classnames(styles.socialIcon, PALTFORM_MODIFIER_CLASSES[platform])}
-              />
-            ))
-          }
-          return result
-        },
-        [],
-      )
+
+    const platformIcons: JSX.Element[] = []
+    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
+      if (isUndefined(userBoundSocials[platform]) || verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.INVALID) {
+        continue
+      }
+
+      platformIcons.push((
+        <Icon
+          key={platform}
+          type={platform}
+          className={classnames(styles.socialIcon, PALTFORM_MODIFIER_CLASSES[platform])}
+        />
+      ))
+    }
+
+    return platformIcons
   }
 }
 
@@ -209,10 +179,4 @@ const MESSAGE_MODIFIER_CLASSES = Object.freeze({
 const MESSAGE_STATUS_STR = Object.freeze({
   [MESSAGE_STATUS.DELIVERING]: 'Delivering',
   [MESSAGE_STATUS.FAILED]: 'Failed',
-})
-
-const PALTFORM_MODIFIER_CLASSES = Object.freeze({
-  [SOCIALS.TWITTER]: styles.iconTwitter,
-  [SOCIALS.FACEBOOK]: styles.iconFacebook,
-  [SOCIALS.GITHUB]: styles.iconGitHub,
 })

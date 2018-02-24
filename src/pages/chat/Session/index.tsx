@@ -34,7 +34,7 @@ class Session extends React.Component<IProps> {
     const time = new Date(lastUpdate)
     const timeStr = Date.now() - time.getTime() > 86400 * 1000
       ? `${
-        time.getFullYear().toString().slice(0, -2)
+        time.getFullYear().toString().slice(-2)
       }/${
         (time.getMonth() + 1).toString().padStart(2, '0')
       }/${

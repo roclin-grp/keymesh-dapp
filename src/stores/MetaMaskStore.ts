@@ -10,14 +10,7 @@ import Web3 from 'web3'
 import {
   storeLogger,
 } from '../utils/loggers'
-
-async function sleep(ms: number) {
-  return new Promise((resolve) => {
-    setInterval(() => {
-      resolve()
-    }, ms)
-  })
-}
+import { sleep } from '../utils'
 
 function getMetaMaskProvider(): { isMetaMask: true } | null {
   const win = window as any

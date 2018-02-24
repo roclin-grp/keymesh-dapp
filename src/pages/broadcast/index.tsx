@@ -11,7 +11,7 @@ import HashAvatar from '../../components/HashAvatar'
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
-import { sha3 } from '../../cryptos'
+import { sha3 } from '../../utils/cryptos'
 import classnames from 'classnames'
 
 interface IProps {
@@ -38,6 +38,7 @@ class Broadcast extends React.Component<IProps> {
 
   public componentWillUnmount() {
     this.props.broadcastMessagesStore.stopFetchBroadcastMessages()
+    this.props.usersStore.userProofsStatesStore.clearCachedStores()
   }
 
   public render() {
@@ -61,10 +62,7 @@ class Broadcast extends React.Component<IProps> {
       return <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
         <BroadcastMessage
           userCachesStore={this.props.usersStore.userCachesStore}
-          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(
-            this.props.metaMaskStore.currentEthereumNetwork!,
-            message.author!,
-          )}
+          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
           message={message}
         />
         <Divider />
@@ -74,7 +72,7 @@ class Broadcast extends React.Component<IProps> {
       {form}
       <div className={styles.messagesContainer}>
         {hasUser ? <Divider /> : null}
-        <div>{messages}</div>
+        <div>{messages.length > 0 ? messages : <p className={styles.noBroadcasts}>No broadcasts</p>}</div>
       </div>
     </div>
   }

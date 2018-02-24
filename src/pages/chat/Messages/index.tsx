@@ -30,8 +30,8 @@ class Messages extends React.Component<IProps, IState> {
     shouldScroll: true,
   }
 
-  private domRef: HTMLDivElement
-  private disposeNewMessageListener: Lambda
+  private domRef!: HTMLDivElement
+  private disposeNewMessageListener!: Lambda
 
   public componentDidMount() {
     this.sessionStoreDidLoad(this.props.sessionStore)

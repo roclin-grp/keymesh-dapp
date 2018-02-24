@@ -1,6 +1,4 @@
-import { ISignedFacebookClaim } from '../stores/BoundSocialsStore'
-
-interface IPost {
+export interface IPost {
   message: string
   created_time: string
   id: string
@@ -22,7 +20,7 @@ export class FacebookResource {
       })
   }
 
-  public static async getClaimByPostURL(url: string): Promise<ISignedFacebookClaim | null> {
+  public static async getPost(url: string): Promise<string> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -33,25 +31,6 @@ export class FacebookResource {
     const body = await fetch(url, fetchOptions)
       .then((resp) => resp.text())
 
-    if (body === '') {
-      return null
-    }
-
-    const matches = /\buserContent\b.*?<p>(.*?)<\/p>/.exec(body)
-    if (matches === null) {
-      return null
-    }
-    const parts = /addr: (.*?)<br \/> public key: (.*?)<br \/> sig: (.*?)$/.exec(matches[1])
-    if (parts === null) {
-      return null
-    }
-
-    return {
-      claim: {
-        userAddress: parts[1],
-        publicKey: parts[2],
-      },
-      signature: parts[3],
-    }
+    return body
   }
 }

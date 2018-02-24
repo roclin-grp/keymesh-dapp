@@ -6,9 +6,6 @@
   "scripts": {
     "start": "parcel serve src/index.html",
     "build": "parcel build src/index.html --public-url /",
-    "test": "node scripts/test.js --env=jsdom",
-    "analyze": "source-map-explorer build/static/js/main.*",
-    "linkdevs": "yarn link web3 trustmesh",
     "css-types": "tcm src",
     "postinstall": "yarn css-types"
   },
@@ -46,8 +43,9 @@
     "typescript": "^2.7.1"
   },
   "dependencies": {
-    "@keymesh/trustmesh": "^0.0.3",
+    "@keymesh/trustmesh": "^0.0.4",
     "antd": "^3.0.3",
+    "bs58check": "^2.1.1",
     "classnames": "^2.2.5",
     "copy-to-clipboard": "^3.0.8",
     "dexie": "^2.0.1",

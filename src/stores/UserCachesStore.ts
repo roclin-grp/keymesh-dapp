@@ -2,7 +2,7 @@ import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifyStatuses, IBoundSocials, NewIVerifyStatuses } from './BoundSocialsStore'
-import { sha3 } from '../cryptos'
+import { sha3 } from '../utils/cryptos'
 
 export class UserCachesStore {
   private cachedUserAvatarPromises: {

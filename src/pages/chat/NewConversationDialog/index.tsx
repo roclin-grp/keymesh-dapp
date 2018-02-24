@@ -31,6 +31,7 @@ import {
 import {
   storeLogger,
 } from '../../../utils/loggers'
+import { isAddress } from '../../../utils/cryptos'
 
 // TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
@@ -185,7 +186,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       if (userAddress === this.props.selfAddress) {
         return (done as any)(`Can't send message to yourself!`)
       }
-      if (!userAddress.startsWith('0x')) {
+      if (!isAddress(userAddress)) {
         return (done as any)('Invalid address!')
       }
     }

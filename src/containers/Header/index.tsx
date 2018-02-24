@@ -46,7 +46,7 @@ import {
 } from '../../stores/UserStore'
 
 // helper
-import * as copy from 'copy-to-clipboard'
+import copy from 'copy-to-clipboard'
 import {
   noop,
 } from '../../utils'
@@ -275,11 +275,6 @@ class Header extends React.Component<IProps, IState> {
               />
             </a>
           </Tooltip>
-        </Menu.Item>
-        <Menu.Item>
-          <Link to="/discover">
-            Discover
-          </Link>
         </Menu.Item>
         <Menu.Item>
           <Link to="/profile">

@@ -64,11 +64,12 @@ export class UsersDB {
       await restoreDB(this.dexieDB, data.keymesh, () => undefined)
       const users = await this.getUsers(networkId)
 
-      const oldUserAddress = oldUsers.reduce<{ [userAddress: string]: boolean }>(
-        (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
-        {},
-      )
-      const newUser = users.find((_user) => !oldUserAddress[_user.userAddress])
+      const oldUserAddresses: { [userAddress: string]: boolean } = {}
+      for (const oldUser of oldUsers) {
+        oldUserAddresses[oldUser.userAddress] = true
+      }
+
+      const newUser = users.find((_user) => !oldUserAddresses[_user.userAddress])
       if (typeof newUser === 'undefined') {
         throw new Error('Network not match')
       }

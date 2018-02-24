@@ -3,8 +3,9 @@ import { observer } from 'mobx-react'
 
 import ProvingTextarea from '../ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
-import { FacebookProvingState , getFacebookClaim } from './FacebookProvingState'
+import { FacebookProvingState } from './FacebookProvingState'
 import { Icon, Button } from 'antd'
+import { signedClaimToClaimText } from '../ProvingState'
 
 import * as styles from './index.css'
 
@@ -20,16 +21,16 @@ interface IProps {
 @observer
 class FacebookProving extends React.Component<IProps> {
   public render() {
+    const { state } = this.props
     const {
       username,
       isProving,
       claim,
-      checkProof,
       loginCallback,
       platform,
       checkProofButtonDisabled,
       checkProofButtonContent,
-    } = this.props.state
+    } = state
 
     if (!isProving) {
       return <div>
@@ -45,7 +46,7 @@ class FacebookProving extends React.Component<IProps> {
       </div>
     }
 
-    const text = getFacebookClaim(claim)
+    const text = signedClaimToClaimText(claim!)
     const postURL = 'https://www.facebook.com/'
     return <div>
         <div className={styles.iconContainer}>
@@ -62,7 +63,7 @@ class FacebookProving extends React.Component<IProps> {
       </p>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => state.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>

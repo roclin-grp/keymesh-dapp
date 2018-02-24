@@ -60,6 +60,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   private unmounted = false
   public componentWillUnmount() {
     this.unmounted = true
+    this.injectedProps.userStore.disposeStore()
   }
 
   public componentDidMount() {

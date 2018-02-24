@@ -51,7 +51,7 @@ class App extends React.Component<IProps> {
       <Router>
         <>
           <Header />
-          <div className="page-content">
+          <div className="main">
             {this.renderContent()}
           </div>
         </>
@@ -103,7 +103,6 @@ class App extends React.Component<IProps> {
         <Route path="/discover" component={Broadcast} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/profile/:userAddress" component={Profile} />
-        {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
         <ConditionalRoute
           path="/messages"
           component={Chat}

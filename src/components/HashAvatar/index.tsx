@@ -9,6 +9,7 @@ interface IProps {
   size?: 'large' | 'small' | 'default'
   shape?: 'circle' | 'square'
   className?: string
+  picSize?: number
 }
 
 const SIZE_PX = Object.freeze({
@@ -17,9 +18,9 @@ const SIZE_PX = Object.freeze({
   default: 32,
 })
 
-function HashAvatar({size = 'default', hash, shape = 'square', className}: IProps) {
+function HashAvatar({size = 'default', hash, shape = 'square', className, picSize}: IProps) {
   const hasNotHash = hash === ''
-  const sizePx = SIZE_PX[size]
+  const sizePx = typeof picSize !== 'undefined' ? picSize : SIZE_PX[size]
   const avatar = hasNotHash ? undefined : `data:image/svg+xml;base64,${(new Identicon(
     hash,
     { size: sizePx, format: 'svg', margin: 0.1 },
