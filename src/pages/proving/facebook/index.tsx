@@ -3,9 +3,8 @@ import { observer } from 'mobx-react'
 
 import ProvingTextarea from '../ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
-import { FacebookProvingState } from './FacebookProvingState'
+import { FacebookProvingData } from './FacebookProvingData'
 import { Icon, Button } from 'antd'
-import { signedClaimToClaimText } from '../ProvingState'
 
 import * as styles from './index.css'
 
@@ -13,15 +12,16 @@ import {
   Link,
 } from 'react-router-dom'
 import ENV from '../../../config'
+import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
 
 interface IProps {
-  state: FacebookProvingState
+  data: FacebookProvingData
 }
 
 @observer
 class FacebookProving extends React.Component<IProps> {
   public render() {
-    const { state } = this.props
+    const { data } = this.props
     const {
       username,
       isProving,
@@ -30,7 +30,7 @@ class FacebookProving extends React.Component<IProps> {
       platform,
       checkProofButtonDisabled,
       checkProofButtonContent,
-    } = state
+    } = data
 
     if (!isProving) {
       return <div>
@@ -63,7 +63,7 @@ class FacebookProving extends React.Component<IProps> {
       </p>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={() => state.checkProof()} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>

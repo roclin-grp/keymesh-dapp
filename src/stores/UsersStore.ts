@@ -245,11 +245,8 @@ export class UsersStore {
   }
 
   public getAvatarHashByUserAddress = async (userAddress: string) => {
-    const {
-      getBlockHash,
-    } = this.metaMaskStore
     const { blockNumber } = await this.getIdentityByUserAddress(userAddress)
-    const blockHash = await getBlockHash(blockNumber)
+    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
     return sha3(`${userAddress}${blockHash}`)
   }
 

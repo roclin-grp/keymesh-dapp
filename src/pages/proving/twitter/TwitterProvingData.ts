@@ -2,13 +2,13 @@ import {
   action,
 } from 'mobx'
 
-import ProvingState from '../ProvingState'
+import ProvingData from '../ProvingData'
 
 import { ITweet, TwitterResource } from '../../../resources/twitter'
 import { PLATFORMS } from '../../../stores/BoundSocialsStore'
 import ENV from '../../../config'
 
-export class TwitterProvingState extends ProvingState {
+export class TwitterProvingData extends ProvingData {
   public platform = PLATFORMS.TWITTER
   protected defaultCheckingErrorContent = 'Please tweet the text exactly as it appears, then check again!'
 

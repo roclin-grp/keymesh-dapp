@@ -1,3 +1,8 @@
+.container {
+  width: 100%;
+  margin-top: 2rem;
+}
+
 .userListContainer {
   max-width: 50rem;
 }
@@ -7,8 +12,4 @@
   flex-direction: column;
   justify-content: center;
   min-height: 30vh;
-}
-
-.title {
-  margin-top: 2rem;
 }

@@ -10,11 +10,12 @@ import {
   noop,
 } from '../utils'
 import {
-  utf8ToHex,
+  utf8ToHex, hexToBase58, base58ToHex,
 } from '../utils/hex'
 
 import { UserCachesStore } from './UserCachesStore'
 import ENV from '../config'
+import { base58ToChecksumAddress } from '../utils/cryptos'
 
 export class BoundSocialsStore {
   private userStore: UserStore
@@ -84,6 +85,27 @@ export class BoundSocialsStore {
     verification.verifyStatues = NewIVerifyStatuses()
 
     return this.userCachesStore.setVerification(userAddress, verification)
+  }
+}
+
+export function signedClaimToClaimText(signedClaim: ISignedClaim): string {
+  return `#keymesh
+
+Verifying myself:
+${ENV.DEPLOYED_ADDRESS}/profile/${hexToBase58(signedClaim.userAddress)}
+
+Signature:
+${hexToBase58(signedClaim.signature)}`
+}
+
+export function claimTextToSignedClaim(claimText: string): ISignedClaim {
+  const parts = new RegExp(`${ENV.DEPLOYED_ADDRESS}/profile/(\\w+)\\s+Signature:\\s+(\\w+)`).exec(claimText)
+  if (parts === null) {
+    throw new Error('Invalid claim text')
+  }
+  return {
+    userAddress: base58ToChecksumAddress(parts[1]),
+    signature: base58ToHex(parts[2]),
   }
 }
 

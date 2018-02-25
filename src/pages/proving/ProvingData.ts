@@ -13,17 +13,15 @@ import {
   IBindingSocial,
   ISignedClaim,
   BINDING_SOCIAL_STATUS,
+  signedClaimToClaimText,
 } from '../../stores/BoundSocialsStore'
 import { Modal } from 'antd'
-import ENV from '../../config'
-import { hexToBase58, base58ToHex } from '../../utils/hex'
 import { isUndefined } from '../../utils'
-import { base58ToChecksumAddress } from '../../utils/cryptos'
 import { storeLogger } from '../../utils/loggers'
 
 const DEFAULT_CHECK_PROOF_BUTTON_CONTENT = 'OK posted! Upload to blockchain!'
 
-export default abstract class ProvingState {
+export default abstract class ProvingData {
   @observable public claim: ISignedClaim | undefined
   @observable public username!: string
   @observable public currentStep: number = 0
@@ -161,26 +159,5 @@ export default abstract class ProvingState {
   @action
   private setStep(step: number) {
     this.currentStep = step
-  }
-}
-
-export function signedClaimToClaimText(signedClaim: ISignedClaim): string {
-  return `#keymesh
-
-Verifying myself:
-${ENV.DEPLOYED_ADDRESS}/profile/${hexToBase58(signedClaim.userAddress)}
-
-Signature:
-${hexToBase58(signedClaim.signature)}`
-}
-
-export function claimTextToSignedClaim(claimText: string): ISignedClaim {
-  const parts = new RegExp(`${ENV.DEPLOYED_ADDRESS}/profile/(\\w+)\\s+Signature:\\s+(\\w+)`).exec(claimText)
-  if (parts === null) {
-    throw new Error('Invalid claim text')
-  }
-  return {
-    userAddress: base58ToChecksumAddress(parts[1]),
-    signature: base58ToHex(parts[2]),
   }
 }

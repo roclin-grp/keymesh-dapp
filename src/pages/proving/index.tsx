@@ -9,15 +9,15 @@ import {
   RouteComponentProps,
 } from 'react-router-dom'
 
-import ProvingState from './ProvingState'
+import ProvingData from './ProvingData'
 
 import GithubProving from './github'
 import TwitterProving from './twitter'
 import FacebookProving from './facebook'
 
-import { GithubProvingState } from './github/GithubProvingState'
-import { TwitterProvingState } from './twitter/TwitterProvingState'
-import { FacebookProvingState } from './facebook/FacebookProvingState'
+import { GithubProvingData } from './github/GithubProvingData'
+import { TwitterProvingData } from './twitter/TwitterProvingData'
+import { FacebookProvingData } from './facebook/FacebookProvingData'
 
 import {
   IStores,
@@ -34,7 +34,7 @@ interface IParams {
 }
 interface IProps {
   isValidPlatform: boolean
-  state: ProvingState | null
+  data: ProvingData | null
 }
 
 type IPropsWithRouter = IProps & RouteComponentProps<IParams>
@@ -50,7 +50,7 @@ class Proving extends React.Component<IPropsWithRouter> {
       return
     }
 
-    this.finishedReactionDisposer = this.props.state!.setupFinishedReaction(async () => {
+    this.finishedReactionDisposer = this.props.data!.setupFinishedReaction(async () => {
       // redirect to /profile in 2 sec after finished
       await sleep(2000)
       // do nothing if already left this page
@@ -75,7 +75,7 @@ class Proving extends React.Component<IPropsWithRouter> {
       </>
     }
 
-    const state = this.props.state!
+    const state = this.props.data!
 
     return <div className={styles.content}>
       <h3 className={styles.provingNotice}>Prove your {PLATFORM_LABELS[state.platform]} identity</h3>
@@ -102,29 +102,29 @@ class Proving extends React.Component<IPropsWithRouter> {
   }
 
   private renderProving() {
-    const state = this.props.state!
-    const { platform } = state
+    const data = this.props.data!
+    const { platform } = data
     switch (platform) {
       case PLATFORMS.GITHUB:
-        return <GithubProving state={state as GithubProvingState} />
+        return <GithubProving data={data as GithubProvingData} />
       case PLATFORMS.TWITTER:
-        return <TwitterProving state={state as TwitterProvingState} />
+        return <TwitterProving data={data as TwitterProvingData} />
       case PLATFORMS.FACEBOOK:
-        return <FacebookProving state={state as FacebookProvingState} />
+        return <FacebookProving data={data as FacebookProvingData} />
       default:
         return null
     }
   }
 }
 
-function getSocialProvingState(platform: PLATFORMS, usersStore: UsersStore): ProvingState {
+function getSocialProvingState(platform: PLATFORMS, usersStore: UsersStore): ProvingData {
   switch (platform) {
     case PLATFORMS.GITHUB:
-      return new GithubProvingState(usersStore)
+      return new GithubProvingData(usersStore)
     case PLATFORMS.TWITTER:
-      return new TwitterProvingState(usersStore)
+      return new TwitterProvingData(usersStore)
     case PLATFORMS.FACEBOOK:
-      return new FacebookProvingState(usersStore)
+      return new FacebookProvingData(usersStore)
     default:
       throw new Error('unknown platform')
   }
@@ -135,7 +135,7 @@ function mapStoreToProps(stores: IStores, ownProps: IPropsWithRouter): IProps {
   const isValidPlatform = Object.values(PLATFORMS).includes(platform)
   return {
     isValidPlatform,
-    state: isValidPlatform ? getSocialProvingState(platform, stores.usersStore) : null,
+    data: isValidPlatform ? getSocialProvingState(platform, stores.usersStore) : null,
   }
 }
 

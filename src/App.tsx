@@ -89,10 +89,10 @@ class App extends React.Component<IProps> {
       return <Loading message="Loading local data..." />
     }
 
-    return this.getRoutes()
+    return this.renderRoutes()
   }
 
-  private getRoutes() {
+  private renderRoutes() {
     const {
       hasUser,
     } = this.injectedProps.usersStore

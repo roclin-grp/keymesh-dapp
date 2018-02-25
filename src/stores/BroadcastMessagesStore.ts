@@ -229,7 +229,7 @@ export interface ISignedBroadcastMessage extends IBroadcastMessage {
 
 export interface IPublishBroadcastOptions extends ITransactionLifecycle {
   publishDidComplete?: () => void
-  publishDidFail?: (err: Error | null) => void
+  publishDidFail?: (err: Error) => void
 }
 
 const FETCH_BROADCAST_MESSAGES_INTERVAL = 10 * 1000

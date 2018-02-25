@@ -60,7 +60,7 @@ class ProfileContent extends React.Component<IProps> {
       return <p className={classes.verifications}>Loading verifications...</p>
     }
 
-    const verificationItems = this.getVerificationItems()
+    const verificationItems = this.renderVerificationItems()
 
     if (verificationItems.length === 0) {
       return <p className={classes.verifications}>No verification</p>
@@ -73,7 +73,7 @@ class ProfileContent extends React.Component<IProps> {
     )
   }
 
-  private getVerificationItems() {
+  private renderVerificationItems() {
     const { isSelf } = this.props
     const { proofsStateStore } = this.props
     const {

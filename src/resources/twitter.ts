@@ -29,11 +29,11 @@ export class TwitterResource {
     const id = parts[0]
     const uri = `/1.1/statuses/show.json?id=${id}&exclude_replies=true&tweet_mode=extended`
 
-    return this.fetch<ITweet>(uri)
-      .then((tweet) => tweet.full_text)
+    const tweet = await this.fetch<ITweet>(uri)
+    return tweet.full_text
   }
 
-  private authorize() {
+  private async authorize() {
     const bearerTokenCredentials = encodeURIComponent(this.consumerKey) + ':' + encodeURIComponent(this.consumerSecret)
     const base64EncodedCredentials = '::' + btoa(bearerTokenCredentials)
 
@@ -47,14 +47,9 @@ export class TwitterResource {
       body: 'grant_type=client_credentials',
     }
 
-    return fetch(`${this.apiPrefix}/oauth2/token`, fetchOptions)
-      .then((resp) => {
-        const json = resp.json()
-        return json
-      })
-      .then((oauth2) => {
-        this.accessToken = oauth2.access_token
-      })
+    const response = await fetch(`${this.apiPrefix}/oauth2/token`, fetchOptions)
+    const oAuth2Data = await response.json()
+    this.accessToken = oAuth2Data.access_token
   }
 
   private async fetch<T>(uri: string): Promise<T> {
@@ -64,12 +59,13 @@ export class TwitterResource {
 
     const timelineURL = this.apiPrefix + uri
 
-    return fetch(timelineURL, {
+    const response = await fetch(timelineURL, {
       method: 'GET',
       headers: {
         Authorization: 'Bearer ' + this.accessToken,
       },
-    }).then((resp) => resp.json())
+    })
+    return response.json()
   }
 }
 

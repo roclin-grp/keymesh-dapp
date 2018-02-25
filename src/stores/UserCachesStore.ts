@@ -57,14 +57,11 @@ export class UserCachesStore {
       return user.identity
     }
 
-    const {
-      getBlockHash,
-    } = this.metaMaskStore
     const userIdentity = await this.usersStore.getIdentityByUserAddress(userAddress)
     const identity = {
       publicKey: userIdentity.publicKey,
       blockNumber: userIdentity.blockNumber,
-      blockHash: await getBlockHash(userIdentity.blockNumber),
+      blockHash: await this.metaMaskStore.getBlockHash(userIdentity.blockNumber),
     }
     if (!user) {
       const _newUser = await this.userCachesDB.create({

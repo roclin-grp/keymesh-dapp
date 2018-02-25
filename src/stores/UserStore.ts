@@ -195,7 +195,6 @@ export class UserStore {
 
     const {
       getTransactionReceipt,
-      getBlockHash,
     } = this.metaMaskStore
     const { identitiesContract } = this.contractStore
     const {
@@ -238,7 +237,7 @@ export class UserStore {
             }
 
             if (registeredIdentityFingerprint === getPublicKeyFingerPrint(identityKeyPair.public_key)) {
-              const blockHash = await getBlockHash(blockNumber)
+              const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
               if (isHexZeroValue(blockHash)) {
                 // no blockHash? just retry.
                 const retryTimeOut = 1000

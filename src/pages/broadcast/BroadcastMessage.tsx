@@ -22,7 +22,7 @@ import * as styles from './BroadcastMessage.css'
 import {
   isUndefined,
 } from '../../utils'
-import { broadcastEstimateTime, broadcastTime } from '../../utils/time'
+import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
 import {
@@ -79,7 +79,6 @@ export default class BroadcastMessage extends React.Component<IProps> {
   public render() {
     const { message } = this.props
     const userAddress = message.author!
-    const messageStatus = message.status!
     const username = this.getUsername()
 
     return <div className={styles.broadcastMessage}>
@@ -92,39 +91,29 @@ export default class BroadcastMessage extends React.Component<IProps> {
       <div className={styles.body}>
         <div className={styles.infoWrapper}>
           <Link to={`/profile/${userAddress}`}>
-            <span className={styles.username}>{username}</span>
-            {this.getPlatformIcons()}
+            {this.renderUsername(username)}
+            {this.renderPlatformIcons()}
             <UserAddress
               className={classnames(styles.userAddress, {
-                [styles.userAddressHasUsername]: username !== null,
+                [styles.userAddressHasUsername]: username != null,
               })}
               maxLength={username ? 8 : 16}
               address={userAddress}
             />
           </Link>
-          <span title={broadcastTime(message.timestamp)}>
+          <span title={getBroadcastTime(message.timestamp)}>
             {` ${this.timeText}`}
           </span>
         </div>
         <p className={styles.content}>{message.message}</p>
-        {
-          messageStatus !== MESSAGE_STATUS.DELIVERED
-            ? (
-              <p
-                className={classnames(styles.status, MESSAGE_MODIFIER_CLASSES[messageStatus])}
-              >
-                {MESSAGE_STATUS_STR[messageStatus]}
-              </p>
-            )
-            : null
-        }
+        {this.renderMessageStatus()}
       </div>
     </div>
   }
 
   private updateTimeText() {
     runInAction(() => {
-      this.timeText = broadcastEstimateTime(this.props.message.timestamp)
+      this.timeText = getBroadcastEstimateTime(this.props.message.timestamp)
     })
 
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
@@ -146,7 +135,15 @@ export default class BroadcastMessage extends React.Component<IProps> {
     return null
   }
 
-  private getPlatformIcons() {
+  private renderUsername(username: string | null) {
+    if (username == null) {
+      return null
+    }
+
+    return <span className={styles.username}>{username}</span>
+  }
+
+  private renderPlatformIcons() {
     const {
       userBoundSocials,
       verifyStatuses,
@@ -168,6 +165,18 @@ export default class BroadcastMessage extends React.Component<IProps> {
     }
 
     return platformIcons
+  }
+
+  private renderMessageStatus() {
+    const messageStatus = this.props.message.status!
+    if (messageStatus === MESSAGE_STATUS.DELIVERED) {
+      return null
+    }
+    return (
+      <p className={classnames(styles.status, MESSAGE_MODIFIER_CLASSES[messageStatus])}>
+        {MESSAGE_STATUS_STR[messageStatus]}
+      </p>
+    )
   }
 }
 

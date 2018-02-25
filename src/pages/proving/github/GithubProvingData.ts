@@ -1,6 +1,6 @@
 import { action } from 'mobx'
 
-import ProvingState from '../ProvingState'
+import ProvingData from '../ProvingData'
 
 import { GithubResource, IGist } from '../../../resources/github'
 import {
@@ -8,7 +8,7 @@ import {
   GITHUB_GIST_FILENAME,
 } from '../../../stores/BoundSocialsStore'
 
-export class GithubProvingState extends ProvingState {
+export class GithubProvingData extends ProvingData {
   protected defaultCheckingErrorContent =
     `Please paste the text into a public gist called ${GITHUB_GIST_FILENAME}, then check again!`
 

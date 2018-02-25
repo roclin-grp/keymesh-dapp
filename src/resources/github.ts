@@ -8,14 +8,14 @@ export interface IGist {
 }
 
 export class GithubResource {
-  public static getGists(username: string): Promise<IGist[]> {
+  public static async getGists(username: string): Promise<IGist[]> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
     }
 
-    return fetch(`https://api.github.com/users/${username}/gists`, fetchOptions)
-      .then((resp) => resp.json())
+    const response = await fetch(`https://api.github.com/users/${username}/gists`, fetchOptions)
+    return response.json()
   }
 
   public static async getGist(url: string): Promise<IGist | null> {
@@ -30,8 +30,8 @@ export class GithubResource {
       mode: 'cors',
     }
 
-    return fetch(`https://api.github.com/gists/${id}`, fetchOptions)
-      .then((resp) => resp.json())
+    const response = await fetch(`https://api.github.com/gists/${id}`, fetchOptions)
+    return response.json()
   }
 
   public static async getGistFileContent(url: string, filename: string): Promise<string | null> {
@@ -44,13 +44,13 @@ export class GithubResource {
     return this.getGistRawContent(gist.files[filename].raw_url)
   }
 
-  public static getGistRawContent(rawURL: string): Promise<string> {
+  public static async getGistRawContent(rawURL: string): Promise<string> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
     }
 
-    return fetch(rawURL, fetchOptions)
-      .then((resp) => resp.text())
+    const response = await fetch(rawURL, fetchOptions)
+    return response.text()
   }
 }

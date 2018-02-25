@@ -42,24 +42,41 @@ class Broadcast extends React.Component<IProps> {
   }
 
   public render() {
-    let form: JSX.Element | null = null
-    const { hasUser } = this.props.usersStore
-    if (hasUser) {
-      form = <div className={styles.postForm}>
-        <HashAvatar
-          className={styles.avatar}
-          shape="circle"
-          hash={this.props.usersStore.currentUserStore!.avatarHash}
-        />
-        <BroadcastForm
-          broadcastMessagesStore={this.props.broadcastMessagesStore}
-          disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
-        />
+    return <div className={classnames(styles.broadcast, 'container')}>
+      {this.renderPostForm()}
+      <div className={styles.messagesContainer}>
+        {this.renderBroadcastMessages()}
       </div>
+    </div>
+  }
+
+  private renderPostForm() {
+    const { hasUser } = this.props.usersStore
+    if (!hasUser) {
+      return null
     }
 
-    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => {
-      return <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
+    return (
+      <>
+        <div className={styles.postForm}>
+          <HashAvatar
+            className={styles.avatar}
+            shape="circle"
+            hash={this.props.usersStore.currentUserStore!.avatarHash}
+          />
+          <BroadcastForm
+            broadcastMessagesStore={this.props.broadcastMessagesStore}
+            disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
+          />
+        </div>
+        <Divider/>
+      </>
+    )
+  }
+
+  private renderBroadcastMessages() {
+    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => (
+      <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
         <BroadcastMessage
           userCachesStore={this.props.usersStore.userCachesStore}
           userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
@@ -67,14 +84,13 @@ class Broadcast extends React.Component<IProps> {
         />
         <Divider />
       </div>
-    })
-    return <div className={classnames(styles.broadcast, 'container')}>
-      {form}
-      <div className={styles.messagesContainer}>
-        {hasUser ? <Divider /> : null}
-        <div>{messages.length > 0 ? messages : <p className={styles.noBroadcasts}>No broadcasts</p>}</div>
-      </div>
-    </div>
+    ))
+
+    if (messages.length === 0) {
+      return <p className={styles.noBroadcasts}>No broadcasts</p>
+    }
+
+    return messages
   }
 }
 

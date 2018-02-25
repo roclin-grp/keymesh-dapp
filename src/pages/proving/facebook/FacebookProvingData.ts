@@ -1,10 +1,10 @@
 import { action } from 'mobx'
 
-import ProvingState from '../ProvingState'
+import ProvingData from '../ProvingData'
 import { FacebookResource, IPost } from '../../../resources/facebook'
 import { PLATFORMS } from '../../../stores/BoundSocialsStore'
 
-export class FacebookProvingState extends ProvingState {
+export class FacebookProvingData extends ProvingData {
   public platform = PLATFORMS.FACEBOOK
   protected defaultCheckingErrorContent = `Please post the your proof to Facebook, `
     + `the content must be exactly as the screen appears and make sure that is public. `

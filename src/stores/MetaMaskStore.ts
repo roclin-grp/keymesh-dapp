@@ -7,9 +7,6 @@ import {
 
 import Web3 from 'web3'
 
-import {
-  storeLogger,
-} from '../utils/loggers'
 import { sleep } from '../utils'
 
 function getMetaMaskProvider(): { isMetaMask: true } | null {
@@ -71,18 +68,13 @@ export class MetaMaskStore {
     this.connect()
   }
 
-  public getBlockHash = (blockNumber: number) => {
-    return this.web3.eth.getBlock(blockNumber)
-      .then((block) => {
-        if (typeof block === 'undefined') {
-          return '0x0'
-        }
-        return block.hash
-      })
-      .catch((err) => {
-        storeLogger.error(err)
-        return '0x0'
-      })
+  public async getBlockHash(blockNumber: number): Promise<string> {
+    const block = await this.web3.eth.getBlock(blockNumber)
+    if (block == null) {
+      return '0x0'
+    }
+
+    return block.hash
   }
 
   public getTransactionReceipt = (transactionHash: string) => {

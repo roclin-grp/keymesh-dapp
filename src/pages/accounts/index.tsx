@@ -71,78 +71,17 @@ class Accounts extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const {
-      metaMaskStore: {
-        currentEthereumNetwork,
-        currentEthereumAccount,
-      },
-      usersStore: {
-        users,
-        isCurrentUser,
-        hasRegisterRecordOnLocal,
-        hasRegisterRecordOnChain,
-        hasWalletCorrespondingUsableUser,
-      },
-    } = this.injectedProps
-    const {
-      isCreatingTransaction,
-      registerButtonContent,
-    } = this.state
-
     return (
-      <>
-        {
-          users.length === 0
-          ? (
-            <h2 className={classnames(styles.title, 'title')}>
-              Create new account
-            </h2>
-          )
-          : this.getUserList()
-        }
+      <div className={classnames(styles.container, 'page-content')}>
+        {this.renderManageAccounts()}
         <h3>
-          Wallet Address: {currentEthereumAccount}
+          Wallet Address: {this.injectedProps.metaMaskStore.currentEthereumAccount}
         </h3>
-        {
-          !hasRegisterRecordOnLocal
-            ? (
-              hasRegisterRecordOnChain
-                ? <p>This address already registered, please use another wallet address or import existed account.</p>
-                : (
-                  <>
-                    <p>Click the button below and confirm the transaction to create a new account</p>
-                    <Button
-                      loading={isCreatingTransaction}
-                      size="large"
-                      type="primary"
-                      disabled={isCreatingTransaction}
-                      onClick={this.handleRegister}
-                    >
-                      {registerButtonContent}
-                    </Button>
-                  </>
-                )
-            )
-            : null
-        }
-        {
-          hasWalletCorrespondingUsableUser
-          && !isCurrentUser(currentEthereumNetwork!, currentEthereumAccount!)
-          ? (
-            <>
-              <p>Would you like to swtich to corresponding account?</p>
-              <Button
-                size="large"
-                type="primary"
-                onClick={this.handleSwitchToRespondingAccount}
-              >
-                Switch
-              </Button>
-            </>
-          )
-          : null
-        }
-        <Divider className="container" />
+        {this.renderCreateAccount()}
+        {this.renderSwitchToCorrespondingAccount()}
+        <div className="container">
+          <Divider />
+        </div>
         <h2 className="title">
           Import account
         </h2>
@@ -157,25 +96,31 @@ class Accounts extends React.Component<IProps, IState> {
             <p className="ant-upload-drag-icon">
               <Icon type="plus" />
             </p>
-            <p className="ant-upload-text">Click or drag file to this area to import</p>
+            <p className="ant-upload-text">
+              Click or drag file to this area to import
+            </p>
             <p className="ant-upload-hint">
               Support JSON format exported user data
             </p>
           </div>
         </Dragger>
-      </>
+      </div>
     )
   }
 
-  private getUserList() {
-    const {
-      usersStore: {
-        users,
-      },
-    } = this.injectedProps
+  private renderManageAccounts() {
+    const { users } = this.injectedProps.usersStore
+    if (users.length === 0) {
+      return (
+        <h2 className="title">
+          Create new account
+        </h2>
+      )
+    }
+
     return (
       <>
-        <h2 className={classnames(styles.title, 'title')}>
+        <h2 className="title">
           Manage accounts
         </h2>
         <div className={classnames(styles.userListContainer, 'container')}>
@@ -187,6 +132,66 @@ class Accounts extends React.Component<IProps, IState> {
             )}
           />
         </div>
+      </>
+    )
+  }
+
+  private renderCreateAccount() {
+    const {
+      isCreatingTransaction,
+      registerButtonContent,
+    } = this.state
+    const {
+      hasRegisterRecordOnLocal,
+      hasRegisterRecordOnChain,
+    } = this.injectedProps.usersStore
+
+    if (hasRegisterRecordOnLocal) {
+      return null
+    }
+
+    if (hasRegisterRecordOnChain) {
+      return <p>This address already registered, please use another wallet address or import existed account.</p>
+    }
+
+    return (
+      <>
+        <p>Click the button below and confirm the transaction to create a new account</p>
+        <Button
+          loading={isCreatingTransaction}
+          size="large"
+          type="primary"
+          disabled={isCreatingTransaction}
+          onClick={this.handleRegister}
+        >
+          {registerButtonContent}
+        </Button>
+      </>
+    )
+  }
+
+  private renderSwitchToCorrespondingAccount() {
+    const { currentEthereumNetwork, currentEthereumAccount } = this.injectedProps.metaMaskStore
+    const {
+      isCurrentUser,
+      hasWalletCorrespondingUsableUser,
+    } = this.injectedProps.usersStore
+
+    const isUsingAlready = isCurrentUser(currentEthereumNetwork!, currentEthereumAccount!)
+    if (isUsingAlready || !hasWalletCorrespondingUsableUser) {
+      return null
+    }
+
+    return (
+      <>
+        <p>Would you like to swtich to corresponding account?</p>
+        <Button
+          size="large"
+          type="primary"
+          onClick={this.handleSwitchToRespondingAccount}
+        >
+          Switch
+        </Button>
       </>
     )
   }

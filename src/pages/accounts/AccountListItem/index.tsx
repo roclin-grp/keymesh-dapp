@@ -97,7 +97,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     return (
       <List.Item
-        actions={this.getActions()}
+        actions={this.renderActions()}
       >
         <List.Item.Meta
           avatar={<HashAvatar
@@ -110,13 +110,13 @@ class AccountListItem extends React.Component<IProps, IState> {
             </Link>}
         />
         <div className={styles.listContent}>
-          {this.getListContent()}
+          {this.renderListContent()}
         </div>
       </List.Item>
     )
   }
 
-  private getActions = () => {
+  private renderActions() {
     const {
       user,
     } = this.injectedProps.userStore
@@ -187,7 +187,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     }
   }
 
-  private getListContent = () => {
+  private renderListContent() {
     const {
       user,
     } = this.props

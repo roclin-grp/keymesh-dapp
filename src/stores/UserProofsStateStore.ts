@@ -14,6 +14,7 @@ import {
   NewIVerifyStatuses,
   PLATFORMS,
   GITHUB_GIST_FILENAME,
+  claimTextToSignedClaim,
 } from './BoundSocialsStore'
 import { ContractStore } from './ContractStore'
 import { UserCachesStore } from './UserCachesStore'
@@ -25,8 +26,7 @@ import { UsersStore } from '../stores/UsersStore'
 import { sleep } from '../utils'
 import { sha3 } from '../utils/cryptos'
 import { hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
-import { beforeOneDay } from '../utils/time'
-import { claimTextToSignedClaim } from '../pages/proving/ProvingState'
+import { isBeforeOneDay } from '../utils/time'
 
 export class UserProofsStateStore {
   @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
@@ -184,7 +184,7 @@ export class UserProofsStateStore {
 
     for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
       const boundSocial = userBoundSocials[platform]
-      if (boundSocial && (!onlyBeforeOneDay || beforeOneDay(verifyStatuses[platform].lastVerifiedAt))) {
+      if (boundSocial && (!onlyBeforeOneDay || isBeforeOneDay(verifyStatuses[platform].lastVerifiedAt))) {
         this.verify(platform, boundSocial.proofURL)
       }
     }

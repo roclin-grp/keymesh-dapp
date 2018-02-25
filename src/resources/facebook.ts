@@ -5,7 +5,7 @@ export interface IPost {
 }
 
 export class FacebookResource {
-  public static getPosts(userID: string, accessToken: string): Promise<IPost[]> {
+  public static async getPosts(userID: string, accessToken: string): Promise<IPost[]> {
     const fetchOptions: RequestInit = {
       method: 'GET',
       mode: 'cors',
@@ -13,11 +13,9 @@ export class FacebookResource {
     const url = `https://graph.facebook.com/v2.11/${userID}/posts`
       + `?access_token=${accessToken}`
 
-    return fetch(url, fetchOptions)
-      .then((resp) => resp.json())
-      .then((respBody) => {
-        return respBody.data ? respBody.data : []
-      })
+    const response = await fetch(url, fetchOptions)
+    const body = await response.json()
+    return body.data || []
   }
 
   public static async getPost(url: string): Promise<string> {
@@ -28,9 +26,8 @@ export class FacebookResource {
 
     url = 'https://cors-anywhere.herokuapp.com/' + url
 
-    const body = await fetch(url, fetchOptions)
-      .then((resp) => resp.text())
+    const response = await fetch(url, fetchOptions)
 
-    return body
+    return response.text()
   }
 }

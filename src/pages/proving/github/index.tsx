@@ -1,27 +1,26 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import { signedClaimToClaimText } from '../ProvingState'
-import { GithubProvingState } from './GithubProvingState'
+import { GithubProvingData } from './GithubProvingData'
 import ProvingTextarea from '../ProvingTextarea'
 
 import {
   Link,
 } from 'react-router-dom'
-import { GITHUB_GIST_FILENAME } from '../../../stores/BoundSocialsStore'
+import { GITHUB_GIST_FILENAME, signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
 
 import { Icon, Button, Input } from 'antd'
 import * as styles from './index.css'
 
 interface IProps {
-  state: GithubProvingState
+  data: GithubProvingData
 }
 
 @observer
 class GithubProving extends React.Component<IProps> {
   public render() {
     const label = 'Github'
-    const { state } = this.props
+    const { data } = this.props
     const {
       username,
       isProving,
@@ -29,7 +28,7 @@ class GithubProving extends React.Component<IProps> {
       checkProofButtonContent,
       checkProofButtonDisabled,
       platform,
-    } = state
+    } = data
 
     if (!isProving) {
       return <div className={styles.container}>
@@ -41,15 +40,15 @@ class GithubProving extends React.Component<IProps> {
           <Input
             spellCheck={false}
             value={username}
-            onChange={(e: any) => state.updateUsername(e.target.value)}
+            onChange={(e: any) => data.updateUsername(e.target.value)}
             placeholder={`Your ${label} username`}
-            onPressEnter={() => state.continueHandler()}
+            onPressEnter={() => data.continueHandler()}
           />
         </div>
 
         <div className={styles.buttonsContainer}>
           <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-          <Button type="primary" onClick={() => state.continueHandler()}>Continue</Button>
+          <Button type="primary" onClick={() => data.continueHandler()}>Continue</Button>
         </div>
       </div>
     }
@@ -69,7 +68,7 @@ class GithubProving extends React.Component<IProps> {
       </p>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={() => state.checkProof()} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>
