@@ -7,12 +7,8 @@
     "start": "parcel serve src/index.html",
     "build": "parcel build src/index.html --public-url /",
     "css-types": "tcm src",
-    "postinstall": "yarn css-types"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
+    "postinstall": "yarn css-types",
+    "precommit": "lint-staged"
   },
   "lint-staged": {
     "ignore": [
