@@ -147,7 +147,7 @@ export class BroadcastMessagesStore {
     }
 
     const userPublicKey = await this.usersStore.getUserPublicKey(userAddress)
-    if (typeof userPublicKey !== 'undefined') {
+    if (userPublicKey != null) {
       this.cachedUserPublicKeys[userAddress] = userPublicKey
     }
     return userPublicKey
@@ -171,7 +171,7 @@ export class BroadcastMessagesStore {
       this.broadcastMessagesSignatures.push(signedMessage.signature)
 
       const userPublicKey = await this.getUserPublicKey(userAddress)
-      if (typeof userPublicKey === 'undefined') {
+      if (userPublicKey == null) {
         return null
       }
 

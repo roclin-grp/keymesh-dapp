@@ -34,7 +34,7 @@ const {
 } = keys
 
 import {
-  noop, isUndefined,
+  noop,
 } from '../utils'
 import {
   isHexZeroValue,
@@ -113,7 +113,7 @@ export class UsersStore {
 
   @computed
   public get hasUser() {
-    return typeof this.currentUserStore !== 'undefined'
+    return this.currentUserStore != null
   }
 
   @computed
@@ -126,7 +126,7 @@ export class UsersStore {
 
   @computed
   public get hasWalletCorrespondingUsableUser() {
-    return typeof this.walletCorrespondingUser !== 'undefined'
+    return this.walletCorrespondingUser != null
   }
 
   @computed
@@ -225,7 +225,7 @@ export class UsersStore {
   public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
     const { usersDB } = this
     const user = await usersDB.getUser(networkId, userAddress)
-    if (typeof user !== 'undefined') {
+    if (user != null) {
       await usersDB.deleteUser(user)
       if (this.metaMaskStore.currentEthereumNetwork === networkId) {
         this.removeUser(user)
@@ -252,7 +252,7 @@ export class UsersStore {
 
   public getUserStore = (user: IUser): UserStore => {
     const oldStore = this.cachedUserStores[user.userAddress]
-    if (!isUndefined(oldStore)) {
+    if (oldStore != null) {
       return oldStore
     }
 
@@ -268,7 +268,7 @@ export class UsersStore {
 
   public disposeUserStore(user: IUser) {
     const oldStore = this.cachedUserStores[user.userAddress]
-    if (isUndefined(oldStore)) {
+    if (oldStore == null) {
       return
     }
 
@@ -307,7 +307,7 @@ export class UsersStore {
 
   private checkOnChainRegisterRecord = async (userAddress?: string) => {
     if (
-      typeof userAddress !== 'undefined'
+      userAddress != null
       && this.metaMaskStore.isActive
       && !this.contractStore.isNotAvailable
     ) {
@@ -348,7 +348,7 @@ export class UsersStore {
 
     runInAction(() => {
       this.loadUsers(users)
-      if (typeof user !== 'undefined') {
+      if (user != null) {
         this.useUser(user)
       }
       this.isLoadingUsers = false

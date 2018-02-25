@@ -11,7 +11,6 @@ import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores'
 import { UserProofsStatesStore } from '../../stores/UserProofsStatesStore'
 
-import { isUndefined } from '../../utils'
 import { isAddress, base58ToChecksumAddress } from '../../utils/cryptos'
 
 @inject(mapStoreToProps)
@@ -48,7 +47,7 @@ function mapStoreToProps(stores: IStores, ownProps: IProps & RouteComponentProps
   } = stores
   const possibleBase58EncodedUserAddress = ownProps.match.params.userAddress
 
-  const hasAddress = !isUndefined(possibleBase58EncodedUserAddress)
+  const hasAddress = possibleBase58EncodedUserAddress != null
   const userAddress = (
     hasAddress
     ? getDecodedUserAddress(possibleBase58EncodedUserAddress!)

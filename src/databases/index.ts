@@ -34,7 +34,7 @@ import { UserCachesDB } from './UserCachesDB'
 let databases: Databases | undefined
 
 export function getDatabases() {
-  if (typeof databases === 'undefined') {
+  if (databases == null) {
     databases = new Databases()
   }
   return databases
@@ -64,7 +64,7 @@ export class Databases {
     const keymeshDB = await dumpDB(this.dexieDB)
 
     const usersTable = keymeshDB.find((table) => table.table === TABLE_NAMES.USERS)
-    if (typeof usersTable === 'undefined') {
+    if (usersTable == null) {
       return dbs
     }
 

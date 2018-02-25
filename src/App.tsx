@@ -154,7 +154,7 @@ const ConditionalRoute = ({
   let returnComponent: typeof component
   if (predicate) {
     returnComponent = component
-  } else if (typeof elseComponent === 'undefined') {
+  } else if (elseComponent == null) {
     return <Redirect to={redirectTo!} />
   } else {
     returnComponent = elseComponent

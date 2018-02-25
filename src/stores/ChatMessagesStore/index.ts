@@ -31,7 +31,7 @@ import {
 } from '../../databases'
 
 import {
-  noop, isUndefined,
+  noop,
 } from '../../utils'
 import {
   generateIdentityKeyFromHexStr,
@@ -178,7 +178,7 @@ export class ChatMessagesStore {
     }
 
     let session: CryptoboxSession | null = null
-    if (typeof sessionTag !== 'undefined') {
+    if (sessionTag != null) {
       // Is reply
       // Try to load local session and save to cache..
       session = await cryptoBox.session_load(sessionTag).catch((err) => {
@@ -311,7 +311,7 @@ export class ChatMessagesStore {
         try {
           if (sessionTag !== usingSessionTag) {
             const newMessage = await createNewSession()
-            if (typeof newMessage !== 'undefined') {
+            if (newMessage != null) {
               messageDidCreate(newMessage)
             } else {
               sendingDidFail(new Error(`Can't create message`))
@@ -346,7 +346,7 @@ export class ChatMessagesStore {
 
         try {
           const message = await messagesDB.getMessage(messageId, fromUserAddress)
-          if (typeof message !== 'undefined') {
+          if (message != null) {
             this.getMessageStore(message).updateMessageStatus(MESSAGE_STATUS.FAILED)
           }
         } finally {
@@ -395,7 +395,7 @@ export class ChatMessagesStore {
 
   public getMessageStore = (message: IMessage): ChatMessageStore => {
     const oldStore = this.cachedMessageStores[message.messageId]
-    if (!isUndefined(oldStore)) {
+    if (oldStore != null) {
       return oldStore
     }
 

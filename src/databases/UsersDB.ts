@@ -23,7 +23,7 @@ export class UsersDB {
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users
-      .where(Object.assign({ networkId }, status === undefined ? null : { status }))
+      .where(Object.assign({ networkId }, status == null ? null : { status }))
       .toArray()
   }
 
@@ -70,7 +70,7 @@ export class UsersDB {
       }
 
       const newUser = users.find((_user) => !oldUserAddresses[_user.userAddress])
-      if (typeof newUser === 'undefined') {
+      if (newUser == null) {
         throw new Error('Network not match')
       }
 

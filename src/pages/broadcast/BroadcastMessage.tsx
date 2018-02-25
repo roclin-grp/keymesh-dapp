@@ -19,9 +19,6 @@ import { UserCachesStore } from '../../stores/UserCachesStore'
 import { UserProofsStateStore } from '../../stores/UserProofsStateStore'
 
 import * as styles from './BroadcastMessage.css'
-import {
-  isUndefined,
-} from '../../utils'
 import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
@@ -151,7 +148,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
     const platformIcons: JSX.Element[] = []
     for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      if (isUndefined(userBoundSocials[platform]) || verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.INVALID) {
+      if (userBoundSocials[platform] == null || verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.INVALID) {
         continue
       }
 

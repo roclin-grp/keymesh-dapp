@@ -241,14 +241,14 @@ export function getPreKey({
     preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[preKeyID]
   } else {
     const limitDay = preKeyID - interval
-    while (preKeyID > limitDay && preKeyPublicKeyFingerprint === undefined) {
+    while (preKeyID > limitDay && preKeyPublicKeyFingerprint == null) {
       preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[preKeyID]
       preKeyID -= 1
     }
     preKeyID += 1
 
     // If not found, use last-resort pre-key
-    if (preKeyPublicKeyFingerprint === undefined) {
+    if (preKeyPublicKeyFingerprint == null) {
       preKeyID = lastPrekeyDate
       preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[lastPrekeyDate]
     }

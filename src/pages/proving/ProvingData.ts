@@ -16,7 +16,7 @@ import {
   signedClaimToClaimText,
 } from '../../stores/BoundSocialsStore'
 import { Modal } from 'antd'
-import { isUndefined } from '../../utils'
+
 import { storeLogger } from '../../utils/loggers'
 
 const DEFAULT_CHECK_PROOF_BUTTON_CONTENT = 'OK posted! Upload to blockchain!'
@@ -42,7 +42,7 @@ export default abstract class ProvingData {
 
   @computed
   public get isProving(): boolean {
-    return !isUndefined(this.claim)
+    return this.claim != null
   }
 
   public async checkProof() {
@@ -82,7 +82,7 @@ export default abstract class ProvingData {
 
   private async getBindingSocial(): Promise<IBindingSocial | null> {
     const signedClaim = this.claim
-    if (isUndefined(signedClaim)) {
+    if (signedClaim == null) {
       return null
     }
 

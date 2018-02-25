@@ -210,7 +210,7 @@ export class UserStore {
         const receipt = await getTransactionReceipt(identityTransactionHash)
         if (receipt) {
           if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
-            const hasStatus = receipt.status !== 'undefined'
+            const hasStatus = receipt.status != null
             const hasTransactionError = hasStatus
               ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
               : receipt.gasUsed === receipt.cumulativeGasUsed
@@ -282,7 +282,7 @@ export class UserStore {
 
   public async refreshMemoryUser() {
     const user = await this.usersDB.getUser(this.user.networkId, this.user.userAddress)
-    if (typeof user !== 'undefined') {
+    if (user != null) {
       this.updateMemoryUser(user)
     }
   }

@@ -57,7 +57,7 @@ export class ChatMessageStore {
         const receipt = await this.metaMaskStore.getTransactionReceipt(transactionHash)
         if (receipt !== null) {
           if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
-            const hasStatus = receipt.status !== 'undefined'
+            const hasStatus = receipt.status != null
             const hasTransactionError = hasStatus
               ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
               : receipt.gasUsed === receipt.cumulativeGasUsed

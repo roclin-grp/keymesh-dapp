@@ -83,7 +83,7 @@ export class SessionStore {
 
   public refreshMemorySession = async (): Promise<void> => {
     const session = await getDatabases().sessionsDB.getSession(this.session.sessionTag, this.session.userAddress)
-    if (typeof session !== 'undefined') {
+    if (session != null) {
       this.updateMemorySession(session)
       this.sessionsStore.sortSessions()
     }

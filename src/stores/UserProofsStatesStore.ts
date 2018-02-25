@@ -7,7 +7,6 @@ import {
 import {
   ContractStore,
 } from './ContractStore'
-import { isUndefined } from '../utils'
 
 export class UserProofsStatesStore {
   private contractStore: ContractStore
@@ -29,7 +28,7 @@ export class UserProofsStatesStore {
 
   public getUserProofsStateStore(userAddress: string): UserProofsStateStore {
     const oldStore = this.cachedUserProofsStateStores[userAddress]
-    if (!isUndefined(oldStore)) {
+    if (oldStore != null) {
       return oldStore
     }
 
@@ -49,7 +48,7 @@ export class UserProofsStatesStore {
 
   public disposeUserProofsStateStore(userAddress: string) {
     const oldStore = this.cachedUserProofsStateStores[userAddress]
-    if (isUndefined(oldStore)) {
+    if (oldStore == null) {
       return
     }
 

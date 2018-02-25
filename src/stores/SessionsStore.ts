@@ -19,7 +19,6 @@ import {
   ICreateSessionArgs,
   SessionsDB,
 } from '../databases/SessionsDB'
-import { isUndefined } from '../utils'
 
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
@@ -36,7 +35,7 @@ export class SessionsStore {
 
   @computed
   public get hasSelectedSession() {
-    return typeof this.currentSessionStore !== 'undefined'
+    return this.currentSessionStore != null
   }
 
   constructor({
@@ -92,7 +91,7 @@ export class SessionsStore {
 
   public getSessionStore = (session: ISession): SessionStore => {
     const oldStore = this.cachedSessionStores[session.sessionTag]
-    if (!isUndefined(oldStore)) {
+    if (oldStore != null) {
       return oldStore
     }
 
@@ -109,7 +108,7 @@ export class SessionsStore {
 
   public disposeSessionStore(session: ISession) {
     const oldStore = this.cachedSessionStores[session.sessionTag]
-    if (isUndefined(oldStore)) {
+    if (oldStore == null) {
       return
     }
 

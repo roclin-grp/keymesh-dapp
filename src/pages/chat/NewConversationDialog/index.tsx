@@ -70,7 +70,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
                 placeholder="Receiver Address"
                 prefix={<Icon type="user" className={styles.prefixIcon} />}
                 suffix={
-                  typeof userAddress !== 'undefined'
+                  userAddress != null
                   && userAddress !== ''
                   && !this.state.isSending
                     // FIXME: wrap icon to a clickable element
@@ -177,9 +177,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     userAddress: string | undefined,
     done: (isValid?: boolean) => void,
   ) => {
-    if (
-      typeof userAddress !== 'undefined'
-    ) {
+    if (userAddress != null) {
       if (userAddress === '') {
         return done()
       }
