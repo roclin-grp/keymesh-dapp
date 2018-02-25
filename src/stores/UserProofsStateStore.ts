@@ -82,19 +82,15 @@ export class UserProofsStateStore {
     }
 
     this.isFetchingUserProofs = true
+
+    await this.waitForInitialise()
+    if (!this.publicKey) {
+      // could not load public key, address is invalid or some other things
+      // went wrong, stop fetching
+      this.isFetchingUserProofs = false
+    }
+
     while (this.isFetchingUserProofs) {
-      if (!this.finishedInit) {
-        await sleep(1000)
-        continue
-      }
-
-      if (!this.publicKey) {
-        // could not load public key, address is invalid or some other things
-        // went wrong, stop fetching
-        this.isFetchingUserProofs = false
-        break
-      }
-
       try {
         await this.fetchUserProofs()
       } finally {
@@ -174,6 +170,12 @@ export class UserProofsStateStore {
       }
     }
     this.saveVerificationToDB()
+  }
+
+  private async waitForInitialise(interval = 1000) {
+    while (!this.finishedInit) {
+      await sleep(interval)
+    }
   }
 
   private async verifyAll(onlyBeforeOneDay: boolean = false) {
