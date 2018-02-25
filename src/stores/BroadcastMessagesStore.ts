@@ -5,15 +5,16 @@ import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
+import ENV from '../config'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
   private usersStore: UsersStore
   private contractStore: ContractStore
 
-  private fetchTimeout: number
-  private isFetching: boolean
-  private lastFetchBlock: number
+  private fetchTimeout!: number
+  private isFetching: boolean = false
+  private lastFetchBlock: number = 0
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
     [userAddress: string]: keys.PublicKey,
@@ -58,7 +59,8 @@ export class BroadcastMessagesStore {
     const contract = this.contractStore.broadcastMessagesContract
     const author = currentUserStore!.user.userAddress
 
-    contract.publish(signedMessageHex, author)
+    transactionWillCreate()
+    contract.publish(author, signedMessageHex)
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
         runInAction(() => {
@@ -73,7 +75,7 @@ export class BroadcastMessagesStore {
         this.broadcastMessagesSignatures.push(signature)
       })
       .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === Number(process.env.REACT_APP_CONFIRMATION_NUMBER)) {
+        if (confirmationNumber === ENV.REQUIRED_CONFIRMATION_NUMBER) {
           const isCurrentMessage = (_message: IBroadcastMessage) => {
             return _message.author === author &&
               _message.timestamp === timestamp &&
@@ -145,7 +147,7 @@ export class BroadcastMessagesStore {
     }
 
     const userPublicKey = await this.usersStore.getUserPublicKey(userAddress)
-    if (typeof userPublicKey !== 'undefined') {
+    if (userPublicKey != null) {
       this.cachedUserPublicKeys[userAddress] = userPublicKey
     }
     return userPublicKey
@@ -153,7 +155,7 @@ export class BroadcastMessagesStore {
   private fetchNewBroadcastMessages = async () => {
     const {
       lastBlock,
-      broadcastMessages,
+      result: broadcastMessages,
     } = await this.contractStore.broadcastMessagesContract.getBroadcastMessages({
       fromBlock: this.lastFetchBlock > 0 ? this.lastFetchBlock : 0,
     })
@@ -169,7 +171,7 @@ export class BroadcastMessagesStore {
       this.broadcastMessagesSignatures.push(signedMessage.signature)
 
       const userPublicKey = await this.getUserPublicKey(userAddress)
-      if (typeof userPublicKey === 'undefined') {
+      if (userPublicKey == null) {
         return null
       }
 
@@ -227,7 +229,7 @@ export interface ISignedBroadcastMessage extends IBroadcastMessage {
 
 export interface IPublishBroadcastOptions extends ITransactionLifecycle {
   publishDidComplete?: () => void
-  publishDidFail?: (err: Error | null) => void
+  publishDidFail?: (err: Error) => void
 }
 
 const FETCH_BROADCAST_MESSAGES_INTERVAL = 10 * 1000

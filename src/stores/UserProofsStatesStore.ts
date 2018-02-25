@@ -5,9 +5,6 @@ import {
   UserProofsStateStore,
 } from './UserProofsStateStore'
 import {
-  ETHEREUM_NETWORKS,
-} from './MetaMaskStore'
-import {
   ContractStore,
 } from './ContractStore'
 
@@ -15,7 +12,7 @@ export class UserProofsStatesStore {
   private contractStore: ContractStore
   private usersStore: UsersStore
   private cachedUserProofsStateStores: {
-    [primaryKey: string]: UserProofsStateStore,
+    [userAddress: string]: UserProofsStateStore,
   } = {}
 
   constructor({
@@ -29,18 +26,32 @@ export class UserProofsStatesStore {
     this.contractStore = contractStore
   }
 
-  public getUserProofsStateStore = (networkId: ETHEREUM_NETWORKS, userAddress: string): UserProofsStateStore => {
-    const primaryKey = `${networkId}${userAddress}`
-    let store = this.cachedUserProofsStateStores[primaryKey]
-    if (typeof store === 'undefined') {
-      store = new UserProofsStateStore({
-        userAddress,
-        contractStore: this.contractStore,
-        usersStore: this.usersStore,
-      })
-
-      this.cachedUserProofsStateStores[primaryKey] = store
+  public getUserProofsStateStore(userAddress: string): UserProofsStateStore {
+    const oldStore = this.cachedUserProofsStateStores[userAddress]
+    if (oldStore != null) {
+      return oldStore
     }
-    return store
+
+    const newStore = new UserProofsStateStore(
+      userAddress,
+      this.contractStore,
+      this.usersStore,
+    )
+
+    this.cachedUserProofsStateStores[userAddress] = newStore
+    return newStore
+  }
+
+  public clearCachedStores() {
+    this.cachedUserProofsStateStores = {}
+  }
+
+  public disposeUserProofsStateStore(userAddress: string) {
+    const oldStore = this.cachedUserProofsStateStores[userAddress]
+    if (oldStore == null) {
+      return
+    }
+
+    delete this.cachedUserProofsStateStores[userAddress]
   }
 }

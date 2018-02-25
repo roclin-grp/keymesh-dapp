@@ -7,27 +7,38 @@ import {
 
 // style
 import * as styles from './index.css'
+import classnames from 'classnames'
 
 function ErrorPage({
   message,
   errorStack,
 }: IProps) {
   return (
-    <div className={styles.container}>
+    <div className={classnames(styles.container, 'page-content')}>
       <Icon type="close-circle-o" className={styles.iconError} />
       <h1>{message}</h1>
       <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
-      <details>
-        <summary>You can provide those error messages to us</summary>
-        <pre>{errorStack}</pre>
-      </details>
+      {renderErrorStack(errorStack)}
     </div>
+  )
+}
+
+function renderErrorStack(errorStack?: string): JSX.Element | null {
+  if (errorStack == null) {
+    return null
+  }
+
+  return (
+    <details>
+      <summary>You can provide those error messages to us</summary>
+      <pre>{errorStack}</pre>
+    </details>
   )
 }
 
 interface IProps {
   message: string
-  errorStack: string | undefined
+  errorStack?: string
 }
 
 export default ErrorPage

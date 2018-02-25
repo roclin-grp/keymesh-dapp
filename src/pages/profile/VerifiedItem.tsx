@@ -1,98 +1,112 @@
 import * as React from 'react'
 
-import * as styles from './index.css'
-import { Icon } from 'antd'
+import { Link } from 'react-router-dom'
+
+import { Icon, Tooltip } from 'antd'
+
+import * as classes from './VerifiedItem.css'
+import classnames from 'classnames'
+
+import { observer } from 'mobx-react'
 import {
-  Link,
-} from 'react-router-dom'
-import {
-  SOCIALS,
+  PLATFORMS,
   IBoundSocial,
   VERIFY_SOCIAL_STATUS,
   IVerifyStatus,
+  PALTFORM_MODIFIER_CLASSES,
 } from '../../stores/BoundSocialsStore'
-import { beforeOneDay } from '../../utils/time'
-import classnames from 'classnames'
+
+@observer
+class VerifiedItem extends React.Component<IProps> {
+  public render() {
+    const { platform } = this.props
+    const currentStatus = this.getCurrentStatus()
+
+    return (
+      <li className={classnames(classes.verifiedItem, STATUS_MODIFIER[currentStatus])}>
+        <Icon type={platform} className={classnames(classes.platformIcon, PALTFORM_MODIFIER_CLASSES[platform])} />
+        {this.renderUsername(currentStatus)}
+        <Tooltip title="Click to re-check" placement="right">
+          <Icon
+            onClick={this.props.verify}
+            type={CHECK_STATUS_INDICATOR_ICON_TYPES[currentStatus]}
+            className={classes.checkStatusIndicatorIcon}
+          />
+        </Tooltip>
+      </li>
+    )
+  }
+
+  private renderUsername(currentStatus: STATUS) {
+    const {
+      isSelf,
+      platform,
+      boundSocial: {
+        proofURL,
+        username,
+      },
+    } = this.props
+
+    const platformElement = <span className={classes.platformText}>@{platform}</span>
+
+    if (isSelf) {
+      return (
+        <Link className={classes.username} to={`/proving/${platform}`} title="Click to overwrite the proof">
+          {username}{platformElement}
+        </Link>
+      )
+    }
+
+    if (currentStatus === STATUS.VALID) {
+      return (
+        <a className={classes.username} href={proofURL} target="_blank" title={username}>
+          {username}{platformElement}
+        </a>
+      )
+    }
+
+    return (
+      <span className={classes.username}>
+        {username}{platformElement}
+      </span>
+    )
+  }
+
+  private getCurrentStatus(): STATUS {
+    const { verifyStatus, isVerifying } = this.props
+    if (isVerifying) {
+      return STATUS.CHECKING
+    }
+
+    return verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID ? STATUS.VALID : STATUS.INVALID
+  }
+}
+
+enum STATUS {
+  CHECKING,
+  VALID,
+  INVALID,
+}
+
+const CHECK_STATUS_INDICATOR_ICON_TYPES = {
+  [STATUS.CHECKING]: 'clock-circle',
+  [STATUS.VALID]: 'check-circle',
+  [STATUS.INVALID]: 'cross-circle',
+}
+
+const STATUS_MODIFIER = {
+  [STATUS.CHECKING]: classes.checking,
+  [STATUS.VALID]: classes.valid,
+  [STATUS.INVALID]: classes.invalid,
+}
 
 interface IProps {
-  platform: SOCIALS
-  isSelf: boolean
+  platform: PLATFORMS
   boundSocial: IBoundSocial
+  isSelf: boolean
+  isVerifying: boolean
   verifyStatus: IVerifyStatus
   verify: () => Promise<void>
-  isVerifying: boolean
 }
 
-export class VerifiedItem extends React.Component<IProps> {
-  public componentDidMount() {
-    const { lastVerifiedAt } = this.props.verifyStatus
-    if (beforeOneDay(lastVerifiedAt)) {
-      this.props.verify()
-    }
-  }
-
-  public render() {
-    const { boundSocial, verifyStatus , platform, isVerifying, isSelf } = this.props
-    let usernameClassName = styles.grey
-    let iconColor = styles.grey
-    const isValid = verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID
-    if (!isVerifying) {
-      iconColor = usernameClassName = isValid ? styles.valid : styles.invalid
-    }
-    const usernameElement = <span className={usernameClassName}>{boundSocial.username}</span>
-    return <li className={styles.li}>
-      <div>
-        <Icon type={platform} className={classnames(styles.platformIcon, iconColor)} />
-        {isSelf
-          ? <Link to={`/proving/${platform}`} title="Click to overwrite the proof">
-            {usernameElement}
-          </Link>
-          : (isValid && !isVerifying
-            ? <a href={boundSocial.proofURL} target="_blank" title={boundSocial.username}>{usernameElement}</a>
-            : usernameElement)
-        }
-        <span className={styles.grey}> @{platform}</span>
-      </div>
-      <div>{this.renderStatus()}</div>
-    </li>
-  }
-
-  private getStatusIconParams(): {
-    type: string
-    className: string,
-  } {
-    const { verifyStatus, isVerifying } = this.props
-
-    let type = ''
-    let className = ''
-    if (isVerifying) {
-      type = 'clock-circle'
-      className = styles.checking
-      return {type, className}
-    }
-
-    if (verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID) {
-      type = 'check-circle'
-      className = styles.valid
-      return {type, className}
-    }
-
-    if (verifyStatus.status === VERIFY_SOCIAL_STATUS.INVALID) {
-      className = styles.invalid
-      type = 'cross-circle'
-      return {type, className}
-    }
-
-    return {type, className}
-  }
-
-  private renderStatus() {
-    const iconParams = this.getStatusIconParams()
-    return <Icon
-      title="Click to re-check"
-      onClick={this.props.verify}
-      type={iconParams.type}
-      className={iconParams.className}
-    />
-  }
-}
+export default VerifiedItem

@@ -7,12 +7,13 @@ import {
 
 // style
 import * as styles from './index.css'
+import classnames from 'classnames'
 
 export default function Loading({
   message,
 }: IProps) {
   return (
-    <div className={styles.container}>
+    <div className={classnames(styles.container, 'page-content')}>
       <Icon type="loading" className={styles.iconLoading} />
       <p>{message}</p>
     </div>

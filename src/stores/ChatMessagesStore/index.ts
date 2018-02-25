@@ -80,9 +80,9 @@ export class ChatMessagesStore {
   private cryptoBox: Cryptobox
 
   private cachedMessageStores: {
-    [primaryKey: string]: ChatMessageStore,
+    [messageId: string]: ChatMessageStore,
   } = {}
-  private fetchTimeout: number
+  private fetchTimeout!: number
 
   constructor({
     userStore,
@@ -178,7 +178,7 @@ export class ChatMessagesStore {
     }
 
     let session: CryptoboxSession | null = null
-    if (typeof sessionTag !== 'undefined') {
+    if (sessionTag != null) {
       // Is reply
       // Try to load local session and save to cache..
       session = await cryptoBox.session_load(sessionTag).catch((err) => {
@@ -311,7 +311,7 @@ export class ChatMessagesStore {
         try {
           if (sessionTag !== usingSessionTag) {
             const newMessage = await createNewSession()
-            if (typeof newMessage !== 'undefined') {
+            if (newMessage != null) {
               messageDidCreate(newMessage)
             } else {
               sendingDidFail(new Error(`Can't create message`))
@@ -346,7 +346,7 @@ export class ChatMessagesStore {
 
         try {
           const message = await messagesDB.getMessage(messageId, fromUserAddress)
-          if (typeof message !== 'undefined') {
+          if (message != null) {
             this.getMessageStore(message).updateMessageStatus(MESSAGE_STATUS.FAILED)
           }
         } finally {
@@ -394,15 +394,20 @@ export class ChatMessagesStore {
   }
 
   public getMessageStore = (message: IMessage): ChatMessageStore => {
-    const primaryKey = `${message.userAddress}${message.messageId}`
-    let store = this.cachedMessageStores[primaryKey]
-    if (typeof store === 'undefined') {
-      store = new ChatMessageStore(message, {
-        metaMaskStore: this.metaMaskStore,
-      })
-      this.cachedMessageStores[primaryKey] = store
+    const oldStore = this.cachedMessageStores[message.messageId]
+    if (oldStore != null) {
+      return oldStore
     }
-    return store
+
+    const newStore = new ChatMessageStore(message, {
+      metaMaskStore: this.metaMaskStore,
+    })
+    this.cachedMessageStores[message.messageId] = newStore
+    return newStore
+  }
+
+  public clearCachedStores() {
+    this.cachedMessageStores = {}
   }
 
   private fetchNewChatMessages = async () => {
@@ -412,7 +417,7 @@ export class ChatMessagesStore {
     } = getDatabases()
     const {
       lastBlock,
-      messages,
+      result: messages,
     } = await this.contractStore.messagesContract.getMessages({
       fromBlock: lastFetchBlock > 0 ? lastFetchBlock : 0,
     })

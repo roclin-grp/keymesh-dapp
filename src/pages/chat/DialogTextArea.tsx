@@ -34,7 +34,7 @@ class DialogTextArea extends React.Component<IProps, IState> {
   private textAreaElement: HTMLTextAreaElement | null = null
 
   private get hasSession() {
-    return typeof this.props.sessionStore !== 'undefined'
+    return this.props.sessionStore != null
   }
 
   public componentDidUpdate({sessionStore: prevSessionStore}: IProps) {

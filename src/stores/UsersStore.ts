@@ -51,9 +51,8 @@ import {
   UsersDB,
   ICreateUserArgs,
 } from '../databases/UsersDB'
-import Web3 from 'web3'
 
-import { sha3 } from '../cryptos'
+import { sha3 } from '../utils/cryptos'
 
 import IndexedDBStore from '../IndexedDBStore'
 
@@ -79,7 +78,7 @@ export class UsersStore {
   private usersDB: UsersDB
   private lastNetworkId: ETHEREUM_NETWORKS | undefined
   private cachedUserStores: {
-    [primaryKey: string]: UserStore,
+    [userAddress: string]: UserStore,
   } = {}
 
   constructor(
@@ -114,7 +113,7 @@ export class UsersStore {
 
   @computed
   public get hasUser() {
-    return typeof this.currentUserStore !== 'undefined'
+    return this.currentUserStore != null
   }
 
   @computed
@@ -127,7 +126,7 @@ export class UsersStore {
 
   @computed
   public get hasWalletCorrespondingUsableUser() {
-    return typeof this.walletCorrespondingUser !== 'undefined'
+    return this.walletCorrespondingUser != null
   }
 
   @computed
@@ -226,7 +225,7 @@ export class UsersStore {
   public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
     const { usersDB } = this
     const user = await usersDB.getUser(networkId, userAddress)
-    if (typeof user !== 'undefined') {
+    if (user != null) {
       await usersDB.deleteUser(user)
       if (this.metaMaskStore.currentEthereumNetwork === networkId) {
         this.removeUser(user)
@@ -246,27 +245,38 @@ export class UsersStore {
   }
 
   public getAvatarHashByUserAddress = async (userAddress: string) => {
-    const {
-      getBlockHash,
-    } = this.metaMaskStore
     const { blockNumber } = await this.getIdentityByUserAddress(userAddress)
-    const blockHash = await getBlockHash(blockNumber)
+    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
     return sha3(`${userAddress}${blockHash}`)
   }
 
   public getUserStore = (user: IUser): UserStore => {
-    const primaryKey = `${user.networkId}${user.userAddress}`
-    let store = this.cachedUserStores[primaryKey]
-    if (typeof store === 'undefined') {
-      store = new UserStore(
-        user,
-        this.metaMaskStore,
-        this.contractStore,
-        this,
-      )
-      this.cachedUserStores[primaryKey] = store
+    const oldStore = this.cachedUserStores[user.userAddress]
+    if (oldStore != null) {
+      return oldStore
     }
-    return store
+
+    const newStore = new UserStore(
+      user,
+      this.metaMaskStore,
+      this.contractStore,
+      this,
+    )
+    this.cachedUserStores[user.userAddress] = newStore
+    return newStore
+  }
+
+  public disposeUserStore(user: IUser) {
+    const oldStore = this.cachedUserStores[user.userAddress]
+    if (oldStore == null) {
+      return
+    }
+
+    delete this.cachedUserStores[user.userAddress]
+  }
+
+  public clearCachedStores() {
+    this.cachedUserStores = {}
   }
 
   public isCurrentUser = (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
@@ -279,6 +289,9 @@ export class UsersStore {
 
   @action
   public useUser = (user: IUser) => {
+    if (this.hasUser) {
+      this.currentUserStore!.disposeStore()
+    }
     const userStore = this.getUserStore(user)
     this.currentUserStore = userStore
     setNetworkLastUsedUserAddress(user)
@@ -294,7 +307,7 @@ export class UsersStore {
 
   private checkOnChainRegisterRecord = async (userAddress?: string) => {
     if (
-      typeof userAddress !== 'undefined'
+      userAddress != null
       && this.metaMaskStore.isActive
       && !this.contractStore.isNotAvailable
     ) {
@@ -317,30 +330,30 @@ export class UsersStore {
       networkId: ETHEREUM_NETWORKS | undefined,
       isActive: boolean,
     }) => {
-    if (
-      isActive
-      && this.lastNetworkId !== networkId
-    ) {
-      this.isLoadingUsers = true
-
-      this.cachedUserStores = {}
-      const users = await this.usersDB.getUsers(networkId!)
-
-      const userAddress = getNetworkLastUsedUserAddress(networkId!)
-      let user: IUser | undefined
-      if (userAddress !== '') {
-        user = users.find((_user) => _user.userAddress === userAddress)
-      }
-
-      runInAction(() => {
-        this.loadUsers(users)
-        if (typeof user !== 'undefined') {
-          this.useUser(user)
-        }
-        this.isLoadingUsers = false
-      })
-      this.lastNetworkId = networkId
+    if (!isActive || this.lastNetworkId === networkId ) {
+      return
     }
+
+    this.users = []
+    this.clearCachedStores()
+    this.isLoadingUsers = true
+
+    const users = await this.usersDB.getUsers(networkId!)
+
+    const userAddress = getNetworkLastUsedUserAddress(networkId!)
+    let user: IUser | undefined
+    if (userAddress !== '') {
+      user = users.find((_user) => _user.userAddress === userAddress)
+    }
+
+    runInAction(() => {
+      this.loadUsers(users)
+      if (user != null) {
+        this.useUser(user)
+      }
+      this.isLoadingUsers = false
+    })
+    this.lastNetworkId = networkId
   }
 
   @action

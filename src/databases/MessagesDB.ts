@@ -21,9 +21,7 @@ import {
 } from '../stores/ChatMessageStore'
 
 export class MessagesDB {
-  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {
-    //
-  }
+  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {}
 
   public getMessagesOfUser({userAddress, networkId}: IUser) {
     return this.dexieDB.messages

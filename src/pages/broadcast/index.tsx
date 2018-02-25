@@ -11,7 +11,7 @@ import HashAvatar from '../../components/HashAvatar'
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
 import { Divider } from 'antd'
-import { sha3 } from '../../cryptos'
+import { sha3 } from '../../utils/cryptos'
 import classnames from 'classnames'
 
 interface IProps {
@@ -38,45 +38,59 @@ class Broadcast extends React.Component<IProps> {
 
   public componentWillUnmount() {
     this.props.broadcastMessagesStore.stopFetchBroadcastMessages()
+    this.props.usersStore.userProofsStatesStore.clearCachedStores()
   }
 
   public render() {
-    let form: JSX.Element | null = null
-    const { hasUser } = this.props.usersStore
-    if (hasUser) {
-      form = <div className={styles.postForm}>
-        <HashAvatar
-          className={styles.avatar}
-          shape="circle"
-          hash={this.props.usersStore.currentUserStore!.avatarHash}
-        />
-        <BroadcastForm
-          broadcastMessagesStore={this.props.broadcastMessagesStore}
-          disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
-        />
+    return <div className={classnames(styles.broadcast, 'container')}>
+      {this.renderPostForm()}
+      <div className={styles.messagesContainer}>
+        {this.renderBroadcastMessages()}
       </div>
+    </div>
+  }
+
+  private renderPostForm() {
+    const { hasUser } = this.props.usersStore
+    if (!hasUser) {
+      return null
     }
 
-    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => {
-      return <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
+    return (
+      <>
+        <div className={styles.postForm}>
+          <HashAvatar
+            className={styles.avatar}
+            shape="circle"
+            hash={this.props.usersStore.currentUserStore!.avatarHash}
+          />
+          <BroadcastForm
+            broadcastMessagesStore={this.props.broadcastMessagesStore}
+            disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
+          />
+        </div>
+        <Divider/>
+      </>
+    )
+  }
+
+  private renderBroadcastMessages() {
+    const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => (
+      <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
         <BroadcastMessage
           userCachesStore={this.props.usersStore.userCachesStore}
-          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(
-            this.props.metaMaskStore.currentEthereumNetwork!,
-            message.author!,
-          )}
+          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
           message={message}
         />
         <Divider />
       </div>
-    })
-    return <div className={classnames(styles.broadcast, 'container')}>
-      {form}
-      <div className={styles.messagesContainer}>
-        {hasUser ? <Divider /> : null}
-        <div>{messages}</div>
-      </div>
-    </div>
+    ))
+
+    if (messages.length === 0) {
+      return <p className={styles.noBroadcasts}>No broadcasts</p>
+    }
+
+    return messages
   }
 }
 

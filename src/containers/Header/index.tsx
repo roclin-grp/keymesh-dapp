@@ -46,7 +46,7 @@ import {
 } from '../../stores/UserStore'
 
 // helper
-import * as copy from 'copy-to-clipboard'
+import copy from 'copy-to-clipboard'
 import {
   noop,
 } from '../../utils'
@@ -113,14 +113,14 @@ class Header extends React.Component<IProps, IState> {
                 : null
             }
           </Menu>
-          {this.getNetworkStatus()}
-          {this.getUserMenu()}
+          {this.renderNetworkStatus()}
+          {this.renderUserMenu()}
         </div>
       </header>
     )
   }
 
-  private getNetworkStatus() {
+  private renderNetworkStatus() {
     const { isPending } = this.injectedProps.metaMaskStore
     if (isPending) {
       return null
@@ -148,13 +148,13 @@ class Header extends React.Component<IProps, IState> {
         // looks like antd does not support keyboard accessibility well
         // tabIndex={0}
         >
-          {this.getNetworkText()}
+          {this.renderNetworkText()}
         </span>
       </>
     )
   }
 
-  private getNetworkText() {
+  private renderNetworkText() {
     const {
       isNotAvailable,
       isLocked,
@@ -177,7 +177,7 @@ class Header extends React.Component<IProps, IState> {
     )
   }
 
-  private getUserMenu() {
+  private renderUserMenu() {
     const {
       isPending,
       isActive,
@@ -217,7 +217,7 @@ class Header extends React.Component<IProps, IState> {
     return (
       <Dropdown
         trigger={['click']}
-        overlay={this.getUserOptions()}
+        overlay={this.renderUserOptions()}
         placement="bottomRight"
       >
         <a
@@ -226,14 +226,14 @@ class Header extends React.Component<IProps, IState> {
         // looks like antd does not support keyboard accessibility well
         // tabIndex={0}
         >
-          {this.getUserAvatar()}
+          {this.renderUserAvatar()}
           <Icon type="down" className={styles.userAvatarDownIcon} />
         </a>
       </Dropdown>
     )
   }
 
-  private getUserAvatar() {
+  private renderUserAvatar() {
     const { avatarHash } = this.injectedProps.usersStore.currentUserStore!
 
     return (
@@ -246,7 +246,7 @@ class Header extends React.Component<IProps, IState> {
     )
   }
 
-  private getUserOptions() {
+  private renderUserOptions() {
     const {
       usableUsers,
     } = this.injectedProps.usersStore
@@ -275,11 +275,6 @@ class Header extends React.Component<IProps, IState> {
               />
             </a>
           </Tooltip>
-        </Menu.Item>
-        <Menu.Item>
-          <Link to="/discover">
-            Discover
-          </Link>
         </Menu.Item>
         <Menu.Item>
           <Link to="/profile">

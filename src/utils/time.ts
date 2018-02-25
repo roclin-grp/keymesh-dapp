@@ -1,38 +1,3 @@
-const UNITS = [
-  { max: 2760000, value: 60000, name: 'minute', prev: 'a minute ago' }, // max: 46 minutes
-  { max: 72000000, value: 3600000, name: 'hour', prev: 'an hour ago' }, // max: 20 hours
-  { max: Infinity, value: 86400000, name: '', prev: 'yesterday' },
-]
-
-export function formatSessionTimestamp(timestamp: number) {
-  const diff = Math.abs(Date.now() - timestamp)
-
-  if (diff < 60000) { // less than a minute
-    return 'just now'
-  }
-
-  for (let i = 0; i < UNITS.length; i++) {
-    const {
-      max,
-      value,
-      name,
-      prev,
-    } = UNITS[i]
-    if (diff < max) {
-      const val = Math.floor(diff / value)
-      if (i < 2) {
-        return val <= 1 ? prev : `${val} ${name}s ago`
-      }
-      if (val <= 1) {
-        return prev
-      }
-      const time = new Date(timestamp)
-      return `${time.getDate()}/${time.getMonth() + 1}/${time.getFullYear()}`
-    }
-  }
-  return ''
-}
-
 export function unixToday() {
   return getUnixDay(Date.now())
 }
@@ -41,49 +6,181 @@ export function getUnixDay(javaScriptTimestamp: number) {
   return Math.floor(javaScriptTimestamp / 1000 / 3600 / 24)
 }
 
-export function timeAgo(time: number): string {
+export function getBroadcastEstimateTime(time: number): string {
+  const {
+    seconds,
+    minutes,
+    hours,
+    days,
+  } = getAgo(time)
+
+  if (days > 1) {
+    const {
+      year,
+      monthStr,
+      day,
+    } = getDateInfo(time)
+
+    if (isCurrentYear(time)) {
+      return `${monthStr} ${day}`
+    }
+
+    return `${day} ${monthStr} ${year}`
+  }
+
+  return (
+    seconds < 45 && timeAgoTemplate('seconds', seconds) ||
+    seconds < 90 && timeAgoTemplate('minute', 1) ||
+    minutes < 45 && timeAgoTemplate('minutes', minutes) ||
+    minutes < 90 && timeAgoTemplate('hour', 1) ||
+    hours < 24 && timeAgoTemplate('hours', hours)
+  )
+}
+
+export function getBroadcastTime(time: number): string {
+  const {
+    day,
+    monthStr,
+    year,
+    localTimeStr,
+  } = getDateInfo(time)
+  return `${localTimeStr} - ${day} ${monthStr} ${year}`
+}
+
+export function getSessionTimestamp(time: number): string {
+  const {
+    day,
+    month,
+    year,
+    hours,
+    minutes,
+  } = getDateInfo(time)
+  const {
+    days,
+  } = getAgo(time)
+
+  if (days < 1) {
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+  }
+
+  return `${year.slice(-2)}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`
+}
+
+export function getMessageTimeStamp(time: number): string {
+  const {
+    day,
+    monthStr,
+    year,
+    localTimeStr,
+  } = getDateInfo(time)
+  const {
+    days,
+  } = getAgo(time)
+
+  if (days < 1) {
+    return localTimeStr
+  }
+
+  if (days < 2) {
+    return `Yesterday ${localTimeStr}`
+  }
+
+  if (isCurrentYear(time)) {
+    return `${monthStr} ${day} ${localTimeStr}`
+  }
+
+  return `${day} ${monthStr} ${year} ${localTimeStr}`
+}
+
+export function getAgo(time: number): IAgo {
   const now = new Date()
   const seconds = Math.round((now.getTime() - time) * .001)
   const minutes = seconds / 60
   const hours = minutes / 60
   const days = hours / 24
-  const years = days / 365
 
-  return timeAgoTemplates.prefix + (
-    seconds < 45 && timeAgoTemplate('seconds', seconds) ||
-    seconds < 90 && timeAgoTemplate('minute', 1) ||
-    minutes < 45 && timeAgoTemplate('minutes', minutes) ||
-    minutes < 90 && timeAgoTemplate('hour', 1) ||
-    hours < 24 && timeAgoTemplate('hours', hours) ||
-    hours < 42 && timeAgoTemplate('day', 1) ||
-    days < 30 && timeAgoTemplate('days', days) ||
-    days < 45 && timeAgoTemplate('month', 1) ||
-    days < 365 && timeAgoTemplate('months', days / 30) ||
-    years < 1.5 && timeAgoTemplate('year', 1) ||
-    timeAgoTemplate('years', years)
-  ) + timeAgoTemplates.suffix
+  return {
+    seconds,
+    minutes,
+    hours,
+    days,
+  }
 }
 
+export function getDateInfo(time: number): IDateInfo {
+  const date = new Date(time)
+  const year = date.getFullYear().toString()
+  const month = (date.getMonth() + 1).toString()
+  const monthStr = MONTHS[date.getMonth()]
+  const day = date.getDate().toString()
+  const hours = date.getHours().toString()
+  const minutes = date.getMinutes().toString()
+  const seconds = date.getSeconds().toString()
+  const localTimeStr = date.toLocaleTimeString()
+
+  return {
+    year,
+    month,
+    monthStr,
+    day,
+    hours,
+    minutes,
+    seconds,
+    localTimeStr,
+  }
+}
+
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sept',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+
 const timeAgoTemplates = {
-  prefix: '',
-  suffix: ' ago',
-  seconds: 'less than a minute',
-  minute: 'about a minute',
-  minutes: '%d minutes',
-  hour: 'about an hour',
-  hours: 'about %d hours',
-  day: 'a day',
-  days: '%d days',
-  month: 'about a month',
-  months: '%d months',
-  year: 'about a year',
-  years: '%d years',
+  seconds: 'just now',
+  minute: '1m',
+  minutes: '%dm',
+  hour: '1h',
+  hours: '%dh',
 }
 function timeAgoTemplate(t: string, n: number) {
   return timeAgoTemplates[t] && timeAgoTemplates[t].replace(/%d/i, Math.abs(Math.round(n)))
 }
 
-export function beforeOneDay(time: number) {
-  const now = new Date().getTime()
-  return now - time >= 86400 * 1000
+export function isBeforeOneDay(time: number): boolean {
+  const nowTime = Date.now()
+  return nowTime - time >= 86400 * 1000
+}
+
+export function isCurrentYear(time: number): boolean {
+  const { year } = getDateInfo(time)
+  const nowDate = new Date()
+  return nowDate.getFullYear().toString() === year
+}
+
+export interface IAgo {
+  seconds: number
+  minutes: number
+  hours: number
+  days: number
+}
+
+export interface IDateInfo {
+  year: string
+  month: string
+  monthStr: string
+  day: string
+  hours: string
+  minutes: string
+  seconds: string
+  localTimeStr: string
 }

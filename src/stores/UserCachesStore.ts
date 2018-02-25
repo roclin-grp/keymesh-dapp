@@ -2,8 +2,7 @@ import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifyStatuses, IBoundSocials, NewIVerifyStatuses } from './BoundSocialsStore'
-import { sha3 } from '../cryptos'
-import { reaction } from 'mobx'
+import { sha3 } from '../utils/cryptos'
 
 export class UserCachesStore {
   private cachedUserAvatarPromises: {
@@ -58,14 +57,11 @@ export class UserCachesStore {
       return user.identity
     }
 
-    const {
-      getBlockHash,
-    } = this.metaMaskStore
     const userIdentity = await this.usersStore.getIdentityByUserAddress(userAddress)
     const identity = {
       publicKey: userIdentity.publicKey,
       blockNumber: userIdentity.blockNumber,
-      blockHash: await getBlockHash(userIdentity.blockNumber),
+      blockHash: await this.metaMaskStore.getBlockHash(userIdentity.blockNumber),
     }
     if (!user) {
       const _newUser = await this.userCachesDB.create({

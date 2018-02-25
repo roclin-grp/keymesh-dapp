@@ -9,7 +9,6 @@ import {
 
 import Header from './containers/Header'
 import MetaMaskConnectFailPage from './pages/MetaMaskConnectFailPage'
-import ErrorPage from './pages/ErrorPage'
 import Loading from './pages/LoadingPage'
 import Chat from './pages/chat'
 import Accounts from './pages/accounts'
@@ -52,7 +51,7 @@ class App extends React.Component<IProps> {
       <Router>
         <>
           <Header />
-          <div className="page-content">
+          <div className="main">
             {this.renderContent()}
           </div>
         </>
@@ -90,10 +89,10 @@ class App extends React.Component<IProps> {
       return <Loading message="Loading local data..." />
     }
 
-    return this.getRoutes()
+    return this.renderRoutes()
   }
 
-  private getRoutes() {
+  private renderRoutes() {
     const {
       hasUser,
     } = this.injectedProps.usersStore
@@ -104,7 +103,6 @@ class App extends React.Component<IProps> {
         <Route path="/discover" component={Broadcast} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/profile/:userAddress" component={Profile} />
-        {/* <RequireUserRoute path="/broadcast" component={Broadcast} /> */}
         <ConditionalRoute
           path="/messages"
           component={Chat}
@@ -156,7 +154,7 @@ const ConditionalRoute = ({
   let returnComponent: typeof component
   if (predicate) {
     returnComponent = component
-  } else if (typeof elseComponent === 'undefined') {
+  } else if (elseComponent == null) {
     return <Redirect to={redirectTo!} />
   } else {
     returnComponent = elseComponent

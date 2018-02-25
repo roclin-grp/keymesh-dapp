@@ -1,36 +1,34 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import { GithubProvingState, getGithubClaim } from './GithubProvingState'
+import { GithubProvingData } from './GithubProvingData'
 import ProvingTextarea from '../ProvingTextarea'
 
 import {
   Link,
 } from 'react-router-dom'
-import { GITHUB_GIST_FILENAME } from '../../../stores/BoundSocialsStore'
+import { GITHUB_GIST_FILENAME, signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
 
 import { Icon, Button, Input } from 'antd'
 import * as styles from './index.css'
 
 interface IProps {
-  state: GithubProvingState
+  data: GithubProvingData
 }
 
 @observer
 class GithubProving extends React.Component<IProps> {
   public render() {
     const label = 'Github'
+    const { data } = this.props
     const {
       username,
-      updateUsername,
-      continueHandler,
       isProving,
       claim,
-      checkProof,
       checkProofButtonContent,
       checkProofButtonDisabled,
       platform,
-    } = this.props.state
+    } = data
 
     if (!isProving) {
       return <div className={styles.container}>
@@ -42,15 +40,15 @@ class GithubProving extends React.Component<IProps> {
           <Input
             spellCheck={false}
             value={username}
-            onChange={(e: any) => updateUsername(e.target.value)}
+            onChange={(e: any) => data.updateUsername(e.target.value)}
             placeholder={`Your ${label} username`}
-            onPressEnter={continueHandler}
+            onPressEnter={() => data.continueHandler()}
           />
         </div>
 
         <div className={styles.buttonsContainer}>
           <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-          <Button type="primary" onClick={continueHandler}>Continue</Button>
+          <Button type="primary" onClick={() => data.continueHandler()}>Continue</Button>
         </div>
       </div>
     }
@@ -63,14 +61,14 @@ class GithubProving extends React.Component<IProps> {
       <p className={styles.notice}>
         Login to GitHub and paste the text below into a public gist called {GITHUB_GIST_FILENAME}.
       </p>
-      <ProvingTextarea value={getGithubClaim(claim)} />
+      <ProvingTextarea value={signedClaimToClaimText(claim!)} />
 
       <p>
         <a href="https://gist.github.com/" target="_blank">Create gist now</a>
       </p>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>

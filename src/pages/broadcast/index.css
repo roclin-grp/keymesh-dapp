@@ -19,3 +19,7 @@
 .messagesContainer {
   width: 100%
 }
+
+.noBroadcasts {
+  text-align: center;
+}

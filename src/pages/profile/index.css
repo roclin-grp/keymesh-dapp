@@ -1,38 +1,13 @@
-.flex, .li {
-  display: flex;
-}
-
-.container {
-  flex-flow: wrap;
-}
-
-.ul {
-  list-style-type: none;
-  padding: 0;
-  margin-left: 24px;
-  min-width: 250px;
-}
-
-.li {
-  justify-content: space-between;
-}
-
-.grey, .platformIcon, .checking {
-  color: #CCCCCC;
-}
-
-.red, .invalid {
-  color: #FF3A3A;
-}
-
-.blue, .valid {
-  color: #1890FF;
-}
-
 .platformIcon {
   margin-right: 5px;
 }
 
-.checking, .invalid, .valid {
-  cursor: pointer;
+.verificationItem {
+  display: flex;
+  align-items: center;
+  line-height: 1.5rem;
+}
+
+.checkVerificationIndicatorIcon {
+  margin-left: auto;
 }

@@ -21,6 +21,8 @@ import {
   SessionStore,
 } from '../../../stores/SessionStore'
 
+import { getSessionTimestamp } from '../../../utils/time'
+
 @observer
 class Session extends React.Component<IProps> {
   public render() {
@@ -31,20 +33,6 @@ class Session extends React.Component<IProps> {
       unreadCount,
     } = this.props.sessionStore.session
 
-    const time = new Date(lastUpdate)
-    const timeStr = Date.now() - time.getTime() > 86400 * 1000
-      ? `${
-        time.getFullYear().toString().slice(0, -2)
-      }/${
-        (time.getMonth() + 1).toString().padStart(2, '0')
-      }/${
-        time.getDate().toString().padStart(2, '0')
-      }`
-      : `${
-        time.getHours().toString().padStart(2, '0')
-      }:${
-        time.getMinutes().toString().padStart(2, '0')
-      }`
     return (
       <a
         className={classnames(styles.listItem, this.props.className)}
@@ -65,7 +53,7 @@ class Session extends React.Component<IProps> {
             title={<UserAddress address={contact.userAddress} maxLength={11} />}
             description={<span className={styles.summary}>{summary}</span>}
           />
-          <span>{timeStr}</span>
+          <span>{getSessionTimestamp(lastUpdate)}</span>
         </List.Item>
       </a>
     )

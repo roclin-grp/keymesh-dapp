@@ -19,12 +19,11 @@ import {
 } from '../stores/UserStore'
 
 export class UsersDB {
-  constructor(private dexieDB: TypeDexieWithTables, private databases: Databases) {
-  }
+  constructor(private dexieDB: TypeDexieWithTables, private databases: Databases) {}
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users
-      .where(Object.assign({ networkId }, status === undefined ? null : { status }))
+      .where(Object.assign({ networkId }, status == null ? null : { status }))
       .toArray()
   }
 
@@ -65,12 +64,13 @@ export class UsersDB {
       await restoreDB(this.dexieDB, data.keymesh, () => undefined)
       const users = await this.getUsers(networkId)
 
-      const oldUserAddress = oldUsers.reduce(
-        (result, _user) => Object.assign(result, { [_user.userAddress]: true }),
-        {} as { [userAddress: string]: boolean },
-      )
-      const newUser = users.find((_user) => !oldUserAddress[_user.userAddress])
-      if (typeof newUser === 'undefined') {
+      const oldUserAddresses: { [userAddress: string]: boolean } = {}
+      for (const oldUser of oldUsers) {
+        oldUserAddresses[oldUser.userAddress] = true
+      }
+
+      const newUser = users.find((_user) => !oldUserAddresses[_user.userAddress])
+      if (newUser == null) {
         throw new Error('Network not match')
       }
 

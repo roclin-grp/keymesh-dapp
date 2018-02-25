@@ -33,10 +33,14 @@ import {
   ETHEREUM_NETWORK_TX_URL_PREFIX,
 } from '../../../stores/MetaMaskStore'
 
+import { getMessageTimeStamp } from '../../../utils/time'
+import { sleep } from '../../../utils'
+
 @inject(mapStoreToProps)
 @observer
 class Message extends React.Component<IProps> {
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
+  private unmounted = false
 
   public componentDidMount() {
     const {
@@ -50,6 +54,10 @@ class Message extends React.Component<IProps> {
     }
   }
 
+  public componentWillUnmount() {
+    this.unmounted = true
+  }
+
   public render() {
     const {
       message: {
@@ -57,42 +65,17 @@ class Message extends React.Component<IProps> {
         timestamp,
         plainText,
         messageType,
-        transactionHash,
       },
       contact,
     } = this.props
-    const {
-      messageStatus,
-    } = this.injectedProps.chatMessageStore
-
-    let timeStr = ''
-    if (timestamp > 0) {
-      const time = new Date(timestamp)
-      timeStr =
-        `${Date.now() - time.getTime() > 86400 * 1000 ? `${
-          time.getDate().toString().padStart(2, '0')
-        }/${
-          (time.getMonth() + 1).toString().padStart(2, '0')
-        }/${
-          time.getFullYear()
-        } ` : ''}${
-          time.getHours().toString().padStart(2, '0')
-        }:${
-          time.getMinutes().toString().padStart(2, '0')
-        }:${
-          time.getSeconds().toString().padStart(2, '0')
-        }`
-    }
+    const timestampStr = getMessageTimeStamp(timestamp)
 
     if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
-      return <li>
-        Session had been closed by {contact.userAddress} at {timeStr}
-      </li>
-    }
-
-    let statusStr: string | undefined
-    if (isFromYourself) {
-      statusStr = MESSAGE_STATUS_STR[messageStatus]
+      return (
+        <li>
+          Session had been closed at {timestampStr}
+        </li>
+      )
     }
 
     return (
@@ -102,46 +85,73 @@ class Message extends React.Component<IProps> {
             title={`${contact.userAddress}`}
             className={styles.sender}
           >
-            {
-              isFromYourself
-              ? 'me'
-              : <UserAddress address={contact.userAddress} maxLength={11} />
-            }
+            {this.renderSender()}
           </span>
-          <span className={styles.time}>{timeStr}</span>
+          <span className={styles.time}>{timestampStr}</span>
         </div>
         <div className={styles.content}>
           <p className={styles.messageText}>{plainText}</p>
-          {statusStr
-            ? (
-              <Tooltip title="Transaction processing" placement="bottom">
-                <a
-                  className={styles.messageStatus}
-                  target="_blank"
-                  href={`${
-                    ETHEREUM_NETWORK_TX_URL_PREFIX[this.injectedProps.metaMaskStore.currentEthereumNetwork!] || '#'
-                  }${transactionHash!}`}
-                >
-                  <Icon className={styles.messageStatusIcon} type="loading"/>
-                  <span>{statusStr}</span>
-                </a>
-              </Tooltip>
-            )
-            : null
-          }
+          {this.renderStatus()}
         </div>
       </li>
     )
   }
 
-  private checkingDidFail = () => {
-    // just retry
-    window.setTimeout(
-      () => {
-        this.componentDidMount()
-      },
-      3000,
+  private renderSender() {
+    const { isFromYourself } = this.props.message
+    if (isFromYourself) {
+      return 'me'
+    }
+
+    return <UserAddress address={this.props.contact.userAddress} maxLength={11} />
+  }
+
+  private renderStatus() {
+    const { isFromYourself, transactionHash } = this.props.message
+    if (!isFromYourself) {
+      return null
+    }
+
+    const currentNetwork = this.injectedProps.metaMaskStore.currentEthereumNetwork!
+    const explorerURL = ETHEREUM_NETWORK_TX_URL_PREFIX[currentNetwork]
+
+    const iconElement = <Icon className={styles.messageStatusIcon} type="loading"/>
+    const statusStr = MESSAGE_STATUS_STR[this.injectedProps.chatMessageStore.messageStatus]
+
+    let statusContent: JSX.Element
+    if (explorerURL == null) {
+      statusContent = (
+        <span className={styles.messageStatus}>
+          {iconElement}
+          {statusStr}
+        </span>
+      )
+    } else {
+      statusContent = (
+        <a
+          className={styles.messageStatus}
+          target="_blank"
+          href={`${explorerURL}${transactionHash!}`}
+        >
+          {iconElement}
+          {statusStr}
+        </a>
+      )
+    }
+
+    return (
+      <Tooltip title="Transaction processing" placement="bottom">
+        {statusContent}
+      </Tooltip>
     )
+  }
+
+  private checkingDidFail = async () => {
+    await sleep(3000)
+    if (!this.unmounted) {
+      // retry checking
+      this.componentDidMount()
+    }
   }
 }
 

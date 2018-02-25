@@ -6,13 +6,9 @@ import {
 } from 'mobx'
 
 import {
-  Identities,
-  Messages,
-  BroadcastMessages,
-  BoundSocials,
-  ITrustMeshContracts,
   getContracts,
-} from 'trustmesh'
+  ITrustMeshContracts,
+} from '@keymesh/trustmesh'
 
 import {
   MetaMaskStore,

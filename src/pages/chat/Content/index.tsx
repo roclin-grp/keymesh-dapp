@@ -32,6 +32,8 @@ class ChatContent extends React.Component<IProps> {
 
   public componentWillUnmount() {
     this.userStoreWillunload(this.props.userStore)
+    this.props.userStore.sessionsStore.clearCachedStores()
+    this.props.userStore.chatMessagesStore.clearCachedStores()
   }
 
   public componentWillUpdate({userStore: nextUserStore}: IProps) {

@@ -34,7 +34,7 @@ import { UserCachesDB } from './UserCachesDB'
 let databases: Databases | undefined
 
 export function getDatabases() {
-  if (typeof databases === 'undefined') {
+  if (databases == null) {
     databases = new Databases()
   }
   return databases
@@ -46,6 +46,8 @@ export class Databases {
   public messagesDB: MessagesDB
   public userCachesDB: UserCachesDB
 
+  private readonly dexieDB: TypeDexieWithTables
+
   public constructor() {
     const dexieDB = this.dexieDB = new Dexie('keymesh') as TypeDexieWithTables
     dexieDB.version(1).stores(SCHEMA_V1)
@@ -56,15 +58,13 @@ export class Databases {
     this.userCachesDB = new UserCachesDB(dexieDB)
   }
 
-  private readonly dexieDB: TypeDexieWithTables
-
   public async dumpDB() {
     const dbs: IDumpedDatabases = {}
 
     const keymeshDB = await dumpDB(this.dexieDB)
 
     const usersTable = keymeshDB.find((table) => table.table === TABLE_NAMES.USERS)
-    if (typeof usersTable === 'undefined') {
+    if (usersTable == null) {
       return dbs
     }
 
@@ -81,9 +81,7 @@ export class Databases {
   }
 
   public async restoreDB(data: IDumpedDatabases) {
-    await restoreDB(this.dexieDB, data.keymesh, (tablename: string): string[] | undefined => {
-      return undefined
-    })
+    await restoreDB(this.dexieDB, data.keymesh, () => undefined)
 
     return Promise.all(
       Object.keys(data)
@@ -100,14 +98,14 @@ enum TABLE_NAMES {
   USER_CACHES = 'userCaches',
 }
 
-interface TypeTableItems {
+interface ITableItems {
   [TABLE_NAMES.USERS]: IUser
   [TABLE_NAMES.SESSIONS]: ISession
   [TABLE_NAMES.MESSAGES]: IMessage
   [TABLE_NAMES.USER_CACHES]: IUserCaches
 }
 
-interface TypeTablePrimaryKeys {
+interface ITablePrimaryKeys {
   [TABLE_NAMES.USERS]: [IUser['networkId'], IUser['userAddress']]
   [TABLE_NAMES.SESSIONS]: [ISession['sessionTag'], ISession['userAddress']]
   [TABLE_NAMES.MESSAGES]: [IMessage['messageId'], IMessage['userAddress']]
@@ -115,7 +113,7 @@ interface TypeTablePrimaryKeys {
 }
 
 export type TypeTables = {
-  [tablename in TABLE_NAMES]: Dexie.Table<TypeTableItems[tablename], TypeTablePrimaryKeys[tablename]>
+  [tablename in TABLE_NAMES]: Dexie.Table<ITableItems[tablename], ITablePrimaryKeys[tablename]>
 }
 
 export type TypeDexieWithTables = Dexie & TypeTables

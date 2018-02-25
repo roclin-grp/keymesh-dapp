@@ -17,9 +17,7 @@ import {
 } from '../stores/ChatMessageStore'
 
 export class SessionsDB {
-  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {
-    //
-  }
+  constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {}
 
   public getSessions(
     {
@@ -124,7 +122,7 @@ export class SessionsDB {
 
         const session = await this.getSession(sessionTag, userAddress)
 
-        if (typeof session === 'undefined') {
+        if (session == null) {
           throw new Error('session not exist')
         }
 
@@ -196,7 +194,7 @@ export class SessionsDB {
 
       if (remainSessions.length === 0) {
         const user = await usersDB.getUser(networkId, userAddress)
-        if (typeof user !== 'undefined') {
+        if (user != null) {
           await usersDB.deleteContact(user, contact)
         }
       }

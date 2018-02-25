@@ -60,6 +60,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   private unmounted = false
   public componentWillUnmount() {
     this.unmounted = true
+    this.injectedProps.userStore.disposeStore()
   }
 
   public componentDidMount() {
@@ -96,7 +97,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     return (
       <List.Item
-        actions={this.getActions()}
+        actions={this.renderActions()}
       >
         <List.Item.Meta
           avatar={<HashAvatar
@@ -109,13 +110,13 @@ class AccountListItem extends React.Component<IProps, IState> {
             </Link>}
         />
         <div className={styles.listContent}>
-          {this.getListContent()}
+          {this.renderListContent()}
         </div>
       </List.Item>
     )
   }
 
-  private getActions = () => {
+  private renderActions() {
     const {
       user,
     } = this.injectedProps.userStore
@@ -186,7 +187,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     }
   }
 
-  private getListContent = () => {
+  private renderListContent() {
     const {
       user,
     } = this.props
@@ -357,7 +358,7 @@ class AccountListItem extends React.Component<IProps, IState> {
     })
   }
 
-  private identityUploadCheckingDidFail = (err: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
+  private identityUploadCheckingDidFail = (_: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
     if (this.unmounted) {
       return
     }

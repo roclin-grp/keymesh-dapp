@@ -31,6 +31,7 @@ import {
 import {
   storeLogger,
 } from '../../../utils/loggers'
+import { isAddress } from '../../../utils/cryptos'
 
 // TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
@@ -41,7 +42,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
 
   private unmounted = false
 
-  private userAddressInput: Input | null
+  private userAddressInput: Input | null = null
 
   public componentWillUnmount() {
     this.unmounted = true
@@ -69,7 +70,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
                 placeholder="Receiver Address"
                 prefix={<Icon type="user" className={styles.prefixIcon} />}
                 suffix={
-                  typeof userAddress !== 'undefined'
+                  userAddress != null
                   && userAddress !== ''
                   && !this.state.isSending
                     // FIXME: wrap icon to a clickable element
@@ -172,20 +173,18 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private validUserAddress = (
-    _: Object,
+    _: object,
     userAddress: string | undefined,
     done: (isValid?: boolean) => void,
   ) => {
-    if (
-      typeof userAddress !== 'undefined'
-    ) {
+    if (userAddress != null) {
       if (userAddress === '') {
         return done()
       }
       if (userAddress === this.props.selfAddress) {
         return (done as any)(`Can't send message to yourself!`)
       }
-      if (!userAddress.startsWith('0x')) {
+      if (!isAddress(userAddress)) {
         return (done as any)('Invalid address!')
       }
     }

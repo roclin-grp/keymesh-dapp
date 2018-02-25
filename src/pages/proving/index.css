@@ -8,10 +8,13 @@
 }
 
 .content {
- margin-bottom: 8px;
- width: 80%;
+  margin-top: 2rem;
+  margin-bottom: 8px;
+  width: 80%;
 }
 
 .provingNotice {
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
   text-align: center;
 }

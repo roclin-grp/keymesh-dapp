@@ -3,7 +3,7 @@ import { observer } from 'mobx-react'
 
 import ProvingTextarea from '../ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
-import { FacebookProvingState , getFacebookClaim } from './FacebookProvingState'
+import { FacebookProvingData } from './FacebookProvingData'
 import { Icon, Button } from 'antd'
 
 import * as styles from './index.css'
@@ -11,30 +11,32 @@ import * as styles from './index.css'
 import {
   Link,
 } from 'react-router-dom'
+import ENV from '../../../config'
+import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
 
 interface IProps {
-  state: FacebookProvingState
+  data: FacebookProvingData
 }
 
 @observer
 class FacebookProving extends React.Component<IProps> {
   public render() {
+    const { data } = this.props
     const {
       username,
       isProving,
       claim,
-      checkProof,
       loginCallback,
       platform,
       checkProofButtonDisabled,
       checkProofButtonContent,
-    } = this.props.state
+    } = data
 
     if (!isProving) {
       return <div>
         <p className={styles.authorizeNotice}>Please login and authorize</p>
         <FacebookLogin
-          appId={process.env.REACT_APP_FACEBOOK_APP_ID!}
+          appId={ENV.FACEBOOK_APP_ID}
           autoLoad={false}
           fields="name"
           scope="user_posts"
@@ -44,7 +46,7 @@ class FacebookProving extends React.Component<IProps> {
       </div>
     }
 
-    const text = getFacebookClaim(claim)
+    const text = signedClaimToClaimText(claim!)
     const postURL = 'https://www.facebook.com/'
     return <div>
         <div className={styles.iconContainer}>
@@ -61,7 +63,7 @@ class FacebookProving extends React.Component<IProps> {
       </p>
       <div>
         <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={checkProof} disabled={checkProofButtonDisabled}>
+        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
           {checkProofButtonContent}
         </Button>
       </div>

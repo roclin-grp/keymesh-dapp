@@ -8,9 +8,6 @@ import {
 import {
   MetaMaskStore,
   ETHEREUM_NETWORKS,
-  CONFIRMATION_NUMBER,
-  TRANSACTION_TIME_OUT_BLOCK_NUMBER,
-  AVERAGE_BLOCK_TIME,
   TRANSACTION_STATUS,
 } from './MetaMaskStore'
 import {
@@ -77,13 +74,14 @@ import {
   BoundSocialsStore,
 } from './BoundSocialsStore'
 
+import ENV from '../config'
+
 /**
  * **NOTE**: You need to run `userStore.initCryptobox()` and
  * check `userStore.isCryptoboxReady` before using the store to
  * sign/encrypt/decrypt messages
  */
 export class UserStore {
-  // FIXME consider @observable.ref
   @observable public user: IUser
   @observable public isCryptoboxReady = false
 
@@ -197,7 +195,6 @@ export class UserStore {
 
     const {
       getTransactionReceipt,
-      getBlockHash,
     } = this.metaMaskStore
     const { identitiesContract } = this.contractStore
     const {
@@ -212,8 +209,8 @@ export class UserStore {
       try {
         const receipt = await getTransactionReceipt(identityTransactionHash)
         if (receipt) {
-          if (confirmationCounter >= CONFIRMATION_NUMBER) {
-            const hasStatus = receipt.status !== 'undefined'
+          if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
+            const hasStatus = receipt.status != null
             const hasTransactionError = hasStatus
               ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
               : receipt.gasUsed === receipt.cumulativeGasUsed
@@ -234,13 +231,13 @@ export class UserStore {
               // we have receipt but found no identity,
               // set confirmationCounter to 0 and retry
               window.setTimeout(
-                waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1,
+                waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1,
               )
               return
             }
 
             if (registeredIdentityFingerprint === getPublicKeyFingerPrint(identityKeyPair.public_key)) {
-              const blockHash = await getBlockHash(blockNumber)
+              const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
               if (isHexZeroValue(blockHash)) {
                 // no blockHash? just retry.
                 const retryTimeOut = 1000
@@ -261,17 +258,19 @@ export class UserStore {
               registerDidFail(REGISTER_FAIL_CODE.OCCUPIED)
             }
           } else {
-            window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1)
+            window.setTimeout(
+              waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1,
+            )
           }
           return
         }
 
-        if (blockCounter >= TRANSACTION_TIME_OUT_BLOCK_NUMBER) {
+        if (blockCounter >= ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER) {
           checkingDidFail(null, IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT)
           return
         }
 
-        window.setTimeout(waitForTransactionReceipt, AVERAGE_BLOCK_TIME, blockCounter + 1)
+        window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
       } catch (err) {
         checkingDidFail(err)
         return
@@ -283,7 +282,7 @@ export class UserStore {
 
   public async refreshMemoryUser() {
     const user = await this.usersDB.getUser(this.user.networkId, this.user.userAddress)
-    if (typeof user !== 'undefined') {
+    if (user != null) {
       this.updateMemoryUser(user)
     }
   }
@@ -302,12 +301,11 @@ export class UserStore {
     const interval = 1
     const preKeys = generatePreKeys(unixToday(), interval, 365)
 
-    const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = preKeys.reduce(
-      (result, preKey) => Object.assign(result, {
-        [preKey.key_id]: getPublicKeyFingerPrint(preKey.key_pair.public_key),
-      }),
-      {},
-    )
+    const preKeysPublicKeyFingerprints: IPreKeyPublicKeyFingerprints = {}
+
+    for (const preKey of preKeys) {
+      preKeysPublicKeyFingerprints[preKey.key_id] = getPublicKeyFingerPrint(preKey.key_pair.public_key)
+    }
 
     // use last pre-key as lastResortPrekey (id: 65535/0xFFFF)
     const lastResortPrekey = PreKey.last_resort()
@@ -319,7 +317,7 @@ export class UserStore {
     const serializedPrekeys = hexFromUint8Array(new Uint8Array(preKeysPackage.serialise()))
     const prekeysSignature = hexFromUint8Array(identity.secret_key.sign(serializedPrekeys))
 
-    const uploadPreKeysUrl = `${process.env.REACT_APP_KVASS_ENDPOINT}${this.user.userAddress}`
+    const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${this.user.userAddress}`
     const resp = await fetch(
       uploadPreKeysUrl,
       {
@@ -345,6 +343,7 @@ export class UserStore {
       }
       preKeysDidUpload()
     } else {
+      preKeysUploadDidFail(new Error(resp.toString()))
       storeLogger.error(resp)
     }
   }
@@ -373,6 +372,10 @@ export class UserStore {
     return Promise.all(preKeysFromStorage
       .filter((preKey) => Number(preKey.key_id) < today)
       .map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
+  }
+
+  public disposeStore() {
+    this.usersStore.disposeUserStore(this.user)
   }
 
   private async deleteAllPreKeys() {

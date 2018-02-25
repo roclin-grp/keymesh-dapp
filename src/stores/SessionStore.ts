@@ -28,7 +28,7 @@ import {
   ICreateMessageArgs,
 } from '../databases/MessagesDB'
 
-import { sha3 } from '../cryptos'
+import { sha3 } from '../utils/cryptos'
 
 export class SessionStore {
   public static getAvatarHashByContact = (contract: IContact) => {
@@ -83,7 +83,7 @@ export class SessionStore {
 
   public refreshMemorySession = async (): Promise<void> => {
     const session = await getDatabases().sessionsDB.getSession(this.session.sessionTag, this.session.userAddress)
-    if (typeof session !== 'undefined') {
+    if (session != null) {
       this.updateMemorySession(session)
       this.sessionsStore.sortSessions()
     }
@@ -215,6 +215,10 @@ export class SessionStore {
     return this.updateSession({
       unreadCount: 0,
     })
+  }
+
+  public disposeStore() {
+    this.sessionsStore.disposeSessionStore(this.session)
   }
 
   private async updateSession(args: IUpdateSessionOptions) {

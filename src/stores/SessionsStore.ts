@@ -30,12 +30,12 @@ export class SessionsStore {
   private sessionsDB: SessionsDB
   private userStore: UserStore
   private cachedSessionStores: {
-    [primaryKey: string]: SessionStore,
+    [sessionTag: string]: SessionStore,
   } = {}
 
   @computed
   public get hasSelectedSession() {
-    return typeof this.currentSessionStore !== 'undefined'
+    return this.currentSessionStore != null
   }
 
   constructor({
@@ -90,15 +90,29 @@ export class SessionsStore {
   }
 
   public getSessionStore = (session: ISession): SessionStore => {
-    const primaryKey = `${session.userAddress}${session.sessionTag}`
-    let store = this.cachedSessionStores[primaryKey]
-    if (typeof store === 'undefined') {
-      store = new SessionStore(session, {
-        sessionsStore: this,
-      })
-      this.cachedSessionStores[primaryKey] = store
+    const oldStore = this.cachedSessionStores[session.sessionTag]
+    if (oldStore != null) {
+      return oldStore
     }
-    return store
+
+    const newStore = new SessionStore(session, {
+      sessionsStore: this,
+    })
+    this.cachedSessionStores[session.sessionTag] = newStore
+    return newStore
+  }
+
+  public clearCachedStores() {
+    this.cachedSessionStores = {}
+  }
+
+  public disposeSessionStore(session: ISession) {
+    const oldStore = this.cachedSessionStores[session.sessionTag]
+    if (oldStore == null) {
+      return
+    }
+
+    delete this.cachedSessionStores[session.sessionTag]
   }
 
   @action

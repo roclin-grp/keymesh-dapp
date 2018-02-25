@@ -7,17 +7,7 @@ import {
 
 import Web3 from 'web3'
 
-import {
-  storeLogger,
-} from '../utils/loggers'
-
-async function sleep(ms: number) {
-  return new Promise((resolve) => {
-    setInterval(() => {
-      resolve()
-    }, ms)
-  })
-}
+import { sleep } from '../utils'
 
 function getMetaMaskProvider(): { isMetaMask: true } | null {
   const win = window as any
@@ -78,18 +68,13 @@ export class MetaMaskStore {
     this.connect()
   }
 
-  public getBlockHash = (blockNumber: number) => {
-    return this.web3.eth.getBlock(blockNumber)
-      .then((block) => {
-        if (typeof block === 'undefined') {
-          return '0x0'
-        }
-        return block.hash
-      })
-      .catch((err) => {
-        storeLogger.error(err)
-        return '0x0'
-      })
+  public async getBlockHash(blockNumber: number): Promise<string> {
+    const block = await this.web3.eth.getBlock(blockNumber)
+    if (block == null) {
+      return '0x0'
+    }
+
+    return block.hash
   }
 
   public getTransactionReceipt = (transactionHash: string) => {
@@ -201,9 +186,6 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
 })
 
-export const CONFIRMATION_NUMBER = Number(process.env.REACT_APP_CONFIRMATION_NUMBER)
-export const AVERAGE_BLOCK_TIME = Number(process.env.REACT_APP_AVERAGE_BLOCK_TIME)
-export const TRANSACTION_TIME_OUT_BLOCK_NUMBER = Number(process.env.REACT_APP_TRANSACTION_TIME_OUT_BLOCK_NUMBER)
 export enum TRANSACTION_STATUS {
   FAIL = 0,
   SUCCESS,

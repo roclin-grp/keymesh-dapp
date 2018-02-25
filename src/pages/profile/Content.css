@@ -1,0 +1,29 @@
+.container {
+  margin-top: 2rem;
+  flex-direction: row;
+  align-items: initial;
+}
+
+.userAvatar {
+  margin-right: 1.5rem;
+  height: 4rem;
+  width: 4rem;
+  border-radius: 4rem;
+}
+
+.userAvatar > * {
+  line-height: 4rem;
+}
+
+.newVerifyItemLink {
+  display: flex;
+  color: #CCCCCC;
+  align-items: center;
+  width: 100%;
+}
+
+.verifications {
+  list-style: none;
+  padding: 0;
+  min-width: 250px;
+}
