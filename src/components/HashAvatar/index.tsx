@@ -20,7 +20,7 @@ const SIZE_PX = Object.freeze({
 
 function HashAvatar({size = 'default', hash, shape = 'square', className, picSize}: IProps) {
   const hasNotHash = hash === ''
-  const sizePx = picSize != null ? picSize : SIZE_PX[size]
+  const sizePx = picSize || SIZE_PX[size]
   const avatar = hasNotHash ? undefined : `data:image/svg+xml;base64,${(new Identicon(
     hash,
     { size: sizePx, format: 'svg', margin: 0.1 },

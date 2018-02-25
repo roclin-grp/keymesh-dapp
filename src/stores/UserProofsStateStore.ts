@@ -88,6 +88,7 @@ export class UserProofsStateStore {
       // could not load public key, address is invalid or some other things
       // went wrong, stop fetching
       this.isFetchingUserProofs = false
+      return
     }
 
     while (this.isFetchingUserProofs) {
