@@ -20,14 +20,8 @@ import {
   IStores,
 } from '../../../stores'
 import {
-  IMessage,
   ChatMessageStore,
-  MESSAGE_TYPE,
-  MESSAGE_STATUS,
 } from '../../../stores/ChatMessageStore'
-import {
-  IContact,
-} from '../../../stores/UserStore'
 import {
   MetaMaskStore,
   ETHEREUM_NETWORK_TX_URL_PREFIX,
@@ -35,6 +29,8 @@ import {
 
 import { getMessageTimeStamp } from '../../../utils/time'
 import { sleep } from '../../../utils'
+import { IMessage, MESSAGE_STATUS, MESSAGE_TYPE } from '../../../databases/MessagesDB'
+import { storeLogger } from '../../../utils/loggers'
 
 @inject(mapStoreToProps)
 @observer
@@ -44,33 +40,34 @@ class Message extends React.Component<IProps> {
 
   public componentDidMount() {
     const {
-      messageStatus,
-      checkMessageStatus,
-    } = this.injectedProps.chatMessageStore
-    if (messageStatus === MESSAGE_STATUS.DELIVERING) {
-      checkMessageStatus({
-        checkingDidFail: this.checkingDidFail,
-      }).catch(this.checkingDidFail)
+      chatMessageStore,
+    } = this.injectedProps
+    if (chatMessageStore.messageStatus === MESSAGE_STATUS.DELIVERING) {
+      chatMessageStore.checkMessageStatus().catch(this.checkingDidFail)
     }
   }
 
   public componentWillUnmount() {
+    const {
+      chatMessageStore,
+    } = this.injectedProps
+    if (chatMessageStore.stopCheckMessageStatus != null) {
+      chatMessageStore.stopCheckMessageStatus()
+    }
     this.unmounted = true
   }
 
   public render() {
     const {
       message: {
-        isFromYourself,
-        timestamp,
-        plainText,
-        messageType,
+        meta,
+        data,
       },
       contact,
     } = this.props
-    const timestampStr = getMessageTimeStamp(timestamp)
+    const timestampStr = getMessageTimeStamp(data.timestamp)
 
-    if (messageType === MESSAGE_TYPE.CLOSE_SESSION) {
+    if (data.messageType === MESSAGE_TYPE.CLOSE_SESSION) {
       return (
         <li>
           Session had been closed at {timestampStr}
@@ -79,10 +76,10 @@ class Message extends React.Component<IProps> {
     }
 
     return (
-      <li className={classnames(styles.message, {[styles.messageSelf]: isFromYourself})}>
+      <li className={classnames(styles.message, {[styles.messageSelf]: meta.isFromYourself})}>
         <div className={styles.metaInfo}>
           <span
-            title={`${contact.userAddress}`}
+            title={`${contact}`}
             className={styles.sender}
           >
             {this.renderSender()}
@@ -90,7 +87,7 @@ class Message extends React.Component<IProps> {
           <span className={styles.time}>{timestampStr}</span>
         </div>
         <div className={styles.content}>
-          <p className={styles.messageText}>{plainText}</p>
+          <p className={styles.messageText}>{data.payload}</p>
           {this.renderStatus()}
         </div>
       </li>
@@ -98,16 +95,16 @@ class Message extends React.Component<IProps> {
   }
 
   private renderSender() {
-    const { isFromYourself } = this.props.message
+    const { isFromYourself } = this.props.message.meta
     if (isFromYourself) {
       return 'me'
     }
 
-    return <UserAddress address={this.props.contact.userAddress} maxLength={11} />
+    return <UserAddress address={this.props.contact} maxLength={11} />
   }
 
   private renderStatus() {
-    const { isFromYourself, transactionHash } = this.props.message
+    const { isFromYourself, transactionHash } = this.props.message.meta
     if (!isFromYourself) {
       return null
     }
@@ -115,8 +112,13 @@ class Message extends React.Component<IProps> {
     const currentNetwork = this.injectedProps.metaMaskStore.currentEthereumNetwork!
     const explorerURL = ETHEREUM_NETWORK_TX_URL_PREFIX[currentNetwork]
 
+    const { messageStatus } = this.injectedProps.chatMessageStore
+    if (messageStatus === MESSAGE_STATUS.DELIVERED) {
+      return null
+    }
+
     const iconElement = <Icon className={styles.messageStatusIcon} type="loading"/>
-    const statusStr = MESSAGE_STATUS_STR[this.injectedProps.chatMessageStore.messageStatus]
+    const statusStr = MESSAGE_STATUS_STR[messageStatus]
 
     let statusContent: JSX.Element
     if (explorerURL == null) {
@@ -146,9 +148,10 @@ class Message extends React.Component<IProps> {
     )
   }
 
-  private checkingDidFail = async () => {
+  private checkingDidFail = async (err: Error) => {
     await sleep(3000)
     if (!this.unmounted) {
+      storeLogger.error('checking message fail:', err)
       // retry checking
       this.componentDidMount()
     }
@@ -177,7 +180,7 @@ const MESSAGE_STATUS_STR = Object.freeze({
 
 interface IProps {
   message: IMessage
-  contact: IContact
+  contact: string
   plainText?: string
 }
 

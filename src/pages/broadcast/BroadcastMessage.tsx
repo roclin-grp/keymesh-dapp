@@ -114,12 +114,26 @@ export default class BroadcastMessage extends React.Component<IProps> {
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
   }
 
+<<<<<<< HEAD
   private getUsername() {
     const { getValidProofs } = this.props.userProofsStateStore
 
     const validProofs = getValidProofs()
     for (const validProof of validProofs) {
         return validProof.socialProofs.username
+=======
+  private getUsername(): string | null {
+    const {
+      userBoundSocials,
+      verifyStatuses,
+    } = this.props.userProofsStateStore
+
+    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
+      const boundSocial = userBoundSocials[platform]
+      if (boundSocial && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID) {
+        return boundSocial.username
+      }
+>>>>>>> Refactor ChatMessagesStore, SessionsDB, MessagesDB..
     }
 
     return null

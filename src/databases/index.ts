@@ -1,26 +1,24 @@
-import Dexie from 'dexie'
+import Dexie, { IndexableType } from 'dexie'
 import {
   UsersDB,
 } from './UsersDB'
 import {
   SessionsDB,
+  ISession,
+  ISessionPrimaryKeys,
 } from './SessionsDB'
 import {
   MessagesDB,
+  IMessage,
+  IMessagePrimaryKeys,
 } from './MessagesDB'
 
 import {
-  IUser,
+  IUser, IUserPrimaryKeys,
 } from '../stores/UserStore'
-import {
-  ISession,
-} from '../stores/SessionStore'
 import {
   IUserCaches,
 } from '../stores/UserCachesStore'
-import {
-  IMessage,
-} from '../stores/ChatMessageStore'
 
 import {
   dumpDB,
@@ -106,9 +104,9 @@ interface ITableItems {
 }
 
 interface ITablePrimaryKeys {
-  [TABLE_NAMES.USERS]: [IUser['networkId'], IUser['userAddress']]
-  [TABLE_NAMES.SESSIONS]: [ISession['sessionTag'], ISession['userAddress']]
-  [TABLE_NAMES.MESSAGES]: [IMessage['messageId'], IMessage['userAddress']]
+  [TABLE_NAMES.USERS]: [IUserPrimaryKeys['networkId'], IUserPrimaryKeys['userAddress']]
+  [TABLE_NAMES.SESSIONS]: [ISessionPrimaryKeys['sessionTag'], ISessionPrimaryKeys['userAddress']]
+  [TABLE_NAMES.MESSAGES]: IMessagePrimaryKeys['messageID']
   [TABLE_NAMES.USER_CACHES]: [IUserCaches['networkId'], IUserCaches['userAddress']]
 }
 
@@ -128,8 +126,23 @@ export type TypeDexieWithTables = Dexie & TypeTables
  */
 const SCHEMA_V1 = Object.freeze({
   [TABLE_NAMES.USERS]: '[networkId+userAddress], networkId, [networkId+status]',
-  [TABLE_NAMES.SESSIONS]: '[sessionTag+userAddress], [networkId+userAddress], lastUpdate, contact.userAddress',
+  [TABLE_NAMES.SESSIONS]:
+    '[sessionTag+userAddress]'
+    + ', '
+    + '[networkId+userAddress]'
+    + ', '
+    + 'meta.lastUpdate'
+    + ', '
+    + 'data.contact',
   [TABLE_NAMES.MESSAGES]:
-    '[messageId+userAddress], [sessionTag+userAddress], sessionTag, [networkId+userAddress], timestamp',
+    'messageID'
+    + ', '
+    + '[networkId+userAddress]'
+    + ', '
+    + '[sessionTag+userAddress]'
+    + ', '
+    + 'data.timestamp',
   [TABLE_NAMES.USER_CACHES]: '[networkId+userAddress]',
 })
+
+export interface IQuery {[key: string]: IndexableType}

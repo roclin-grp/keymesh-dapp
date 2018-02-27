@@ -23,7 +23,7 @@ export class UsersDB {
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users
-      .where(Object.assign({ networkId }, status == null ? null : { status }))
+      .where({ networkId , ...(status && { status })})
       .toArray()
   }
 
@@ -44,17 +44,19 @@ export class UsersDB {
     const {
       users,
     } = this.dexieDB
+    const defaultData = {
+      status: USER_STATUS.PENDING,
+      blockHash: '0x0',
+      lastFetchBlockOfChatMessages: 0,
+      contacts: [],
+    }
+    const newUser: IUser = {
+      ...defaultData,
+      ...user,
+    }
+
     return users
-      .add(Object.assign(
-        {},
-        {
-          status: USER_STATUS.PENDING,
-          blockHash: '0x0',
-          lastFetchBlockOfChatMessages: 0,
-          contacts: [],
-        },
-        user,
-      ))
+      .add(newUser)
       .then((primaryKeys) => users.get(primaryKeys)) as Dexie.Promise<IUser>
   }
 
@@ -147,7 +149,7 @@ export class UsersDB {
       await users
         .delete([networkId, userAddress])
 
-      await this.databases.sessionsDB.deleteSessions(user)
+      await this.databases.sessionsDB.deleteSessions(user, { isDeleteUser: true })
 
       await this.databases.messagesDB.deleteMessagesOfUser(user)
     })

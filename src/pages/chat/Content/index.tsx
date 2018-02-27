@@ -20,9 +20,8 @@ import {
 import {
   UserStore,
 } from '../../../stores/UserStore'
-import {
-  ISession,
-} from '../../../stores/SessionStore'
+
+import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class ChatContent extends React.Component<IProps> {
@@ -52,9 +51,7 @@ class ChatContent extends React.Component<IProps> {
 
   public render() {
     const {
-      user: {
-        userAddress,
-      },
+      user,
       sessionsStore,
       chatMessagesStore,
     } = this.props.userStore
@@ -77,7 +74,7 @@ class ChatContent extends React.Component<IProps> {
             renderItem={(session: ISession) => (
               <Session
                 className={classnames({
-                  [styles.selectedSession]: sessionsStore.isCurrentSession(session.userAddress, session.sessionTag),
+                  [styles.selectedSession]: sessionsStore.isCurrentSession(session.sessionTag),
                 })}
                 key={session.sessionTag}
                 sessionStore={sessionsStore.getSessionStore(session)}
@@ -92,7 +89,7 @@ class ChatContent extends React.Component<IProps> {
         {
           sessionsStore.hasSelectedSession
             ? <Dialog chatMessagesStore={chatMessagesStore!} sessionStore={sessionsStore.currentSessionStore!} />
-            : <NewConversationDialog chatMessagesStore={chatMessagesStore!} selfAddress={userAddress} />
+            : <NewConversationDialog chatMessagesStore={chatMessagesStore!} user={user} />
         }
       </div>
     )
@@ -104,7 +101,7 @@ class ChatContent extends React.Component<IProps> {
     } = this.props.userStore
     if (
       !sessionsStore.isSwitchingSession
-      && !sessionsStore.isCurrentSession(session.userAddress, session.sessionTag)
+      && !sessionsStore.isCurrentSession(session.sessionTag)
     ) {
       // TODO: catch and warn if session data could load
       await sessionsStore.selectSession(session)

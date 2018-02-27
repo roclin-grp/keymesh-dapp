@@ -1,8 +1,8 @@
 import { runInAction, observable } from 'mobx'
+import { keys as proteusKeys } from 'wire-webapp-proteus'
 import { noop } from '../utils/'
 import { UsersStore } from './UsersStore'
 import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
-import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
 import ENV from '../config'
@@ -17,7 +17,7 @@ export class BroadcastMessagesStore {
   private lastFetchBlock: number = 0
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
-    [userAddress: string]: keys.PublicKey,
+    [userAddress: string]: proteusKeys.PublicKey,
   } = {}
 
   constructor({

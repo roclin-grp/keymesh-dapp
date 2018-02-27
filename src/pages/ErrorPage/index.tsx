@@ -17,7 +17,7 @@ function ErrorPage({
     <div className={classnames(styles.container, 'page-content')}>
       <Icon type="close-circle-o" className={styles.iconError} />
       <h1>{message}</h1>
-      <a target="_blank" href="https://github.com/ceoimon/keymail-webapp/issues/new">Report bugs</a>
+      <a target="_blank" href="https://github.com/keymesh/keymesh-dapp/issues/new">Report bugs</a>
       {renderErrorStack(errorStack)}
     </div>
   )

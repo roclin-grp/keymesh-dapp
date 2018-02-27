@@ -28,11 +28,8 @@ import {
   Cryptobox,
 } from 'wire-webapp-cryptobox'
 import {
-  keys,
+  keys as proteusKeys,
 } from 'wire-webapp-proteus'
-const {
-  PreKey,
-} = keys
 
 import {
   noop,
@@ -121,21 +118,19 @@ export class UserStore {
     const indexedDBStore = this.indexedDBStore = new IndexedDBStore(`${user.networkId}@${user.userAddress}`)
     const cryptoBox = this.cryptoBox = new Cryptobox(indexedDBStore as any, 0)
 
-    this.sessionsStore = new SessionsStore({
-      userStore: this,
-    })
+    this.sessionsStore = new SessionsStore(this)
     this.SocialProofsStore = new SocialProofsStore({
       userStore: this,
       contractStore: this.contractStore,
       userCachesStore: this.usersStore.userCachesStore,
     })
-    this.chatMessagesStore = new ChatMessagesStore({
-      userStore: this,
+    this.chatMessagesStore = new ChatMessagesStore(
+      this,
       contractStore,
       metaMaskStore,
       indexedDBStore,
       cryptoBox,
-    })
+    )
 
     this.initCryptobox()
 
@@ -309,7 +304,7 @@ export class UserStore {
     }
 
     // use last pre-key as lastResortPrekey (id: 65535/0xFFFF)
-    const lastResortPrekey = PreKey.last_resort()
+    const lastResortPrekey = proteusKeys.PreKey.last_resort()
     const lastPreKey = preKeys[preKeys.length - 1]
     lastResortPrekey.key_pair = lastPreKey.key_pair
 
@@ -379,18 +374,18 @@ export class UserStore {
     this.usersStore.disposeUserStore(this.user)
   }
 
-  private async deleteAllPreKeys() {
-    const store = this.indexedDBStore
-    const preKeysFromStorage = await store.load_prekeys()
-    return Promise.all(preKeysFromStorage.map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
-  }
-
-  private updateUser = async (args: IUpdateUserOptions) => {
+  public async updateUser(args: IUpdateUserOptions) {
     await this.usersDB.updateUser(
       this.user,
       args,
     )
     this.updateMemoryUser(args)
+  }
+
+  private async deleteAllPreKeys() {
+    const store = this.indexedDBStore
+    const preKeysFromStorage = await store.load_prekeys()
+    return Promise.all(preKeysFromStorage.map((preKeyToDelete) => store.deletePrekey(preKeyToDelete.key_id)))
   }
 
   @action
@@ -399,9 +394,14 @@ export class UserStore {
   }
 }
 
-function generatePreKeys(start: number, interval: number, size: number) {
-  return Array(size).fill(0)
-    .map((_, x) => PreKey.new(((start + (x * interval)) % PreKey.MAX_PREKEY_ID)))
+function generatePreKeys(start: number, interval: number, size: number): proteusKeys.PreKey[] {
+  const preKeys: proteusKeys.PreKey[] = []
+  for (let i = 0; i < size; i++) {
+    const preKeyId = (start + (i * interval)) % proteusKeys.PreKey.MAX_PREKEY_ID
+    const preKey = proteusKeys.PreKey.new(preKeyId)
+    preKeys.push(preKey)
+  }
+  return preKeys
 }
 
 export enum IDENTITY_UPLOAD_CHECKING_FAIL_CODE {
@@ -429,12 +429,12 @@ interface IUploadPreKeysOptions {
   preKeysUploadDidFail?: (err: Error) => void
 }
 
-export interface IUserIdentityKeys {
+export interface IUserPrimaryKeys {
   networkId: ETHEREUM_NETWORKS,
   userAddress: string,
 }
 
-export interface IUser extends IUserIdentityKeys {
+export interface IUser extends IUserPrimaryKeys {
   status: USER_STATUS
   blockHash: string
   identityTransactionHash: string

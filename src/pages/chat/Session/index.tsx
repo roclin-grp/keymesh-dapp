@@ -17,20 +17,18 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  ISession,
   SessionStore,
 } from '../../../stores/SessionStore'
 
 import { getSessionTimestamp } from '../../../utils/time'
+import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class Session extends React.Component<IProps> {
   public render() {
     const {
-      contact,
-      summary,
-      lastUpdate,
-      unreadCount,
+      meta,
+      data,
     } = this.props.sessionStore.session
 
     return (
@@ -42,18 +40,18 @@ class Session extends React.Component<IProps> {
         >
           <List.Item.Meta
             avatar={(
-              <Badge count={unreadCount} overflowCount={99}>
+              <Badge count={meta.unreadCount} overflowCount={99}>
                 <HashAvatar
                   size="large"
                   shape="square"
-                  hash={SessionStore.getAvatarHashByContact(contact)}
+                  hash="" // FXIME
                 />
               </Badge>
             )}
-            title={<UserAddress address={contact.userAddress} maxLength={11} />}
-            description={<span className={styles.summary}>{summary}</span>}
+            title={<UserAddress address={data.contact} maxLength={11} />}
+            description={<span className={styles.summary}>{data.summary}</span>}
           />
-          <span>{getSessionTimestamp(lastUpdate)}</span>
+          <span>{getSessionTimestamp(meta.lastUpdate)}</span>
         </List.Item>
       </a>
     )

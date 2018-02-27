@@ -8,13 +8,6 @@ import {
   Lambda,
 } from 'mobx'
 import {
-  IUserIdentityKeys,
-  IContact,
-} from './UserStore'
-import {
-  IMessage,
-} from './ChatMessageStore'
-import {
   SessionsStore,
 } from './SessionsStore'
 
@@ -23,18 +16,14 @@ import {
 } from '../databases'
 import {
   IUpdateSessionOptions,
+  ISession,
 } from '../databases/SessionsDB'
 import {
-  ICreateMessageArgs,
+  IAddMessageOptions,
+  IMessage,
 } from '../databases/MessagesDB'
 
-import { sha3 } from '../utils/cryptos'
-
 export class SessionStore {
-  public static getAvatarHashByContact = (contract: IContact) => {
-    return sha3(`${contract.userAddress}${contract.blockHash}`)
-  }
-
   @observable public session: ISession
   @observable.ref public messages: IMessage[] = []
   @observable public isLoading = true
@@ -43,29 +32,24 @@ export class SessionStore {
   @observable public draftMessage = ''
 
   private sessionRef: ISession
-  private sessionsStore: SessionsStore
   private isClearing = false
   private shouldAddUnread = true
 
   @computed
-  public get isCurrentSession() {
-    return this.sessionsStore.isCurrentSession(this.session.userAddress, this.session.sessionTag)
+  public get isCurrentSession(): boolean {
+    return this.sessionsStore.isCurrentSession(this.session.sessionTag)
   }
 
-  constructor(session: ISession, {
-    sessionsStore,
-  }: {
-      sessionsStore: SessionsStore,
-    }) {
+  constructor(session: ISession, private sessionsStore: SessionsStore) {
     this.session = this.sessionRef = session
     this.sessionsStore = sessionsStore
 
     reaction(
       () => ({
-        lastUpdate: this.session.lastUpdate,
-        isClosed: this.session.isClosed,
-        unreadCount: this.session.unreadCount,
-        summary: this.session.summary,
+        lastUpdate: this.session.meta.lastUpdate,
+        isClosed: this.session.meta.isClosed,
+        unreadCount: this.session.meta.unreadCount,
+        summary: this.session.data.summary,
       }) as IUpdateSessionOptions,
       (observableUserData) => {
         Object.assign(this.sessionRef, observableUserData)
@@ -81,17 +65,20 @@ export class SessionStore {
     this.shouldAddUnread = value
   }
 
-  public refreshMemorySession = async (): Promise<void> => {
-    const session = await getDatabases().sessionsDB.getSession(this.session.sessionTag, this.session.userAddress)
+  public async refreshMemorySession() {
+    const session = await getDatabases().sessionsDB.getSession(
+      this.session.sessionTag,
+      this.session.userAddress,
+    )
     if (session != null) {
-      this.updateMemorySession(session)
+      this.updateMemorySession(session.meta)
       this.sessionsStore.sortSessions()
     }
   }
 
-  public listenForNewMessage = (listener: () => void): Lambda => {
+  public listenForNewMessage(listener: () => void): Lambda {
     return observe(
-      this.session,
+      this.session.meta,
       'lastUpdate',
       ({
         newValue,
@@ -104,11 +91,11 @@ export class SessionStore {
     )
   }
 
-  public loadNewMessages = async (limit?: number) => {
+  public async loadNewMessages(limit?: number) {
     const loadedMessagesCount = this.messages.length
     const hasMessages = loadedMessagesCount > 0
-    const lastMessageTimestamp = hasMessages ? this.messages[loadedMessagesCount - 1].timestamp : 0
-    if (lastMessageTimestamp === this.session.lastUpdate) {
+    const lastMessageTimestamp = hasMessages ? this.messages[loadedMessagesCount - 1].data.timestamp : 0
+    if (lastMessageTimestamp === this.session.meta.lastUpdate) {
       // no new messages
       return
     }
@@ -124,10 +111,10 @@ export class SessionStore {
       limit,
     })
     const newMessagesCount = newMessages.length
-    const previousUnreadCount = this.session.unreadCount
+    const previousUnreadCount = this.session.meta.unreadCount
 
     if (previousUnreadCount > 0) {
-      let unreadCount = this.session.unreadCount - newMessagesCount
+      let unreadCount = previousUnreadCount - newMessagesCount
       if (unreadCount < 0) {
         unreadCount = 0
       }
@@ -145,7 +132,7 @@ export class SessionStore {
     })
   }
 
-  public loadOldMessages = async (limit?: number) => {
+  public async loadOldMessages(limit?: number) {
     const messagesLength = this.messages.length
     if (messagesLength === 0) {
       return
@@ -158,14 +145,14 @@ export class SessionStore {
       this.isLoadingOldMessages = true
     })
     const oldMessages = await messagesDB.getMessagesOfSession(this.session, {
-      timestampBefore: this.messages[messagesLength - 1].timestamp,
+      timestampBefore: this.messages[messagesLength - 1].data.timestamp,
       limit,
     })
     const oldMessagesCount = oldMessages.length
-    const previousUnreadCount = this.session.unreadCount
+    const previousUnreadCount = this.session.meta.unreadCount
 
     if (previousUnreadCount > 0) {
-      let unreadCount = this.session.unreadCount - oldMessagesCount
+      let unreadCount = previousUnreadCount - oldMessagesCount
       if (unreadCount < 0) {
         unreadCount = 0
       }
@@ -183,27 +170,28 @@ export class SessionStore {
     })
   }
 
-  public createMessage = async (args: ICreateMessageArgs) => {
-    const message = await getDatabases().messagesDB.createMessage(
+  public async saveMessage(
+    message: IMessage,
+    options?: IAddMessageOptions,
+  ) {
+    await getDatabases().messagesDB.addMessage(
       this.session,
-      Object.assign<{ shouldAddUnread: ICreateMessageArgs['shouldAddUnread'] }, ICreateMessageArgs>(
-        {
-          shouldAddUnread: this.shouldAddUnread,
-        },
-        args,
-      ),
+      message,
+      {
+        shouldAddUnread: this.shouldAddUnread,
+        ...options,
+      },
     )
 
     this.addMessage(message)
-    return message
   }
 
-  public clearNewUnreadCount = async () => {
+  public async clearNewUnreadCount() {
     const { newUnreadCount } = this
     if (!this.isClearing && newUnreadCount > 0) {
       this.isClearing = true
       await this.updateSession({
-        unreadCount: this.session.unreadCount - newUnreadCount,
+        unreadCount: this.session.meta.unreadCount - newUnreadCount,
       })
       runInAction(() => {
         this.newUnreadCount = this.newUnreadCount - newUnreadCount
@@ -211,8 +199,8 @@ export class SessionStore {
     }
   }
 
-  public clearUnread = () => {
-    return this.updateSession({
+  public async clearUnread() {
+    await this.updateSession({
       unreadCount: 0,
     })
   }
@@ -232,25 +220,14 @@ export class SessionStore {
   }
 
   @action
-  private addMessage = (message: IMessage) => {
+  private addMessage(message: IMessage) {
     if (this.isCurrentSession) {
       this.messages = this.messages.concat(message)
-      if (!message.isFromYourself && this.shouldAddUnread) {
+      if (!message.meta.isFromYourself && this.shouldAddUnread) {
         this.newUnreadCount++
       }
     }
 
     this.refreshMemorySession()
-    return this.messages
   }
-}
-
-export interface ISession extends IUserIdentityKeys {
-  sessionTag: string
-  lastUpdate: number
-  contact: IContact
-  subject: string
-  isClosed: boolean
-  unreadCount: number
-  summary: string
 }

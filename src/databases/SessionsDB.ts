@@ -1,203 +1,162 @@
-import Dexie from 'dexie'
 import {
   TypeDexieWithTables,
   Databases,
+  IQuery,
 } from './'
+import {
+  IMessageData,
+  IMessagePrimaryKeys,
+  IAddMessageOptions,
+  IMessage,
+} from './MessagesDB'
 
 import {
   IUser,
-  IContact,
+  IUserPrimaryKeys,
 } from '../stores/UserStore'
-import {
-  ISession,
-} from '../stores/SessionStore'
-import {
-  MESSAGE_TYPE,
-  MESSAGE_STATUS,
-} from '../stores/ChatMessageStore'
+import { hexFromUint8Array } from '../utils/hex'
 
 export class SessionsDB {
   constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {}
 
-  public getSessions(
-    {
-      networkId,
-      userAddress,
-    }: IUser,
-    {
+  public getSessions(user: IUser, options: IGetSessionsOptions = {}): Promise<ISession[]> {
+    const {
       contact,
-      offset,
-      limit,
-    }: IGetSessionsOptions = {}) {
-    const collect = (() => {
-      let _collect = this.dexieDB.sessions
-        .orderBy('lastUpdate')
+    } = options
+
+    let dexieCollection = (
+      this.dexieDB.sessions
+        .orderBy('meta.lastUpdate')
         .reverse()
-        .filter((session) =>
-          session.networkId === networkId
-          && session.userAddress === userAddress
-          && (contact ? session.contact === contact : true),
-      )
-      if (offset >= 0) {
-        _collect = _collect.offset(offset)
-      }
-      if (limit >= 0) {
-        _collect = _collect.limit(limit)
-      }
-      return _collect
-    })()
-    return collect.toArray()
+        .filter((session) => {
+          const userForeignKeys: IUserPrimaryKeys = {
+            userAddress: session.userAddress,
+            networkId: session.networkId,
+          }
+
+          return (
+            userForeignKeys.networkId === user.networkId
+            && userForeignKeys.userAddress === user.userAddress
+            && (contact ? session.data.contact === contact : true)
+          )
+        })
+    )
+
+    const { offset = -1 } = options
+    if (offset >= 0) {
+      dexieCollection = dexieCollection.offset(offset)
+    }
+
+    const { limit = -1 } = options
+    if (limit >= 0) {
+      dexieCollection = dexieCollection.limit(limit)
+    }
+
+    return dexieCollection.toArray()
   }
 
-  public deleteSessions(
-    user: IUser,
-    {
+  public deleteSessions(user: IUser, options: IDeleteSessionsOptions = {}) {
+    const {
       lastUpdateBefore,
       contact,
-    }: IDeleteSessionsOptions = {},
-  ) {
+      isDeleteUser = false,
+    } = options
+
     const {
-      networkId,
-      userAddress,
-    } = user
-    const {
-      users,
       sessions,
       messages,
     } = this.dexieDB
-    return this.dexieDB.transaction('rw', users, sessions, messages, () => {
-      return sessions
-        .where(Object.assign(
-          {
-            networkId,
-            userAddress,
-          },
-          contact ? { contact } : null),
-      )
-        .filter((session) => lastUpdateBefore ? session.lastUpdate < lastUpdateBefore : true)
-        .each((session) => this.deleteSession(session))
+    return this.dexieDB.transaction('rw', sessions, messages, () => {
+      const query: IUserPrimaryKeys & IQuery = {
+        userAddress: user.userAddress,
+        networkId: user.networkId,
+        ...(contact ? { 'data.contact': contact } : null),
+      }
+
+      let dexieCollection = sessions.where(query)
+
+      if (lastUpdateBefore != null) {
+        dexieCollection = dexieCollection
+          .filter((session) => lastUpdateBefore ? session.meta.lastUpdate < lastUpdateBefore : true)
+      }
+
+      if (isDeleteUser) {
+        dexieCollection.delete()
+        return
+      }
+
+      return dexieCollection.each((session) => this.deleteSession(session))
     })
   }
 
-  public createSession(
-    user: IUser,
-    {
-      // session
-      sessionTag,
-      contact,
-      subject = '',
-      // first message
-      messageId,
-      messageType,
-      timestamp,
-      plainText,
-      isFromYourself,
-      transactionHash,
-      status,
-    }: ICreateSessionArgs,
+  /**
+   * prefer save session with first message, avoid empty session exist
+   */
+  public addSession(
+    session: ISession,
+    firstMessage?: IMessage,
+    addMessageOptions?: IAddMessageOptions,
   ) {
     const {
-      networkId,
-      userAddress,
-    } = user
-    const {
-      users,
       sessions,
-      messages,
     } = this.dexieDB
-    return this.dexieDB
-      .transaction('rw', users, sessions, messages, async () => {
-        await sessions
-          .add({
-            sessionTag,
-            userAddress,
-            networkId,
-            contact,
-            subject,
-            summary: '',
-            lastUpdate: 0,
-            unreadCount: 0,
-            isClosed: false,
-          })
 
-        const session = await this.getSession(sessionTag, userAddress)
+    return this.dexieDB.transaction('rw', sessions, this.dexieDB.messages, async () => {
+      await sessions.add(session)
 
-        if (session == null) {
-          throw new Error('session not exist')
-        }
-
-        await this.dataBases.messagesDB.createMessage(
+      if (firstMessage != null) {
+        await this.dataBases.messagesDB.addMessage(
           session,
-          {
-            messageId,
-            messageType,
-            timestamp,
-            plainText,
-            isFromYourself,
-            transactionHash,
-            status,
-          },
+          firstMessage,
+          addMessageOptions,
         )
-
-        await this.dataBases.usersDB.addContact(user, contact)
-
-        return [sessionTag, user.userAddress] as [string, string]
-      })
-      .then((primaryKeys) => sessions.get(primaryKeys)) as Dexie.Promise<ISession>
+      }
+    })
   }
 
-  public getSession(sessionTag: string, userAddress: string) {
-    return this.dexieDB.sessions
-      .get([sessionTag, userAddress])
+  public getSession(
+    sessionTag: ISessionPrimaryKeys['sessionTag'],
+    userAddress: ISessionPrimaryKeys['userAddress'],
+  ): Promise<ISession | undefined> {
+    return this.dexieDB.sessions.get([sessionTag, userAddress])
   }
 
-  public updateSession(
-    {
+  public async updateSession(
+    session: ISession,
+    options: IUpdateSessionOptions = {},
+  ): Promise<ISession> {
+    const {
       sessionTag,
       userAddress,
-    }: ISession,
-    updateSessionOptions: IUpdateSessionOptions = {},
-  ) {
+    } = session
+    const { sessions } = this.dexieDB
+
     const {
-      sessions,
-    } = this.dexieDB
-    return sessions
-      .update([sessionTag, userAddress], updateSessionOptions)
-      .then(() => sessions.get([sessionTag, userAddress])) as Dexie.Promise<ISession>
+      summary,
+      ...optionsMeta,
+    } = options
+    const meta = {
+      ...session.meta,
+      ...optionsMeta,
+    }
+    const data = {
+      ...session.data,
+      summary,
+    }
+
+    await sessions.update([sessionTag, userAddress], { meta, data })
+
+    const updatedSession = await sessions.get([sessionTag, userAddress])
+
+    return updatedSession!
   }
 
   public deleteSession(session: ISession) {
-    const {
-      sessionTag,
-      userAddress,
-      contact,
-      networkId,
-    } = session
-    const {
-      users,
-      sessions,
-      messages,
-    } = this.dexieDB
-    const {
-      messagesDB,
-      usersDB,
-    } = this.dataBases
-    return this.dexieDB.transaction('rw', users, sessions, messages, async () => {
-      await sessions
-        .delete([sessionTag, userAddress])
+    const { sessions } = this.dexieDB
 
-      await messagesDB.deleteMessagesOfSession(session)
-
-      const remainSessions = await sessions
-        .where({ 'contact.userAddress': contact.userAddress })
-        .toArray()
-
-      if (remainSessions.length === 0) {
-        const user = await usersDB.getUser(networkId, userAddress)
-        if (user != null) {
-          await usersDB.deleteContact(user, contact)
-        }
-      }
+    return this.dexieDB.transaction('rw', sessions, this.dexieDB.messages, async () => {
+      await sessions.delete([session.sessionTag, session.userAddress])
+      await this.dataBases.messagesDB.deleteMessagesOfSession(session, { isDeleteSession: true })
     })
   }
 
@@ -215,26 +174,97 @@ export class SessionsDB {
   }
 }
 
-export interface ICreateSessionArgs {
+export function createSession(
+  user: IUser,
+  sessionData: ISessionData,
+  sessionTag: ISessionPrimaryKeys['sessionTag'] = makeSessionTag(),
+  sessionMeta: ISessionConfigurableMeta = {},
+): ISession {
+  const foreignKeys: ISessionForeignKeys = {
+    userAddress: user.userAddress,
+    networkId: user.networkId,
+  }
+  const defaultData: ISessionDefaultData = {
+  }
+  const data = {
+    ...defaultData,
+    ...sessionData,
+  }
+  const defaultMeta: ISessionDefaultMeta = {
+    lastUpdate: 0,
+    unreadCount: 0,
+    isClosed: false,
+  }
+  const meta = {
+    ...defaultMeta,
+    ...sessionMeta,
+  }
+
+  const session: ISession = {
+    sessionTag,
+    ...foreignKeys,
+    data,
+    meta,
+  }
+
+  return session
+}
+
+export function makeSessionTag() {
+  return hexFromUint8Array(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))))
+}
+
+export interface ISessionPrimaryKeys {
   sessionTag: string
+  userAddress: ISessionForeignKeys['userAddress']
+}
+
+export type ISessionForeignKeys = IUserPrimaryKeys
+
+export interface ISessionData {
+  contact: string
   subject?: string
-  contact: IContact
+  summary?: string
+}
+
+export interface ISessionDefaultData {
+}
+
+export interface ISessionConfigurableMeta {
+}
+
+export interface ISessionDefaultMeta {
+  lastUpdate: number
+  isClosed: boolean
+  unreadCount: number
+}
+
+export interface ISession extends ISessionPrimaryKeys, ISessionForeignKeys {
+  data: ISessionData & ISessionDefaultData
+  meta: ISessionConfigurableMeta & ISessionDefaultMeta
 }
 
 interface IGetSessionsOptions {
-  contact?: IContact
+  contact?: ISession['data']['contact']
   offset?: number
   limit?: number
 }
 
 interface IDeleteSessionsOptions {
   lastUpdateBefore?: number
-  contact?: string
+  contact?: ISession['data']['contact']
+  isDeleteUser?: boolean
 }
 
 export interface IUpdateSessionOptions {
-  lastUpdate?: number
-  isClosed?: boolean
-  unreadCount?: number
-  summary?: string
+  lastUpdate?: ISession['meta']['lastUpdate']
+  isClosed?: ISession['meta']['isClosed']
+  unreadCount?: ISession['meta']['unreadCount']
+  summary?: ISession['data']['summary']
+}
+
+export interface ICreatSessionFirstMessageArgs {
+  messageID: IMessagePrimaryKeys['messageID']
+  data: IMessageData,
+  options?: IAddMessageOptions,
 }

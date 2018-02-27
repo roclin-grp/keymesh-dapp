@@ -71,9 +71,9 @@ class Messages extends React.Component<IProps, IState> {
         {
           this.props.sessionStore.messages.map((message) => (
             <Message
-              key={message.messageId}
+              key={message.messageID}
               message={message}
-              contact={this.props.sessionStore.session.contact}
+              contact={this.props.sessionStore.session.data.contact}
             />
           ))
         }

@@ -48,7 +48,7 @@ class DialogTextArea extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const isSessionClosed = this.hasSession && this.props.sessionStore!.session.isClosed
+    const isSessionClosed = this.hasSession && this.props.sessionStore!.session.meta.isClosed
     const disabled = this.props.isSending || isSessionClosed
 
     return (

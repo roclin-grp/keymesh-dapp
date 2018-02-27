@@ -68,7 +68,7 @@ export default abstract class ProvingData {
     this.username = username
   }
 
-  public setupFinishedReaction(callback: () => void): Lambda {
+  public onProvingCompleted(callback: () => void): Lambda {
     return when(
       () => this.isFinished,
       callback,

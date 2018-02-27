@@ -55,9 +55,6 @@ export class PreKeysPackage {
     public interval: number,
     public lastPrekeyDate: number,
   ) {
-    this.interval = interval
-    this.lastPrekeyDate = lastPrekeyDate
-    this.preKeyPublicKeys = preKeyPublicKeys
   }
 
   public serialise() {

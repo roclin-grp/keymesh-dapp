@@ -4,7 +4,7 @@ import {
   runInAction,
   action,
 } from 'mobx'
-import { keys } from 'wire-webapp-proteus'
+import { keys as proteusKeys } from 'wire-webapp-proteus'
 
 import {
   VERIFIED_SOCIAL_STATUS,
@@ -46,7 +46,7 @@ export class UserProofsStateStore {
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
-  private publicKey: keys.PublicKey | undefined
+  private publicKey: proteusKeys.PublicKey | undefined
   private userCachesStore: UserCachesStore
   private userProofsStatesStore: UserProofsStatesStore
 

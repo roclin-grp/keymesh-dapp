@@ -20,18 +20,15 @@ import * as styles from './index.css'
 import {
   ChatMessagesStore,
 } from '../../../stores/ChatMessagesStore'
-import {
-  SENDING_FAIL_CODE,
-} from '../../../stores/ChatMessagesStore/typings'
-import {
-  MESSAGE_TYPE,
-} from '../../../stores/ChatMessageStore'
 
 // helper
 import {
   storeLogger,
 } from '../../../utils/loggers'
 import { isAddress } from '../../../utils/cryptos'
+import { MESSAGE_TYPE, createMessage } from '../../../databases/MessagesDB'
+import { createSession } from '../../../databases/SessionsDB'
+import { IUser } from '../../../stores/UserStore'
 
 // TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
@@ -93,34 +90,54 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private handleSubmit = (plainText: string) => {
-    if (!this.state.isSending) {
-      this.props.form.validateFields((err: Error, {
-        userAddress,
-      }: IFormData) => {
-        if (!err) {
-          this.setState({
-            isSending: true,
-            sendButtonContent: 'Checking...',
-          })
-          this.props.chatMessagesStore.sendMessage(
-            userAddress,
-            MESSAGE_TYPE.HELLO,
-            {
-              transactionWillCreate: this.transactionWillCreate,
-              transactionDidCreate: this.transactionDidCreate,
-              messageDidCreate: this.messageDidCreate,
-              sendingDidFail: this.sendingDidFail,
-              plainText,
-            },
-          ).catch(this.sendingDidFail)
-        } else {
-          this.resetUserAddress()
-        }
-      })
+    if (this.state.isSending) {
+      return
     }
+
+    this.props.form.validateFields(async (err: Error, {
+      userAddress,
+    }: IFormData) => {
+      if (err) {
+        this.resetUserAddress()
+        return
+      }
+
+      this.setState({
+        isSending: true,
+        sendButtonContent: 'Processing...',
+      })
+
+      const { chatMessagesStore, user } = this.props
+      try {
+        const receiver = await chatMessagesStore.getMessageReceiver(userAddress)
+
+        const sessionData = {
+          contact: userAddress,
+        }
+        const newSession = createSession(user, sessionData)
+
+        const messageData = {
+          payload: plainText,
+          timestamp: Date.now(),
+          messageType: MESSAGE_TYPE.HELLO,
+        }
+        const newMessage = createMessage(newSession, messageData)
+
+        this.handleStartSending()
+
+        await this.props.chatMessagesStore.sendMessage(
+          receiver,
+          newSession,
+          newMessage,
+        )
+        this.handleMessageDidSend()
+      } catch (err) {
+        this.handSendFail(err)
+      }
+    })
   }
 
-  private transactionWillCreate = () => {
+  private handleStartSending = () => {
     if (!this.unmounted) {
       this.setState({
         sendButtonContent: 'Please confirm the transaction...',
@@ -128,15 +145,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     }
   }
 
-  private transactionDidCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Sending...',
-      })
-    }
-  }
-
-  private messageDidCreate = () => {
+  private handleMessageDidSend = () => {
     if (!this.unmounted) {
       this.setState({
         isSending: false,
@@ -145,31 +154,23 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     }
   }
 
-  private sendingDidFail = (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-
-      message.error((() => {
-        switch (code) {
-          case SENDING_FAIL_CODE.INVALID_USER_ADDRESS:
-            return `Fail to send, please enter receiver address!`
-          case SENDING_FAIL_CODE.SEND_TO_YOURSELF:
-            return `Fail to send, can't send message to yourself!`
-          case SENDING_FAIL_CODE.INVALID_MESSAGE:
-            return 'Fail to send, receiver address is invalid!'
-          case SENDING_FAIL_CODE.INVALID_MESSAGE_TYPE:
-          default:
-            if ((err as Error).message.includes('User denied transaction signature')) {
-              return 'Fail to send, you reject the transaction.'
-            }
-            storeLogger.error('Unexpected register error:', err as Error)
-            return 'Fail to send, please retry.'
-        }
-      })())
+  private handSendFail = (err: Error) => {
+    if (this.unmounted) {
+      return
     }
+
+    this.setState({
+      isSending: false,
+      sendButtonContent: 'Send',
+    })
+
+    if (err.message.includes('User denied transaction signature')) {
+      message.error('Fail to send, you reject the transaction.')
+      return
+    }
+
+    storeLogger.error('Unexpected register error:', err)
+    message.error('Fail to send, please retry.')
   }
 
   private validUserAddress = (
@@ -181,7 +182,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       if (userAddress === '') {
         return done()
       }
-      if (userAddress === this.props.selfAddress) {
+      if (userAddress === this.props.user.userAddress) {
         return (done as any)(`Can't send message to yourself!`)
       }
       if (!isAddress(userAddress)) {
@@ -203,7 +204,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
 }
 
 interface IProps extends FormComponentProps {
-  selfAddress: string
+  user: IUser
   chatMessagesStore: ChatMessagesStore
 }
 

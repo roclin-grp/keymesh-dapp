@@ -21,12 +21,6 @@ import {
   ChatMessagesStore,
 } from '../../../stores/ChatMessagesStore'
 import {
-  SENDING_FAIL_CODE,
-} from '../../../stores/ChatMessagesStore/typings'
-import {
-  MESSAGE_TYPE,
-} from '../../../stores/ChatMessageStore'
-import {
   SessionStore,
 } from '../../../stores/SessionStore'
 
@@ -38,6 +32,7 @@ import {
 import {
   storeLogger,
 } from '../../../utils/loggers'
+import { MESSAGE_TYPE, createMessage } from '../../../databases/MessagesDB'
 
 @observer
 class Dialog extends React.Component<IProps, IState> {
@@ -62,7 +57,7 @@ class Dialog extends React.Component<IProps, IState> {
       <div className={styles.dialog}>
         <div className={styles.header}>
           <h3 className={styles.title}>
-            {session.subject || session.contact.userAddress}
+            {session.data.subject || session.data.contact}
           </h3>
           <Button
             onClick={this.showDeleteSessionConfirm}
@@ -84,28 +79,41 @@ class Dialog extends React.Component<IProps, IState> {
     )
   }
 
-  private handleSubmit = (plainText: string) => {
-    if (!this.state.isSending) {
-      this.setState({
-        isSending: true,
-        sendButtonContent: 'Checking...',
-      })
-      this.props.chatMessagesStore.sendMessage(
-        this.props.sessionStore.session.contact.userAddress,
-        MESSAGE_TYPE.NORMAL,
-        {
-          transactionWillCreate: this.transactionWillCreate,
-          transactionDidCreate: this.transactionDidCreate,
-          messageDidCreate: this.messageDidCreate,
-          sendingDidFail: this.sendingDidFail,
-          plainText,
-          sessionTag: this.props.sessionStore.session.sessionTag,
-        },
-      ).catch(this.sendingDidFail)
+  private handleSubmit = async (plainText: string) => {
+    if (this.state.isSending) {
+      return
+    }
+
+    this.setState({
+      isSending: true,
+      sendButtonContent: 'Processing...',
+    })
+
+    const { chatMessagesStore, sessionStore } = this.props
+    const { session } = sessionStore
+    try {
+      const receiver = await chatMessagesStore.getMessageReceiver(session.data.contact)
+      const messageData = {
+        payload: plainText,
+        timestamp: Date.now(),
+        messageType: MESSAGE_TYPE.NORMAL,
+      }
+      const newMessage = createMessage(session, messageData)
+
+      this.handleStartSending()
+
+      await this.props.chatMessagesStore.sendMessage(
+        receiver,
+        session,
+        newMessage,
+      )
+      this.handleMessageDidSend()
+    } catch (err) {
+      this.handleSendFail(err)
     }
   }
 
-  private transactionWillCreate = () => {
+  private handleStartSending = () => {
     if (!this.unmounted) {
       this.setState({
         sendButtonContent: 'Please confirm the transaction...',
@@ -113,15 +121,7 @@ class Dialog extends React.Component<IProps, IState> {
     }
   }
 
-  private transactionDidCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Sending...',
-      })
-    }
-  }
-
-  private messageDidCreate = () => {
+  private handleMessageDidSend = () => {
     if (!this.unmounted) {
       this.messagesScrollToBottom()
       this.setState({
@@ -132,29 +132,23 @@ class Dialog extends React.Component<IProps, IState> {
     }
   }
 
-  private sendingDidFail = (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-
-      message.error((() => {
-        switch (code) {
-          case SENDING_FAIL_CODE.INVALID_MESSAGE:
-            return 'Fail to send message, please enter message!'
-          case SENDING_FAIL_CODE.SEND_TO_YOURSELF:
-          case SENDING_FAIL_CODE.INVALID_USER_ADDRESS:
-          case SENDING_FAIL_CODE.INVALID_MESSAGE_TYPE:
-          default:
-            if ((err as Error).message.includes('User denied transaction signature')) {
-              return 'Fail to send message, you reject the transaction.'
-            }
-            storeLogger.error('Unexpected message sending error:', err as Error)
-            return 'Fail to send message, please retry.'
-        }
-      })())
+  private handleSendFail = (err: Error) => {
+    if (this.unmounted) {
+      return
     }
+
+    this.setState({
+      isSending: false,
+      sendButtonContent: 'Send',
+    })
+
+    if (err.message.includes('User denied transaction signature')) {
+      message.error('Fail to send message, you reject the transaction.')
+      return
+    }
+
+    storeLogger.error('Unexpected message sending error:', err)
+    message.error('Fail to send message, please retry.')
   }
 
   private showDeleteSessionConfirm = () => {

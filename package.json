@@ -29,7 +29,6 @@
     "@types/react-facebook-login": "^3.6.1",
     "@types/react-hot-loader": "^3.0.5",
     "@types/react-router-dom": "^4.2.3",
-    "@types/underscore": "^1.8.5",
     "husky": "^0.14.3",
     "lint-staged": "^7.0.0",
     "parcel-bundler": "^1.6.2",
@@ -60,7 +59,7 @@
     "react-router-dom": "^4.2.2",
     "web3": "^1.0.0-beta.30",
     "wire-webapp-cbor": "^2.1.5",
-    "wire-webapp-cryptobox": "^6.2.0",
+    "wire-webapp-cryptobox": "^6.2.1",
     "wire-webapp-proteus": "^5.2.0"
   }
 }

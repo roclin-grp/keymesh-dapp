@@ -1,18 +1,13 @@
 
 import {
-  keys,
+  keys as proteusKeys,
   message as proteusMessage,
 } from 'wire-webapp-proteus'
-
-import {
-  MESSAGE_TYPE,
-} from '../ChatMessageStore'
 
 import {
   unixToday,
 } from '../../utils/time'
 import {
-  hexFromUint8Array,
   uint8ArrayFromHex,
 } from '../../utils/hex'
 import {
@@ -25,9 +20,7 @@ import {
 
 import {
   PreKeysPackage,
-  IPreKeyPublicKeyFingerprints,
 } from '../../PreKeysPackage'
-import PreKeyBundle from '../../PreKeyBundle'
 import {
   Envelope,
   IEnvelopeHeader,
@@ -36,179 +29,26 @@ import {
 import ENV from '../../config'
 
 import {
-  ISender,
-  IReceiver,
-  IGenerateMessageOptions,
-  IRawUnppaddedMessage,
+  IRawUnpaddedMessage,
+  IMessageSender,
 } from './typings'
-import { Cryptobox } from 'wire-webapp-cryptobox'
+import { IMessage } from '../../databases/MessagesDB'
+import { ISession } from '../../databases/SessionsDB'
+import PreKeyBundle, { IPreKey } from '../../PreKeyBundle'
 
-export interface ICryptoMessage {
-  messageType: MESSAGE_TYPE,
-  sessionTag: string
-  envelope: Envelope,
-  mac: Uint8Array,
-  timestamp: number,
-}
-
-export interface IEncryptedCryptoMessage extends ICryptoMessage {
-  messageId: string,
-  cipherText: string,
-}
-
-export interface IMessageRequest {
-  messageType: MESSAGE_TYPE,
-  toAddress: string,
-
-  plainText?: string,  // optional for "close session"
-
-  subject?: string,
-  sessionTag?: string, // if empty, create hello message
-}
-
-export interface IMessageSender {
-  userAddress: string,
-  cryptoBox: Cryptobox,
-}
-
-export interface IMessageReceiver {
-  userAddress: string,
-  identityKey: keys.IdentityKey,
-  pubkeyHex: string,
-  preKeyPublicKey: keys.PublicKey,
-  preKeyID: number,
-  blockHash: string,
-}
-
-export async function encryptMessage(
+export async function generateEncryptedMessageEnvelope(
   sender: IMessageSender,
-  receiver: IMessageReceiver,
-  req: IMessageRequest,
-): Promise<IEncryptedCryptoMessage> {
-  const factory = new MessageFactory(sender, receiver, req)
-  return factory.generateEncryptedMessage()
-}
+  session: ISession,
+  message: IMessage,
+  preKeyBundle: PreKeyBundle,
+): Promise<Envelope> {
+  const { cryptoBox } = sender
+  const { sessionTag } = session
 
-class MessageFactory {
-  constructor(
-    private readonly sender: IMessageSender,
-    private readonly receiver: IMessageReceiver,
-    private readonly req: IMessageRequest,
-  ) {
-  }
-
-  public async generateEncryptedMessage(): Promise<IEncryptedCryptoMessage> {
-    const msg = await this.generateMessage()
-
-    const {
-      mac,
-      envelope,
-    } = msg
-
-    const messageId = generateMessageIDFromMAC(mac)
-
-    const {
-      preKeyID,
-      preKeyPublicKey,
-    } = this.receiver
-
-    const cipherText = msg.envelope.encrypt(preKeyID, preKeyPublicKey)
-
-    return {
-      ...msg,
-      cipherText,
-      messageId,
-    }
-  }
-
-  private async generateHelloMessage(
-    plainText: string,
-    subject?: string,
-  ) {
-    return generateHelloMessage(
-      this.sender,
-      this.receiver,
-      plainText,
-      {
-        subject,
-      },
-    )
-  }
-
-  private async generateNormalMessage(
-    sessionTag: string,
-    plainText: string,
-    subject?: string,
-  ) {
-    return generateNormalMessage(
-      this.sender,
-      plainText,
-      sessionTag,
-      {
-        subject,
-      },
-    )
-  }
-
-  private async generateMessage(): Promise<ICryptoMessage> {
-    const {
-      toAddress,
-      messageType,
-
-      plainText,
-      // optional
-      subject,
-      sessionTag,
-    } = this.req
-
-    switch (messageType) {
-      case MESSAGE_TYPE.HELLO:
-        if (plainText == null) {
-          throw new Error('no message')
-        }
-        return this.generateHelloMessage(plainText, subject)
-      case MESSAGE_TYPE.NORMAL:
-        if (plainText == null) {
-          throw new Error('no message')
-        }
-
-        if (sessionTag == null) {
-          throw new Error('no session specified')
-        }
-
-        return this.generateNormalMessage(toAddress, plainText, subject)
-      case MESSAGE_TYPE.CLOSE_SESSION:
-      default:
-        throw new Error('unknown message type')
-    }
-  }
-
-}
-
-export async function generateHelloMessage(
-  {
-    userAddress: fromUserAddress,
-    cryptoBox,
-  }: ISender,
-  {
-    identityKey,
-    preKeyPublicKey,
-    preKeyID,
-  }: IReceiver,
-  plainText: string,
-  {
-    closeSession = false,
-    subject,
-  }: IGenerateMessageOptions = {},
-): Promise<ICryptoMessage> {
-  const messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.HELLO
-  const timestamp = Date.now()
-  const rawMessage: IRawUnppaddedMessage = {
-    timestamp,
-    subject,
-    messageType,
-    fromUserAddress,
-    plainText,
+  const rawMessage: IRawUnpaddedMessage = {
+    senderAddress: sender.userAddress,
+    subject: session.data.subject,
+    messageData: message.data,
   }
 
   const {
@@ -216,107 +56,65 @@ export async function generateHelloMessage(
     messageByteLength,
   } = padTo512Bytes(JSON.stringify(rawMessage))
 
-  const preKeyBundle = PreKeyBundle.create(identityKey, preKeyPublicKey, preKeyID)
-
-  const sessionTag = makeSessionTag()
-  const encryptedMessage = await cryptoBox.encrypt(
-    sessionTag,
-    paddedMessage,
-    preKeyBundle.serialise(),
-  )
+  const encryptedMessage = await cryptoBox.encrypt(sessionTag, paddedMessage, preKeyBundle.serialise())
 
   const proteusEnvelope = proteusMessage.Envelope.deserialise(encryptedMessage)
-  if (proteusEnvelope.message instanceof proteusMessage.PreKeyMessage) {
-    const preKeyMessage = proteusEnvelope.message
-    const cipherMessage = preKeyMessage.message
-    const header: IEnvelopeHeader = {
-      senderIdentity: cryptoBox.identity.public_key,
-      mac: proteusEnvelope.mac,
-      baseKey: preKeyMessage.base_key,
-      sessionTag,
-      isPreKeyMessage: true,
-      messageByteLength,
-    }
+  const proteusEncyptedMessage = proteusEnvelope.message
+  const baseKey = getBaseKey(proteusEncyptedMessage)
 
-    return {
-      messageType,
-      sessionTag,
-      envelope: new Envelope(header, cipherMessage),
-      mac: proteusEnvelope.mac,
-      timestamp,
-    }
-  }
-  throw new Error('Message type not match')
-}
-
-export async function generateNormalMessage(
-  {
-    userAddress: fromUserAddress,
-    cryptoBox,
-  }: ISender,
-  plainText: string,
-  sessionTag: string,
-  {
-    closeSession = false,
-    subject,
-  }: IGenerateMessageOptions = {},
-) {
-  const messageType = closeSession ? MESSAGE_TYPE.CLOSE_SESSION : MESSAGE_TYPE.NORMAL
-  const timestamp = Date.now()
-  const rawMessage: IRawUnppaddedMessage = {
-    timestamp,
-    subject,
-    messageType,
-    fromUserAddress,
-    plainText,
-  }
-  const {
-    result: paddedMessage,
-    messageByteLength,
-  } = padTo512Bytes(JSON.stringify(rawMessage))
-
-  const encryptedMessage = await cryptoBox.encrypt(
+  const header: IEnvelopeHeader = {
+    senderIdentity: cryptoBox.identity.public_key,
     sessionTag,
-    paddedMessage,
-  )
-
-  const senderIdentity = cryptoBox.identity.public_key
-  const proteusEnvelope = proteusMessage.Envelope.deserialise(encryptedMessage)
-
-  let cipherMessage: proteusMessage.CipherMessage
-  let header: IEnvelopeHeader
-  if (proteusEnvelope.message instanceof proteusMessage.PreKeyMessage) {
-    const preKeyMessage = proteusEnvelope.message
-    cipherMessage = preKeyMessage.message
-    header = {
-      senderIdentity,
-      mac: proteusEnvelope.mac,
-      baseKey: preKeyMessage.base_key,
-      isPreKeyMessage: true,
-      sessionTag,
-      messageByteLength,
-    }
-  } else if (proteusEnvelope.message instanceof proteusMessage.CipherMessage) {
-    cipherMessage = proteusEnvelope.message
-    header = {
-      senderIdentity,
-      mac: proteusEnvelope.mac,
-      baseKey: keys.KeyPair.new().public_key, // generate a new one
-      isPreKeyMessage: false,
-      sessionTag,
-      messageByteLength,
-    }
-  } else {
-    throw new Error('Unknown message type')
-  }
-
-  return {
-    messageType,
-    sessionTag,
-    envelope: new Envelope(header, cipherMessage),
     mac: proteusEnvelope.mac,
-    timestamp,
+    baseKey,
+    isPreKeyMessage: proteusEncyptedMessage instanceof proteusMessage.PreKeyMessage,
+    messageByteLength,
   }
+  const cipherMessage = getCipherMessage(proteusEncyptedMessage)
+
+  return new Envelope(header, cipherMessage)
+}
+
+function getCipherMessage(message: proteusMessage.Message): proteusMessage.CipherMessage {
+  if (message instanceof proteusMessage.CipherMessage) {
+    return message
+  }
+
+  if (message instanceof proteusMessage.PreKeyMessage) {
+    return message.message
+  }
+
+  throw new Error('Invalid message')
+}
+
+function getBaseKey(message: proteusMessage.Message): proteusKeys.PublicKey {
+  if (message instanceof proteusMessage.CipherMessage) {
+    const newKeyPair = proteusKeys.KeyPair.new()
+    return newKeyPair.public_key
+  }
+
+  if (message instanceof proteusMessage.PreKeyMessage) {
+    return message.base_key
+  }
+
+  throw new Error('Invalid message')
+}
+
+export function retoreEncryptedProteusMessagefromKeymeshEnvelope(
+  envelope: Envelope,
+  preKeyID: IPreKey['id'],
+): proteusMessage.Message {
+  const envelopeHeader = envelope.header
+  if (envelopeHeader.isPreKeyMessage) {
+    return proteusMessage.PreKeyMessage.new(
+      preKeyID,
+      envelopeHeader.baseKey,
+      envelopeHeader.senderIdentity,
+      envelope.cipherMessage,
+    ) as any
+  }
+
+  return envelope.cipherMessage as any
 }
 
 export function padTo512Bytes(plaintext: string) {
@@ -340,11 +138,7 @@ export function unpad512BytesMessage(padded512BytesMessage: Uint8Array, messageB
   ))
 }
 
-export function makeSessionTag() {
-  return hexFromUint8Array(crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16))))
-}
-
-export async function getPreKeys(userAddress: string, identityFingerprint: string) {
+export async function getPreKeysPackage(userAddress: string, identityFingerprint: string): Promise<PreKeysPackage> {
   const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${userAddress}`
   const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
   const userPublicKey = generatePublicKeyFromHexStr(identityFingerprint)
@@ -368,33 +162,30 @@ export async function getPreKeys(userAddress: string, identityFingerprint: strin
   throw (new Error('status is not 200'))
 }
 
-export function getPreKey({
-  interval,
-  lastPrekeyDate,
-  preKeyPublicKeyFingerprints,
-}: {
-    interval: number,
-    lastPrekeyDate: number,
-    preKeyPublicKeyFingerprints: IPreKeyPublicKeyFingerprints,
-  }) {
-  let preKeyPublicKeyFingerprint
+export function getAvailablePreKey(preKeysPackage: PreKeysPackage): IPreKey {
+  const {
+    lastPrekeyDate,
+    preKeyPublicKeys,
+  } = preKeysPackage
+
   let preKeyID = unixToday()
-  if (preKeyID > lastPrekeyDate) {
-    preKeyID = lastPrekeyDate
-    preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[preKeyID]
-  } else {
-    const limitDay = preKeyID - interval
-    while (preKeyID > limitDay && preKeyPublicKeyFingerprint == null) {
-      preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[preKeyID]
+  let preKeyPublicKeyFingerprint: string | undefined
+
+  if (preKeyID < lastPrekeyDate) {
+    const limitDay = preKeyID - preKeysPackage.interval
+    while (preKeyID > limitDay) {
+      preKeyPublicKeyFingerprint = preKeyPublicKeys[preKeyID]
+      if (preKeyPublicKeyFingerprint != null) {
+        break
+      }
       preKeyID -= 1
     }
-    preKeyID += 1
+  }
 
-    // If not found, use last-resort pre-key
-    if (preKeyPublicKeyFingerprint == null) {
-      preKeyID = lastPrekeyDate
-      preKeyPublicKeyFingerprint = preKeyPublicKeyFingerprints[lastPrekeyDate]
-    }
+  // If not found, use last-resort pre-key
+  if (preKeyPublicKeyFingerprint == null) {
+    preKeyID = lastPrekeyDate
+    preKeyPublicKeyFingerprint = preKeyPublicKeys[lastPrekeyDate]
   }
 
   const publicKey = generatePublicKeyFromHexStr(preKeyPublicKeyFingerprint)
@@ -404,6 +195,12 @@ export function getPreKey({
   }
 }
 
-export function generateMessageIDFromMAC(mac: Uint8Array): string {
-  return hexFromUint8Array(mac)
+export async function getReceiverAvailablePrekey(address: string, identityKeyFingerprints: string): Promise<IPreKey> {
+  const preKeyPackage = await getPreKeysPackage(address, identityKeyFingerprints)
+
+  if (Object.keys(preKeyPackage.preKeyPublicKeys).length === 0) {
+    throw new Error('no prekeys uploaded yet')
+  }
+
+  return getAvailablePreKey(preKeyPackage)
 }

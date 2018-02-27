@@ -8,6 +8,10 @@ import {
 import Web3 from 'web3'
 
 import { sleep } from '../utils'
+import {
+  getProcessingTransactionHandlers,
+  IProcessingTransactionHandlers,
+} from '@keymesh/trustmesh'
 
 function getMetaMaskProvider(): { isMetaMask: true } | null {
   const win = window as any
@@ -79,6 +83,10 @@ export class MetaMaskStore {
 
   public getTransactionReceipt = (transactionHash: string) => {
     return this.web3.eth.getTransactionReceipt(transactionHash)
+  }
+
+  public getProcessingTransactionHandler(hash: string): IProcessingTransactionHandlers {
+    return getProcessingTransactionHandlers(this.web3, hash)
   }
 
   @action
@@ -178,8 +186,6 @@ export const ETHEREUM_NETWORK_NAMES = Object.freeze({
 })
 
 export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
-  [ETHEREUM_NETWORKS.OLYMPIC]: '',
-  [ETHEREUM_NETWORKS.MORDEN]: '',
   [ETHEREUM_NETWORKS.MAINNET]: 'https://etherscan.io/tx/',
   [ETHEREUM_NETWORKS.ROPSTEN]: 'https://ropsten.etherscan.io/tx/',
   [ETHEREUM_NETWORKS.RINKEBY]: 'https://rinkeby.etherscan.io/tx/',

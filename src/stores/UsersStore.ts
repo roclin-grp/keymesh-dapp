@@ -26,12 +26,8 @@ import {
 } from './UserProofsStatesStore'
 
 import {
-  keys,
+  keys as proteusKeys,
 } from 'wire-webapp-proteus'
-const {
-  IdentityKeyPair,
-  PreKey,
-} = keys
 
 import {
   noop,
@@ -183,7 +179,7 @@ export class UsersStore {
       return
     }
 
-    const identityKeyPair = IdentityKeyPair.new()
+    const identityKeyPair = proteusKeys.IdentityKeyPair.new()
     const userPublicKeyFingerprint = getPublicKeyFingerPrint(identityKeyPair.public_key)
 
     transactionWillCreate()
@@ -194,7 +190,8 @@ export class UsersStore {
           // crytobox data
           const store = new IndexedDBStore(`${ethereumNetworkId}@${ethereumAddress}`)
           await store.save_identity(identityKeyPair)
-          await store.save_prekey(PreKey.last_resort())
+          const lastResortPreKey = proteusKeys.PreKey.last_resort()
+          await store.save_prekey(lastResortPreKey)
 
           const user = await this.createUser(
             {
