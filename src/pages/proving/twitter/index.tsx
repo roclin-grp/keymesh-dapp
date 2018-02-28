@@ -10,7 +10,6 @@ import {
 import { Icon, Button } from 'antd'
 import * as styles from './index.css'
 import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
-import ENV from '../../../config'
 
 interface IProps {
   data: TwitterProvingData
@@ -18,25 +17,6 @@ interface IProps {
 
 @observer
 class TwitterProving extends React.Component<IProps> {
-  public componentWillMount() {
-    if (window.location.search === '') {
-      this.authorize()
-      return
-    }
-  }
-
-  public componentDidMount() {
-    const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
-    history.pushState(null, '', window.location.href.split('?')[0])
-    fetch(url)
-      .then((resp) => resp.json())
-      .then(async (body) => {
-        this.props.data.updateUsername(body.screen_name)
-        this.props.data.continueHandler()
-      })
-    // todo deal with 401
-  }
-
   public render() {
     const label = 'Twitter'
     const { data } = this.props
@@ -84,12 +64,6 @@ class TwitterProving extends React.Component<IProps> {
         </Button>
       </div>
     </div>
-  }
-
-  private authorize() {
-    fetch(ENV.TWITTER_OAUTH_API)
-      .then((resp) => resp.text())
-      .then((url) => window.location.href = url)
   }
 }
 

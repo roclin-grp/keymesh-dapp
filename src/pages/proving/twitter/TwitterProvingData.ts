@@ -25,11 +25,35 @@ export class TwitterProvingData extends ProvingData {
       'Upload infomations',
       'Done',
     ]
+
+    if (window.location.search === '') {
+      this.authorize()
+    } else {
+      this.fetchUserInfo()
+    }
   }
 
   protected async getProofURL(claimText: string): Promise<string | null> {
     const tweets = await this.twitterResource.getTweets(this.username)
     return getClaimTweetURL(tweets, claimText)
+  }
+
+  private fetchUserInfo() {
+    const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
+    history.pushState(null, '', window.location.href.split('?')[0])
+    fetch(url)
+      .then((resp) => resp.json())
+      .then((body) => {
+        this.updateUsername(body.screen_name)
+        this.continueHandler()
+      })
+    // todo deal with 401
+  }
+
+  private authorize() {
+    fetch(ENV.TWITTER_OAUTH_API)
+      .then((resp) => resp.text())
+      .then((url) => window.location.href = url)
   }
 }
 
