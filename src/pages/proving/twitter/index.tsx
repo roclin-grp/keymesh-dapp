@@ -7,9 +7,10 @@ import ProvingTextarea from '../ProvingTextarea'
 import {
   Link,
 } from 'react-router-dom'
-import { Icon, Button, Input } from 'antd'
+import { Icon, Button } from 'antd'
 import * as styles from './index.css'
 import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
+import ENV from '../../../config'
 
 interface IProps {
   data: TwitterProvingData
@@ -17,6 +18,25 @@ interface IProps {
 
 @observer
 class TwitterProving extends React.Component<IProps> {
+  public componentWillMount() {
+    if (window.location.search === '') {
+      this.authorize()
+      return
+    }
+  }
+
+  public componentDidMount() {
+    const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
+    history.pushState(null, '', window.location.href.split('?')[0])
+    fetch(url)
+      .then((resp) => resp.json())
+      .then(async (body) => {
+        this.props.data.updateUsername(body.screen_name)
+        this.props.data.continueHandler()
+      })
+    // todo deal with 401
+  }
+
   public render() {
     const label = 'Twitter'
     const { data } = this.props
@@ -35,24 +55,17 @@ class TwitterProving extends React.Component<IProps> {
           <Icon type={platform} className={styles.icon} />
         </div>
         <div className={styles.inputContainer}>
-          <Input
-            spellCheck={false}
-            value={username}
-            onChange={(e: any) => data.updateUsername(e.target.value)}
-            placeholder={`Your ${label} username`}
-            onPressEnter={() => data.continueHandler()}
-          />
+          <p>Fetching your {label} username</p>
         </div>
 
         <div className={styles.buttonsContainer}>
-          <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-          <Button type="primary" onClick={() => data.continueHandler()}>Continue</Button>
+          <Link to="/profile">Cancel</Link>
         </div>
       </div>
     }
 
     const twitterClaimText = signedClaimToClaimText(claim!)
-    const tweetClaimURL = 'https://twitter.com/home?status=' + encodeURI(twitterClaimText)
+    const tweetClaimURL = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(twitterClaimText)
     return <div>
       <div className={styles.iconContainer}>
         <Icon type={platform} className={styles.icon} />
@@ -71,6 +84,12 @@ class TwitterProving extends React.Component<IProps> {
         </Button>
       </div>
     </div>
+  }
+
+  private authorize() {
+    fetch(ENV.TWITTER_OAUTH_API)
+      .then((resp) => resp.text())
+      .then((url) => window.location.href = url)
   }
 }
 

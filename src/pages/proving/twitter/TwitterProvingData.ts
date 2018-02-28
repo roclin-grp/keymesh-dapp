@@ -20,7 +20,7 @@ export class TwitterProvingData extends ProvingData {
   @action
   protected init() {
     this.steps = [
-      'Enter username',
+      'Fetch user info',
       'Tweet',
       'Upload infomations',
       'Done',
