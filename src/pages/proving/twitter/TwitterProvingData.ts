@@ -38,22 +38,31 @@ export class TwitterProvingData extends ProvingData {
     return getClaimTweetURL(tweets, claimText)
   }
 
-  private fetchUserInfo() {
+  private async fetchUserInfo() {
     const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
     history.pushState(null, '', window.location.href.split('?')[0])
-    fetch(url)
-      .then((resp) => resp.json())
-      .then((body) => {
-        this.updateUsername(body.screen_name)
-        this.continueHandler()
-      })
-    // todo deal with 401
+    const resp = await fetch(url)
+    if (resp.status !== 200) {
+      // todo error handler
+      alert('fetch twitter user info error')
+      return
+    }
+
+    const body = await resp.json()
+    this.updateUsername(body.screen_name)
+    this.continueHandler()
   }
 
-  private authorize() {
-    fetch(ENV.TWITTER_OAUTH_API)
-      .then((resp) => resp.text())
-      .then((url) => window.location.href = url)
+  private async authorize() {
+    const resp = await fetch(ENV.TWITTER_OAUTH_API)
+    if (resp.status !== 200) {
+      // todo error handler
+      alert('fetch twitter oauth api error')
+      return
+    }
+
+    const url = await resp.text()
+    window.location.href = url
   }
 }
 
