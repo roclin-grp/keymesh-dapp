@@ -2,18 +2,12 @@ import {
   keys as proteusKeys,
   message as proteusMessage,
 } from 'wire-webapp-proteus'
-
 import * as CBOR from 'wire-webapp-cbor'
-
 import { Buffer } from 'buffer'
-import {
-  hexFromUint8Array,
-  uint8ArrayFromHex,
-} from './utils/hex'
-import {
-  cryptoBoxSeal,
-  cryptoBoxSealOpen,
-} from './utils/sodium'
+
+import { hexFromUint8Array, uint8ArrayFromHex } from './utils/hex'
+import { cryptoBoxSeal, cryptoBoxSealOpen } from './utils/sodium'
+
 import { IPreKey } from './PreKeyBundle'
 
 export class Envelope {
@@ -66,7 +60,11 @@ export class Envelope {
           for (let j = 0; j <= npropsMac - 1; j += 1) {
             switch (d.u8()) {
               case 0:
-                header.messageByteLength = new Uint16Array(new Uint8Array(d.bytes()).buffer)[0]
+                const uintArrayData = new Uint16Array(
+                  new Uint8Array(d.bytes()).buffer,
+                )
+                // messageByteLength is a 16 bytes uint
+                header.messageByteLength = uintArrayData[0]
                 break
               default:
                 d.skip()
@@ -91,24 +89,47 @@ export class Envelope {
     return Envelope.decode(d)
   }
 
-  public static decrypt(envelopeBuf: Uint8Array, preKey: proteusKeys.PreKey) {
+  public static decrypt(envelopeBuffer: Uint8Array, preKey: proteusKeys.PreKey) {
     return Envelope.deserialize(cryptoBoxSealOpen(
-      envelopeBuf,
+      envelopeBuffer,
       preKey.key_pair.public_key.pub_curve,
       preKey.key_pair.secret_key.sec_curve,
     ).buffer as ArrayBuffer)
   }
 
-  constructor(public header: IEnvelopeHeader, public cipherMessage: proteusMessage.CipherMessage) {
+  public static getPreKeyIDAndEnvelopeBuffer(cipherText: string): {
+    envelopeBuffer: Uint8Array,
+    preKeyID: number,
+  } {
+    const prependedPreKeyIdEnvelopeBuf = uint8ArrayFromHex(cipherText)
+    const envelopeBuffer = prependedPreKeyIdEnvelopeBuf.slice(
+      PRE_KEY_ID_BYTES_LENGTH,
+    )
+    const preKeyID = new Uint16Array(
+      prependedPreKeyIdEnvelopeBuf.slice(0, PRE_KEY_ID_BYTES_LENGTH).buffer,
+    )[0]
+
+    return {
+      envelopeBuffer,
+      preKeyID,
+    }
   }
 
+  constructor(
+    public header: IEnvelopeHeader,
+    public cipherMessage: proteusMessage.CipherMessage,
+  ) {}
+
   public encrypt(preKey: IPreKey) {
-    const envelopeBuf = Buffer.from(cryptoBoxSeal(
-      new Uint8Array(this.serialise()), // binary represent
-      preKey.publicKey.pub_curve,
-    ))
+    const envelopeBuf = Buffer.from(
+      cryptoBoxSeal(
+        new Uint8Array(this.serialise()), // binary represent
+        preKey.publicKey.pub_curve,
+      ),
+    )
     // prepend the pre-key ID
-    const preKeyIDBuf = Buffer.from(Uint16Array.from([preKey.id]).buffer as ArrayBuffer)
+    const uintArrayData = Uint16Array.from([preKey.id])
+    const preKeyIDBuf = Buffer.from(uintArrayData.buffer as ArrayBuffer)
     const concatedBuf = Buffer.concat([preKeyIDBuf, envelopeBuf]) // Buffer
     return hexFromUint8Array(concatedBuf)
   }
@@ -161,3 +182,5 @@ export interface IEnvelopeHeader {
   isPreKeyMessage: boolean
   messageByteLength: number
 }
+
+const PRE_KEY_ID_BYTES_LENGTH = 2

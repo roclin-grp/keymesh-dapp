@@ -58,8 +58,9 @@ export default abstract class ProvingData {
   }
 
   @action
-  public continueHandler() {
-    this.setClaim(this.usersStore.currentUserStore!.user.userAddress)
+  public async continueHandler() {
+    const signedClaim = await this.generateSignedClaim(this.usersStore.currentUserStore!.user.userAddress)
+    this.setClaim(signedClaim)
     this.setStep(1)
   }
 
@@ -118,8 +119,8 @@ export default abstract class ProvingData {
     }).catch(this.uploadingDidFail)
   }
 
-  private generateSignedClaim(userAddress: string): ISignedClaim {
-    const signature = this.usersStore.currentUserStore!.sign(userAddress)
+  private async generateSignedClaim(userAddress: string): Promise<ISignedClaim> {
+    const signature = await this.usersStore.currentUserStore!.sign(userAddress)
     return {
       userAddress,
       signature,
@@ -153,8 +154,8 @@ export default abstract class ProvingData {
   }
 
   @action
-  private setClaim(userAddress: string): void {
-    this.claim = this.generateSignedClaim(userAddress)
+  private setClaim(claim: ISignedClaim): void {
+    this.claim = claim
   }
 
   @action

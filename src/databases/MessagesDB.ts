@@ -172,7 +172,7 @@ export class MessagesDB {
       await this.dataBases.sessionsDB.updateSession(
         session,
         {
-          lastUpdate: 0,
+          lastUpdate: Date.now(),
           summary: '',
           unreadCount: 0,
         },
@@ -182,7 +182,9 @@ export class MessagesDB {
 
     const isClosed = message.data.messageType === MESSAGE_TYPE.CLOSE_SESSION
     const { payload } = message.data
-    const summary = `${payload.slice(0, SUMMARY_LENGTH)}${(payload.length > SUMMARY_LENGTH ? '...' : '')}`
+    const summary = isClosed
+      ? '[Session Closed]'
+      : `${payload.slice(0, SUMMARY_LENGTH)}${(payload.length > SUMMARY_LENGTH ? '...' : '')}`
 
     await this.dataBases.sessionsDB.updateSession(
       session,

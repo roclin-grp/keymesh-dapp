@@ -1,65 +1,61 @@
+import { observable, action, computed } from 'mobx'
 
-import {
-  observable,
-  runInAction,
-} from 'mobx'
+import { MetaMaskStore } from './MetaMaskStore'
 
-import {
-  MetaMaskStore,
-} from './MetaMaskStore'
+import { getDatabases } from '../databases/index'
+import { MessagesDB, IMessage, MESSAGE_STATUS } from '../databases/MessagesDB'
+import { ISession } from '../databases/SessionsDB'
 
-import {
-  getDatabases,
-} from '../databases/index'
-import {
-  MessagesDB,
-  IMessage,
-  MESSAGE_STATUS,
-} from '../databases/MessagesDB'
-import ENV from '../config'
 import { storeLogger } from '../utils/loggers'
 
-export class ChatMessageStore {
-  public stopCheckMessageStatus: (() => void) | null = null
-  @observable public messageStatus: MESSAGE_STATUS
-  private messagesDB: MessagesDB
+import ENV from '../config'
 
-  constructor(private message: IMessage, private metaMaskStore: MetaMaskStore) {
-    this.messageStatus = message.meta.status
+export class ChatMessageStore {
+  @observable private _messageStatus: MESSAGE_STATUS
+  private readonly messagesDB: MessagesDB
+  private isChecking = false
+
+  @computed
+  public get messageStatus(): MESSAGE_STATUS {
+    return this._messageStatus
+  }
+
+  constructor(
+    private readonly message: IMessage,
+    private readonly metaMaskStore: MetaMaskStore,
+  ) {
+    this._messageStatus = message.meta.status
     this.messagesDB = getDatabases().messagesDB
   }
 
   public async checkMessageStatus() {
-    const { transactionHash } = this.message.meta
-    console.log('checkMessageStatus', transactionHash)
+    if (this.isChecking) {
+      return
+    }
 
+    const { transactionHash } = this.message.meta
     if (transactionHash == null) {
       throw new Error('no transaction hash')
     }
 
-    const {
-      stopGetReceipt,
-      getReceipt,
-    } = this.metaMaskStore.getProcessingTransactionHandler(transactionHash)
+    const { getReceipt } = this.metaMaskStore.getProcessingTransactionHandler(
+      transactionHash,
+    )
 
-    this.stopCheckMessageStatus = stopGetReceipt
+    this.isChecking = true
 
     try {
-      const receipt = await getReceipt(
+      await getReceipt(
         ENV.REQUIRED_CONFIRMATION_NUMBER,
         ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
         ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
       )
-      if (receipt == null) {
-        // stoped polling
-        return
-      }
-      console.log(receipt)
 
       await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
-      this.stopCheckMessageStatus = null
     } catch (err) {
       if ((err as Error).message.includes('Timeout')) {
+        storeLogger.warn('check message timeout')
+        // retry
         this.checkMessageStatus()
         return
       }
@@ -71,10 +67,16 @@ export class ChatMessageStore {
 
   private async updateMessageStatus(status: MESSAGE_STATUS) {
     await this.messagesDB.updateMessage(this.message, { status })
-
-    this.message.meta.status = status
-    runInAction(() => {
-      this.messageStatus = status
-    })
+    this.updateMemoryMessageStatus(status)
   }
+
+  @action
+  private updateMemoryMessageStatus(status: MESSAGE_STATUS) {
+    this._messageStatus = status
+  }
+}
+
+export interface IChatMessage {
+  session: ISession
+  message: IMessage
 }

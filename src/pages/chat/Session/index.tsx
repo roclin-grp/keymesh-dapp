@@ -49,9 +49,9 @@ class Session extends React.Component<IProps> {
               </Badge>
             )}
             title={<UserAddress address={data.contact} maxLength={11} />}
-            description={<span className={styles.summary}>{data.summary}</span>}
+            description={this.renderSummary()}
           />
-          <span>{getSessionTimestamp(meta.lastUpdate)}</span>
+          {this.renderTimestamp()}
         </List.Item>
       </a>
     )
@@ -63,6 +63,27 @@ class Session extends React.Component<IProps> {
       sessionStore,
     } = this.props
     onClick(sessionStore.session)
+  }
+
+  private renderSummary() {
+    const { summary } = this.props.sessionStore.session.data
+    if (summary === '') {
+      // empty session
+      return null
+    }
+
+    return <span className={styles.summary}>{summary}</span>
+  }
+
+  private renderTimestamp() {
+    const { session } = this.props.sessionStore
+
+    if (session.data.summary === '') {
+      // empty session
+      return null
+    }
+
+    return <span>{getSessionTimestamp(session.meta.lastUpdate)}</span>
   }
 }
 

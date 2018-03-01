@@ -18,21 +18,18 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  ChatMessagesStore,
-} from '../../../stores/ChatMessagesStore'
-import {
   SessionStore,
 } from '../../../stores/SessionStore'
 
-import {
-  noop,
-} from '../../../utils'
+import { MESSAGE_TYPE } from '../../../databases/MessagesDB'
 
 // helper
 import {
+  noop,
+} from '../../../utils'
+import {
   storeLogger,
 } from '../../../utils/loggers'
-import { MESSAGE_TYPE, createMessage } from '../../../databases/MessagesDB'
 
 @observer
 class Dialog extends React.Component<IProps, IState> {
@@ -46,6 +43,11 @@ class Dialog extends React.Component<IProps, IState> {
 
   public componentWillUnmount() {
     this.unmounted = true
+
+    if (this.props.sessionStore.session.meta.isNewSession) {
+      // is new create session, delete it
+      this.props.sessionStore.deleteSession()
+    }
   }
 
   public render() {
@@ -89,24 +91,15 @@ class Dialog extends React.Component<IProps, IState> {
       sendButtonContent: 'Processing...',
     })
 
-    const { chatMessagesStore, sessionStore } = this.props
-    const { session } = sessionStore
+    const { sessionStore } = this.props
     try {
-      const receiver = await chatMessagesStore.getMessageReceiver(session.data.contact)
-      const messageData = {
+      this.handleStartSending()
+      await sessionStore.chatContext.send({
         payload: plainText,
         timestamp: Date.now(),
         messageType: MESSAGE_TYPE.NORMAL,
-      }
-      const newMessage = createMessage(session, messageData)
+      })
 
-      this.handleStartSending()
-
-      await this.props.chatMessagesStore.sendMessage(
-        receiver,
-        session,
-        newMessage,
-      )
       this.handleMessageDidSend()
     } catch (err) {
       this.handleSendFail(err)
@@ -172,7 +165,6 @@ class Dialog extends React.Component<IProps, IState> {
 }
 
 interface IProps {
-  chatMessagesStore: ChatMessagesStore
   sessionStore: SessionStore
 }
 

@@ -47,10 +47,10 @@ export function getBroadcastTime(time: number): string {
   return `${localTimeStr} - ${day} ${monthStr} ${year}`
 }
 
-export function getSessionTimestamp(time: number): string {
+export function getSessionTimestamp(time: number): string | null {
   if (time === 0) {
     // session without any messages
-    return ''
+    return null
   }
 
   const {

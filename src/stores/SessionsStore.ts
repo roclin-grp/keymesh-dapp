@@ -1,22 +1,18 @@
-import {
-  observable,
-  action,
-  runInAction,
-  computed,
-} from 'mobx'
-import {
-  SessionStore,
-} from './SessionStore'
-import {
-  UserStore,
-} from './UserStore'
+import { observable, action, runInAction, computed } from 'mobx'
 
-import {
-  getDatabases,
-} from '../databases'
+import { MetaMaskStore } from './MetaMaskStore'
+import { ContractStore } from './ContractStore'
+import { getUserPublicKey } from './UsersStore'
+import { UserStore } from './UserStore'
+import { SessionStore } from './SessionStore'
+import { IChatMessage } from './ChatMessageStore'
+
+import { getDatabases } from '../databases'
 import {
   SessionsDB,
   ISession,
+  createSession,
+  ISessionData,
 } from '../databases/SessionsDB'
 import { IMessage, IAddMessageOptions } from '../databases/MessagesDB'
 
@@ -27,7 +23,7 @@ export class SessionsStore {
   @observable public isSwitchingSession = false
   @observable public isLoaded = false
 
-  private sessionsDB: SessionsDB
+  private readonly sessionsDB: SessionsDB
   private cachedSessionStores: {
     [sessionTag: string]: SessionStore,
   } = {}
@@ -37,14 +33,18 @@ export class SessionsStore {
     return this.currentSessionStore != null
   }
 
-  constructor(private userStore: UserStore) {
+  constructor(
+    private readonly userStore: UserStore,
+    private readonly metaMaskStore: MetaMaskStore,
+    private readonly contractStore: ContractStore,
+  ) {
     this.sessionsDB = getDatabases().sessionsDB
   }
 
   public isCurrentSession(sessionTag: string): boolean {
     return (
-      this.hasSelectedSession
-      && this.currentSessionStore!.session.sessionTag === sessionTag
+      this.hasSelectedSession &&
+      this.currentSessionStore!.session.sessionTag === sessionTag
     )
   }
 
@@ -70,22 +70,38 @@ export class SessionsStore {
     })
   }
 
-  public async saveSession(
-    session: ISession,
-    firstMessage?: IMessage,
-    addMessageOptions?: IAddMessageOptions,
-  ) {
-    await this.sessionsDB.addSession(
-      session,
-      firstMessage,
-      addMessageOptions,
-    )
+  public async tryCreateNewSession(receiverAddress: string, subject?: string) {
+    const existedSession = this.sessions.find((session) => session.data.contact === receiverAddress)
+    if (existedSession != null) {
+      // jump to exist session
+      await this.selectSession(existedSession)
+      return
+    }
 
-    this.addSession(session)
+    // TODO: should cache public keys
+    // try to get user public key
+    await getUserPublicKey(receiverAddress, this.contractStore)
+
+    const sessionData: ISessionData = {
+      contact: receiverAddress,
+      subject,
+    }
+
+    // create and select session
+    const newSession = createSession(this.userStore.user, sessionData, undefined, { isNewSession: true })
+    this.addSession(newSession)
+    this.selectSession(newSession)
   }
 
   public async deleteSession(session: ISession) {
-    await this.sessionsDB.deleteSession(session)
+    // TODO: maybe we should move these logic into db
+    const { sessionsDB } = this
+    const sessionInDB = await sessionsDB.getSession(session.sessionTag, session.userAddress)
+    if (sessionInDB == null) {
+      return
+    }
+
+    await sessionsDB.deleteSession(session)
     this.removeSession(session)
   }
 
@@ -96,12 +112,22 @@ export class SessionsStore {
       return oldStore
     }
 
-    const newStore = new SessionStore(session, this)
+    const newStore = new SessionStore(
+      session,
+      this,
+      this.userStore,
+      this.metaMaskStore,
+      this.contractStore,
+    )
     this.cachedSessionStores[sessionTag] = newStore
     return newStore
   }
 
   public clearCachedStores() {
+    for (const sessionStore of Object.values(this.cachedSessionStores)) {
+      // clear message stores
+      sessionStore.clearCachedStores()
+    }
     this.cachedSessionStores = {}
   }
 
@@ -117,7 +143,10 @@ export class SessionsStore {
 
   @action
   public sortSessions() {
-    this.sessions.sort((sessionA, sessionB) => sessionA.meta.lastUpdate > sessionB.meta.lastUpdate ? -1 : 1)
+    this.sessions.sort(
+      (sessionA, sessionB) =>
+        sessionA.meta.lastUpdate > sessionB.meta.lastUpdate ? -1 : 1,
+    )
     this.sessions = this.sessions.slice()
   }
 
@@ -137,6 +166,28 @@ export class SessionsStore {
     this.currentSessionStore = undefined
   }
 
+  public async saveMessage(
+    chatMessage: IChatMessage,
+    saveMessageOptions?: IAddMessageOptions,
+  ) {
+    const { session, message } = chatMessage
+    const oldSession = await getDatabases().sessionsDB.getSession(
+      session.sessionTag,
+      session.userAddress,
+    )
+
+    if (oldSession == null) {
+      await this.saveSession(
+        session,
+        message,
+        saveMessageOptions,
+      )
+      return
+    }
+
+    await this.getSessionStore(oldSession).saveMessage(message, saveMessageOptions)
+  }
+
   @action
   private addSession(session: ISession) {
     this.sessions = [session].concat(this.sessions)
@@ -144,9 +195,10 @@ export class SessionsStore {
 
   @action
   private removeSession(session: ISession) {
-    const remainSessions = this.sessions = this.sessions.filter(
+    const remainSessions = this.sessions.filter(
       (_session) => session.sessionTag !== _session.sessionTag,
     )
+    this.sessions = remainSessions
 
     if (this.isCurrentSession(session.sessionTag)) {
       this.unselectSession()
@@ -154,5 +206,22 @@ export class SessionsStore {
         this.selectSession(remainSessions[0])
       }
     }
+  }
+
+  private async saveSession(
+    session: ISession,
+    firstMessage?: IMessage,
+    addMessageOptions?: IAddMessageOptions,
+  ) {
+    await this.sessionsDB.addSession(session, firstMessage, addMessageOptions)
+
+    if (session.meta.isNewSession) {
+      // is a local new session
+      // we already add this session, need reload data
+      await this.getSessionStore(session).refreshMemorySession()
+      return
+    }
+
+    this.addSession(session)
   }
 }

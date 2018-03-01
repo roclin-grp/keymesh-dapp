@@ -14,7 +14,6 @@ import {
 } from '../stores/MetaMaskStore'
 import {
   IUser,
-  IContact,
   USER_STATUS,
 } from '../stores/UserStore'
 
@@ -48,7 +47,6 @@ export class UsersDB {
       status: USER_STATUS.PENDING,
       blockHash: '0x0',
       lastFetchBlockOfChatMessages: 0,
-      contacts: [],
     }
     const newUser: IUser = {
       ...defaultData,
@@ -108,32 +106,6 @@ export class UsersDB {
       .then(() => users.get([networkId, userAddress])) as Dexie.Promise<IUser>
   }
 
-  public addContact(user: IUser, contact: IContact) {
-    if (user.contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
-      return Dexie.Promise.resolve(1)
-    }
-
-    return this.updateUser(
-      user,
-      {
-        contacts: user.contacts.concat(contact),
-      },
-    )
-  }
-
-  public deleteContact(user: IUser, contact: IContact) {
-    if (!user.contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
-      return Dexie.Promise.resolve(1)
-    }
-
-    return this.updateUser(
-      user,
-      {
-        contacts: user.contacts.filter((_contact) => _contact.userAddress !== contact.userAddress),
-      },
-    )
-  }
-
   public deleteUser(user: IUser) {
     const {
       users,
@@ -181,5 +153,4 @@ export interface IUpdateUserOptions {
   status?: USER_STATUS
   blockHash?: string
   lastFetchBlockOfChatMessages?: number
-  contacts?: IContact[]
 }

@@ -326,10 +326,7 @@ class Header extends React.Component<IProps, IState> {
       isExporting: true,
     })
     try {
-      const {
-        exportUser,
-      } = this.injectedProps.usersStore.currentUserStore!
-      await exportUser()
+      await this.injectedProps.usersStore.currentUserStore!.exportUser()
     } catch (err) {
       storeLogger.error('Unexpected export user error:', err)
       if (!this.isUnmounted) {

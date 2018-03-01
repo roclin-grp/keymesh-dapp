@@ -97,6 +97,10 @@ export class SessionsDB {
     firstMessage?: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
+    // isNewSession is used to distinguish local new create session,
+    // we don't save it to database
+    session.meta.isNewSession = undefined
+
     const {
       sessions,
     } = this.dexieDB
@@ -185,13 +189,14 @@ export function createSession(
     networkId: user.networkId,
   }
   const defaultData: ISessionDefaultData = {
+    summary: '',
   }
   const data = {
     ...defaultData,
     ...sessionData,
   }
   const defaultMeta: ISessionDefaultMeta = {
-    lastUpdate: 0,
+    lastUpdate: Date.now(),
     unreadCount: 0,
     isClosed: false,
   }
@@ -228,9 +233,11 @@ export interface ISessionData {
 }
 
 export interface ISessionDefaultData {
+  summary: string
 }
 
 export interface ISessionConfigurableMeta {
+  isNewSession?: boolean
 }
 
 export interface ISessionDefaultMeta {

@@ -6,39 +6,31 @@ import {
   Input,
   Icon,
   message,
+  Button,
 } from 'antd'
 const FormItem = Form.Item
 import {
   FormComponentProps,
 } from 'antd/lib/form'
-import DialogTextArea from '../DialogTextArea'
 
 // style
 import * as styles from './index.css'
 
 // state management
-import {
-  ChatMessagesStore,
-} from '../../../stores/ChatMessagesStore'
+import { IUser } from '../../../stores/UserStore'
+import { SessionsStore } from '../../../stores/SessionsStore'
 
 // helper
-import {
-  storeLogger,
-} from '../../../utils/loggers'
 import { isAddress } from '../../../utils/cryptos'
-import { MESSAGE_TYPE, createMessage } from '../../../databases/MessagesDB'
-import { createSession } from '../../../databases/SessionsDB'
-import { IUser } from '../../../stores/UserStore'
+import { storeLogger } from '../../../utils/loggers'
 
 // TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
-  public readonly state: Readonly<IState> = Object.freeze({
-    isSending: false,
-    sendButtonContent: 'Send',
-  })
+  public readonly state: Readonly<IState> = {
+    isProcessing: false,
+  }
 
   private unmounted = false
-
   private userAddressInput: Input | null = null
 
   public componentWillUnmount() {
@@ -46,8 +38,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { getFieldDecorator, getFieldValue } = this.props.form
-    const userAddress = getFieldValue('userAddress')
+    const { getFieldDecorator } = this.props.form
     return (
       <div className={styles.dialog}>
         <Form>
@@ -62,35 +53,42 @@ class NewConversationDialog extends React.Component<IProps, IState> {
             })(
               <Input
                 autoFocus={true}
-                disabled={this.state.isSending}
+                disabled={this.state.isProcessing}
                 spellCheck={false}
                 placeholder="Receiver Address"
                 prefix={<Icon type="user" className={styles.prefixIcon} />}
-                suffix={
-                  userAddress != null
-                  && userAddress !== ''
-                  && !this.state.isSending
-                    // FIXME: wrap icon to a clickable element
-                    ? <Icon type="close-circle" onClick={this.resetUserAddress} />
-                    : null
-                }
+                suffix={this.renderResetUserAddress()}
                 ref={(node) => this.userAddressInput = node}
               />,
             )}
           </FormItem>
         </Form>
-        <DialogTextArea
-          className={styles.dialogInputContainer}
-          isSending={this.state.isSending}
-          buttonContent={this.state.sendButtonContent}
-          onSubmit={this.handleSubmit}
-        />
+        <Button disabled={this.state.isProcessing} onClick={this.handleCreate}>
+          {
+            this.state.isProcessing
+              ? 'Checking...'
+              : 'Create new conversation'
+          }
+        </Button>
       </div>
     )
   }
 
-  private handleSubmit = (plainText: string) => {
-    if (this.state.isSending) {
+  private renderResetUserAddress() {
+    const userAddress = this.props.form.getFieldValue('userAddress')
+    if (userAddress == null || userAddress === '' || this.state.isProcessing) {
+      return null
+    }
+
+    return (
+      <a onClick={this.resetUserAddress}>
+        <Icon type="close-circle" onClick={this.resetUserAddress} />
+      </a>
+    )
+  }
+
+  private handleCreate = () => {
+    if (this.state.isProcessing) {
       return
     }
 
@@ -101,76 +99,32 @@ class NewConversationDialog extends React.Component<IProps, IState> {
         this.resetUserAddress()
         return
       }
+      const { sessionsStore } = this.props
 
       this.setState({
-        isSending: true,
-        sendButtonContent: 'Processing...',
+        isProcessing: true,
       })
 
-      const { chatMessagesStore, user } = this.props
       try {
-        const receiver = await chatMessagesStore.getMessageReceiver(userAddress)
-
-        const sessionData = {
-          contact: userAddress,
-        }
-        const newSession = createSession(user, sessionData)
-
-        const messageData = {
-          payload: plainText,
-          timestamp: Date.now(),
-          messageType: MESSAGE_TYPE.HELLO,
-        }
-        const newMessage = createMessage(newSession, messageData)
-
-        this.handleStartSending()
-
-        await this.props.chatMessagesStore.sendMessage(
-          receiver,
-          newSession,
-          newMessage,
-        )
-        this.handleMessageDidSend()
+        await sessionsStore.tryCreateNewSession(userAddress)
       } catch (err) {
-        this.handSendFail(err)
+        this.handCreateFail(err)
       }
     })
   }
 
-  private handleStartSending = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Please confirm the transaction...',
-      })
-    }
-  }
-
-  private handleMessageDidSend = () => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-    }
-  }
-
-  private handSendFail = (err: Error) => {
+  private handCreateFail(err: Error) {
     if (this.unmounted) {
       return
     }
 
     this.setState({
-      isSending: false,
-      sendButtonContent: 'Send',
+      isProcessing: false,
     })
 
-    if (err.message.includes('User denied transaction signature')) {
-      message.error('Fail to send, you reject the transaction.')
-      return
-    }
-
-    storeLogger.error('Unexpected register error:', err)
-    message.error('Fail to send, please retry.')
+    // TODO: show error detail
+    storeLogger.error(err)
+    message.error('Create session fail, please retry')
   }
 
   private validUserAddress = (
@@ -205,12 +159,11 @@ class NewConversationDialog extends React.Component<IProps, IState> {
 
 interface IProps extends FormComponentProps {
   user: IUser
-  chatMessagesStore: ChatMessagesStore
+  sessionsStore: SessionsStore
 }
 
 interface IState {
-  isSending: boolean
-  sendButtonContent: React.ReactNode
+  isProcessing: boolean
 }
 
 interface IFormData {

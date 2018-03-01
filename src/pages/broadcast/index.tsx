@@ -66,7 +66,6 @@ class Broadcast extends React.Component<IProps> {
           />
           <BroadcastForm
             broadcastMessagesStore={this.props.broadcastMessagesStore}
-            disabled={!this.props.usersStore.currentUserStore!.isCryptoboxReady}
           />
         </div>
         <Divider/>

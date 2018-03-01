@@ -38,22 +38,20 @@ class Message extends React.Component<IProps> {
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
   private unmounted = false
 
-  public componentDidMount() {
+  public async componentDidMount() {
     const {
       chatMessageStore,
     } = this.injectedProps
     if (chatMessageStore.messageStatus === MESSAGE_STATUS.DELIVERING) {
-      chatMessageStore.checkMessageStatus().catch(this.checkingDidFail)
+      try {
+        await chatMessageStore.checkMessageStatus()
+      } catch (err) {
+        this.checkingDidFail(err)
+      }
     }
   }
 
   public componentWillUnmount() {
-    const {
-      chatMessageStore,
-    } = this.injectedProps
-    if (chatMessageStore.stopCheckMessageStatus != null) {
-      chatMessageStore.stopCheckMessageStatus()
-    }
     this.unmounted = true
   }
 
@@ -166,7 +164,8 @@ function mapStoreToProps(
   props: IProps,
 ): IInjectedProps {
   return {
-    chatMessageStore: usersStore.currentUserStore!.chatMessagesStore.getMessageStore(
+    // FIXME: pass sessionStore to this component
+    chatMessageStore: usersStore.currentUserStore!.sessionsStore.currentSessionStore!.getMessageStore(
       props.message,
     ),
     metaMaskStore,

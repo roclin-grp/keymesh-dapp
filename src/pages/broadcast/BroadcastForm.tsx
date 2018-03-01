@@ -9,7 +9,7 @@ const { TextArea } = Input
 
 interface IProps {
   broadcastMessagesStore: BroadcastMessagesStore
-  disabled: boolean
+  disabled?: boolean
 }
 
 interface IState {

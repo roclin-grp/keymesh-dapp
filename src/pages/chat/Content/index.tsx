@@ -25,35 +25,10 @@ import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class ChatContent extends React.Component<IProps> {
-  public componentDidMount() {
-    this.userStoreDidLoad(this.props.userStore)
-  }
-
-  public componentWillUnmount() {
-    this.userStoreWillunload(this.props.userStore)
-    this.props.userStore.sessionsStore.clearCachedStores()
-    this.props.userStore.chatMessagesStore.clearCachedStores()
-  }
-
-  public componentWillUpdate({userStore: nextUserStore}: IProps) {
-    const currentUserStore = this.props.userStore
-    if (nextUserStore !== currentUserStore) {
-      this.userStoreWillunload(currentUserStore)
-    }
-  }
-
-  public componentDidUpdate({userStore: prevUserStore}: IProps) {
-    const currentUserStore = this.props.userStore
-    if (prevUserStore !== currentUserStore) {
-      this.userStoreDidLoad(currentUserStore)
-    }
-  }
-
   public render() {
     const {
       user,
       sessionsStore,
-      chatMessagesStore,
     } = this.props.userStore
 
     return (
@@ -88,8 +63,8 @@ class ChatContent extends React.Component<IProps> {
         </div>
         {
           sessionsStore.hasSelectedSession
-            ? <Dialog chatMessagesStore={chatMessagesStore!} sessionStore={sessionsStore.currentSessionStore!} />
-            : <NewConversationDialog chatMessagesStore={chatMessagesStore!} user={user} />
+            ? <Dialog sessionStore={sessionsStore.currentSessionStore!} />
+            : <NewConversationDialog sessionsStore={sessionsStore} user={user} />
         }
       </div>
     )
@@ -110,17 +85,6 @@ class ChatContent extends React.Component<IProps> {
 
   private handleNewConversationClick = () => {
     this.props.userStore.sessionsStore.unselectSession()
-  }
-
-  private userStoreDidLoad = (userStore: UserStore) => {
-    userStore.chatMessagesStore.startFetchChatMessages()
-    if (!userStore.sessionsStore.isLoaded) {
-      userStore.sessionsStore.loadSessions()
-    }
-  }
-
-  private userStoreWillunload = (userStore: UserStore) => {
-    userStore.chatMessagesStore.stopFetchChatMessages()
   }
 }
 
