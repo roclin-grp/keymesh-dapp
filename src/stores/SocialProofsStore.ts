@@ -36,7 +36,7 @@ export class SocialProofsStore {
     this.userCachesStore = userCachesStore
   }
 
-  public proof = async (
+  public uploadProof = async (
     platformName: PLATFORMS,
     socialProof: ISocialProof,
     {
@@ -51,7 +51,7 @@ export class SocialProofsStore {
     const signedProofHex = utf8ToHex(JSON.stringify(signedProof))
 
     transactionWillCreate()
-    this.contractStore.socialProofsContract.proof(
+    this.contractStore.socialProofsContract.uploadProof(
       this.userStore.user.userAddress,
       utf8ToHex(platformName),
       signedProofHex,

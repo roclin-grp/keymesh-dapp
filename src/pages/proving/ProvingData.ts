@@ -103,7 +103,7 @@ export default abstract class ProvingData {
   }
 
   private async uploadBindingProof(proof: ISocialProof): Promise<void> {
-    this.usersStore.currentUserStore!.SocialProofsStore.proof(this.platform, proof, {
+    this.usersStore.currentUserStore!.SocialProofsStore.uploadProof(this.platform, proof, {
       transactionWillCreate: () => {
         this.setCheckProofButton('Please confirm the transaction...')
         this.setStep(2)
