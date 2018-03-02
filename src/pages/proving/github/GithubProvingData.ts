@@ -6,7 +6,7 @@ import { GithubResource, IGist } from '../../../resources/github'
 import {
   PLATFORMS,
   GITHUB_GIST_FILENAME,
-} from '../../../stores/BoundSocialsStore'
+} from '../../../stores/SocialProofsStore'
 
 export class GithubProvingData extends ProvingData {
   protected defaultCheckingErrorContent =

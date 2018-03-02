@@ -2,7 +2,7 @@ import { action } from 'mobx'
 
 import ProvingData from '../ProvingData'
 import { FacebookResource, IPost } from '../../../resources/facebook'
-import { PLATFORMS } from '../../../stores/BoundSocialsStore'
+import { PLATFORMS } from '../../../stores/SocialProofsStore'
 
 export class FacebookProvingData extends ProvingData {
   public platform = PLATFORMS.FACEBOOK

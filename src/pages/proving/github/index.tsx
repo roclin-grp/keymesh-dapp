@@ -7,7 +7,7 @@ import ProvingTextarea from '../ProvingTextarea'
 import {
   Link,
 } from 'react-router-dom'
-import { GITHUB_GIST_FILENAME, signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
+import { GITHUB_GIST_FILENAME, signedClaimToClaimText } from '../../../stores/SocialProofsStore'
 
 import { Icon, Button, Input } from 'antd'
 import * as styles from './index.css'

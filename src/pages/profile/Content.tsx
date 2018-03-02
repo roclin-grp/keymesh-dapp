@@ -12,7 +12,7 @@ import classnames from 'classnames'
 
 import { observer } from 'mobx-react'
 import { UserProofsStateStore } from '../../stores/UserProofsStateStore'
-import { PLATFORMS, PLATFORM_LABELS } from '../../stores/BoundSocialsStore'
+import { PLATFORM_LABELS, forablePlatforms } from '../../stores/SocialProofsStore'
 
 @observer
 class ProfileContent extends React.Component<IProps> {
@@ -54,12 +54,11 @@ class ProfileContent extends React.Component<IProps> {
   }
 
   private renderVerifications() {
-    const { isLoadingProofs } = this.props.proofsStateStore
+    const { isFirstLoadingProofs } = this.props.proofsStateStore
 
-    if (isLoadingProofs) {
+    if (isFirstLoadingProofs) {
       return <p className={classes.verifications}>Loading verifications...</p>
     }
-
     const verificationItems = this.renderVerificationItems()
 
     if (verificationItems.length === 0) {
@@ -77,24 +76,23 @@ class ProfileContent extends React.Component<IProps> {
     const { isSelf } = this.props
     const { proofsStateStore } = this.props
     const {
-      userBoundSocials,
-      verifyStatuses,
+      verifications,
       isVerifying,
     } = proofsStateStore
 
     const verificationItems: JSX.Element[] = []
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      const boundSocial = userBoundSocials[platform]
-      if (boundSocial) {
+    for (const platform of forablePlatforms) {
+      const verification = verifications[platform]
+      if (verification && verification.socialProof) {
         verificationItems.push((
           <VerifiedItem
             key={platform}
             platform={platform}
             isSelf={isSelf}
             isVerifying={isVerifying[platform]}
-            boundSocial={boundSocial}
-            verifyStatus={verifyStatuses[platform]}
-            verify={() => proofsStateStore.verify(platform, boundSocial.proofURL)}
+            socialProof={verification.socialProof}
+            verifiedStatus={verification.verifiedStatus}
+            verify={() => proofsStateStore.verify(platform, verification.socialProof!.proofURL)}
           />
         ))
       } else if (isSelf) {

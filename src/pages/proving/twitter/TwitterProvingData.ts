@@ -5,7 +5,7 @@ import {
 import ProvingData from '../ProvingData'
 
 import { ITweet, TwitterResource } from '../../../resources/twitter'
-import { PLATFORMS } from '../../../stores/BoundSocialsStore'
+import { PLATFORMS } from '../../../stores/SocialProofsStore'
 import ENV from '../../../config'
 
 export class TwitterProvingData extends ProvingData {

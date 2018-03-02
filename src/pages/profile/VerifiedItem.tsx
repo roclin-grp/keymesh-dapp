@@ -10,11 +10,11 @@ import classnames from 'classnames'
 import { observer } from 'mobx-react'
 import {
   PLATFORMS,
-  IBoundSocial,
-  VERIFY_SOCIAL_STATUS,
-  IVerifyStatus,
+  VERIFIED_SOCIAL_STATUS,
   PALTFORM_MODIFIER_CLASSES,
-} from '../../stores/BoundSocialsStore'
+  ISocialProof,
+  IVerifiedStatus,
+} from '../../stores/SocialProofsStore'
 
 @observer
 class VerifiedItem extends React.Component<IProps> {
@@ -41,9 +41,9 @@ class VerifiedItem extends React.Component<IProps> {
     const {
       isSelf,
       platform,
-      boundSocial: {
-        proofURL,
+      socialProof: {
         username,
+        proofURL,
       },
     } = this.props
 
@@ -73,12 +73,15 @@ class VerifiedItem extends React.Component<IProps> {
   }
 
   private getCurrentStatus(): STATUS {
-    const { verifyStatus, isVerifying } = this.props
-    if (isVerifying) {
+    const {
+      isVerifying,
+      verifiedStatus,
+  } = this.props
+    if (isVerifying || !verifiedStatus) {
       return STATUS.CHECKING
     }
 
-    return verifyStatus.status === VERIFY_SOCIAL_STATUS.VALID ? STATUS.VALID : STATUS.INVALID
+    return verifiedStatus.status === VERIFIED_SOCIAL_STATUS.VALID ? STATUS.VALID : STATUS.INVALID
   }
 }
 
@@ -102,10 +105,10 @@ const STATUS_MODIFIER = {
 
 interface IProps {
   platform: PLATFORMS
-  boundSocial: IBoundSocial
+  socialProof: ISocialProof
+  verifiedStatus?: IVerifiedStatus
   isSelf: boolean
   isVerifying: boolean
-  verifyStatus: IVerifyStatus
   verify: () => Promise<void>
 }
 

@@ -10,11 +10,10 @@ import { UsersStore } from '../../stores/UsersStore'
 import {
   PLATFORMS,
   UPLOADING_FAIL_CODE,
-  IBindingSocial,
   ISignedClaim,
-  BINDING_SOCIAL_STATUS,
   signedClaimToClaimText,
-} from '../../stores/BoundSocialsStore'
+  ISocialProof,
+} from '../../stores/SocialProofsStore'
 import { Modal } from 'antd'
 
 import { storeLogger } from '../../utils/loggers'
@@ -55,7 +54,7 @@ export default abstract class ProvingData {
       return
     }
 
-    this.uploadBindingProof(bindingSocial)
+    this.uploadBindingProof(bindingSocial.socialProof)
   }
 
   @action
@@ -80,7 +79,7 @@ export default abstract class ProvingData {
   protected abstract init(): void
   protected abstract getProofURL(claimText: string): Promise<string | null>
 
-  private async getBindingSocial(): Promise<IBindingSocial | null> {
+  private async getBindingSocial(): Promise<IBindingProof | null> {
     const signedClaim = this.claim
     if (signedClaim == null) {
       return null
@@ -93,16 +92,18 @@ export default abstract class ProvingData {
     }
 
     return {
-      status: BINDING_SOCIAL_STATUS.CHECKED,
+      status: IBINDING_STATUS.CHECKED,
       signedClaim,
-      proofURL,
-      username: this.username,
       platform: this.platform,
+      socialProof: {
+        proofURL,
+        username: this.username,
+      },
     }
   }
 
-  private async uploadBindingProof(social: IBindingSocial): Promise<void> {
-    this.usersStore.currentUserStore!.boundSocialsStore.uploadBindingSocial(social, {
+  private async uploadBindingProof(proof: ISocialProof): Promise<void> {
+    this.usersStore.currentUserStore!.SocialProofsStore.proof(this.platform, proof, {
       transactionWillCreate: () => {
         this.setCheckProofButton('Please confirm the transaction...')
         this.setStep(2)
@@ -160,4 +161,17 @@ export default abstract class ProvingData {
   private setStep(step: number) {
     this.currentStep = step
   }
+}
+
+enum IBINDING_STATUS {
+  CHECKED = 100,
+  TRANSACTION_CREATED = 200,
+  CONFIRMED = 300,
+}
+
+interface IBindingProof {
+  signedClaim: ISignedClaim
+  status: IBINDING_STATUS
+  platform: PLATFORMS
+  socialProof: ISocialProof
 }

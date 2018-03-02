@@ -12,7 +12,7 @@ import {
   Link,
 } from 'react-router-dom'
 import ENV from '../../../config'
-import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
+import { signedClaimToClaimText } from '../../../stores/SocialProofsStore'
 
 interface IProps {
   data: FacebookProvingData

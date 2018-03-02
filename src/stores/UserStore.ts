@@ -71,8 +71,8 @@ import {
 } from '../PreKeysPackage'
 
 import {
-  BoundSocialsStore,
-} from './BoundSocialsStore'
+  SocialProofsStore,
+} from './SocialProofsStore'
 
 import ENV from '../config'
 
@@ -86,7 +86,7 @@ export class UserStore {
   @observable public isCryptoboxReady = false
 
   public sessionsStore: SessionsStore
-  public boundSocialsStore: BoundSocialsStore
+  public SocialProofsStore: SocialProofsStore
   public chatMessagesStore: ChatMessagesStore
 
   private userRef: IUser
@@ -124,7 +124,7 @@ export class UserStore {
     this.sessionsStore = new SessionsStore({
       userStore: this,
     })
-    this.boundSocialsStore = new BoundSocialsStore({
+    this.SocialProofsStore = new SocialProofsStore({
       userStore: this,
       contractStore: this.contractStore,
       userCachesStore: this.usersStore.userCachesStore,

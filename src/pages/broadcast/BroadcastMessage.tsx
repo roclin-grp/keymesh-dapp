@@ -23,10 +23,10 @@ import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
 import {
-  PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
+  VERIFIED_SOCIAL_STATUS,
   PALTFORM_MODIFIER_CLASSES,
-} from '../../stores/BoundSocialsStore'
+  forablePlatforms,
+} from '../../stores/SocialProofsStore'
 
 interface IProps {
   message: IBroadcastMessage
@@ -117,15 +117,15 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private getUsername() {
-    const {
-      userBoundSocials,
-      verifyStatuses,
-    } = this.props.userProofsStateStore
+    const { verifications } = this.props.userProofsStateStore
 
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      const boundSocial = userBoundSocials[platform]
-      if (boundSocial && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID) {
-        return boundSocial.username
+    for (const platform of forablePlatforms) {
+      const verification = verifications[platform]
+      if (
+        verification && verification.verifiedStatus &&
+        verification.verifiedStatus.status === VERIFIED_SOCIAL_STATUS.VALID
+      ) {
+        return verification.socialProof!.username
       }
     }
 
@@ -142,13 +142,16 @@ export default class BroadcastMessage extends React.Component<IProps> {
 
   private renderPlatformIcons() {
     const {
-      userBoundSocials,
-      verifyStatuses,
+      verifications,
     } = this.props.userProofsStateStore
 
     const platformIcons: JSX.Element[] = []
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      if (userBoundSocials[platform] == null || verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.INVALID) {
+    for (const platform of forablePlatforms) {
+      const verification = verifications[platform]
+      if (!verification
+        || !verification.verifiedStatus
+        || verification.verifiedStatus.status  === VERIFIED_SOCIAL_STATUS.INVALID
+      ) {
         continue
       }
 
