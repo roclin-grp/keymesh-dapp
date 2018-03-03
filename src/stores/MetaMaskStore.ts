@@ -90,19 +90,25 @@ export class MetaMaskStore {
    * Update MetaMask status at regular intervals
    */
   private async startStatusPoll() {
+    let i = 0
+    let networkID = await this.getMetaMaskNetID()
+
     while (true) {
-      this.updateStatus()
+      // Check the network once every 3 seconds
+      if (i % 10 === 0) {
+        networkID = await this.getMetaMaskNetID()
+      }
+
+      const account = await this.getMetaMaskAccount()
+      await this.updateStatus(networkID, account)
+
+      i++
       await sleep(300)
     }
   }
 
   @action
-  private async updateStatus() {
-    const {
-      networkID,
-      account,
-    } = await this.getMetamaskInfo()
-
+  private async updateStatus(networkID: ETHEREUM_NETWORKS, account: string | null) {
     if (this.currentEthereumAccount === account && this.currentEthereumNetwork === networkID) {
       // nothing changed
       return
@@ -133,18 +139,16 @@ export class MetaMaskStore {
     })
   }
 
-  private async getMetamaskInfo() {
-    const networkID: ETHEREUM_NETWORKS = await this.web3.eth.net.getId()
-
-    // MetaMask would always return just one account, or empty array if locked.
+  private async getMetaMaskAccount(): Promise<string | null> {
     const accounts = await this.web3.eth.getAccounts()
-    const account = accounts[0]
-
-    return {
-      networkID,
-      account,
-    }
+    return accounts[0]
   }
+
+  private async getMetaMaskNetID(): Promise<ETHEREUM_NETWORKS> {
+    const networkID: ETHEREUM_NETWORKS = await this.web3.eth.net.getId()
+    return networkID
+  }
+
 }
 
 export enum METAMASK_CONNECT_STATUS {
