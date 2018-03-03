@@ -21,6 +21,7 @@ import UserAddress from '../../components/UserAddress'
 // style
 import classnames from 'classnames'
 import * as styles from './index.css'
+import logo from './logo.png'
 
 // state management
 import {
@@ -85,7 +86,11 @@ class Header extends React.Component<IProps, IState> {
               className={styles.logoText}
               to="/"
             >
-              Keymesh
+              <img
+                src={logo}
+                alt="Keymesh"
+                className={styles.logoImage}
+              />
             </Link>
           </h1>
           <Menu

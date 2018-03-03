@@ -38,6 +38,10 @@
   margin: 0;
 }
 
+.logoImage {
+  height: 2rem;
+}
+
 .logoText {
   color: black;
   text-decoration: none;
