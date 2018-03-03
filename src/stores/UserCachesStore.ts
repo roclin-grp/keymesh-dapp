@@ -1,7 +1,7 @@
 import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
-import { IVerifiedStatus, ISocialProof, PLATFORMS } from './SocialProofsStore'
+import { IVerifiedStatus, ISocialProof, PLATFORMS, forablePlatforms } from './SocialProofsStore'
 import { sha3 } from '../utils/cryptos'
 
 export class UserCachesStore {
@@ -28,7 +28,7 @@ export class UserCachesStore {
       return user.verifications
     }
 
-    return {}
+    return getNewVerifications()
   }
 
   public async setVerifications(userAddress: string, verifications: IUserCachesVerifications) {
@@ -87,6 +87,14 @@ export class UserCachesStore {
   }
 }
 
+export function getNewVerifications() {
+  const verifications = {}
+  for (const platform of forablePlatforms) {
+    verifications[platform] = {}
+  }
+  return verifications as IUserCachesVerifications
+}
+
 export interface IUserCachesIdentity {
   blockHash: string
   publicKey: string
@@ -100,7 +108,7 @@ export interface IUserCachesVerification {
 }
 
 export type IUserCachesVerifications = {
-  [platformName in PLATFORMS]?: IUserCachesVerification
+  [platformName in PLATFORMS]: IUserCachesVerification
 }
 
 export interface IUserCaches {

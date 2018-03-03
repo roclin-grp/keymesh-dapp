@@ -13,9 +13,16 @@ import {
   claimTextToSignedClaim,
   ISignedSocialProof,
   forablePlatforms,
+  ISocialProof,
+  IVerifiedStatus,
 } from './SocialProofsStore'
 import { ContractStore } from './ContractStore'
-import { UserCachesStore, IUserCachesVerifications, IUserCachesVerification } from './UserCachesStore'
+import {
+  UserCachesStore,
+  IUserCachesVerifications,
+  IUserCachesVerification,
+  getNewVerifications,
+} from './UserCachesStore'
 import { UserProofsStatesStore } from './UserProofsStatesStore'
 import { FacebookResource } from '../resources/facebook'
 import { twitterResource } from '../resources/twitter'
@@ -27,7 +34,7 @@ import { hexToUtf8, uint8ArrayFromHex, utf8ToHex } from '../utils/hex'
 import { isBeforeOneDay } from '../utils/time'
 
 export class UserProofsStateStore {
-  @observable.deep public verifications: IUserCachesVerifications = {}
+  @observable public verifications: IUserCachesVerifications = getNewVerifications()
   @observable public isVerifying = {
     [PLATFORMS.TWITTER]: false,
     [PLATFORMS.GITHUB]: false,
@@ -52,6 +59,20 @@ export class UserProofsStateStore {
     this.userCachesStore = this.usersStore.userCachesStore
     this.userProofsStatesStore = this.usersStore.userProofsStatesStore
     this.init()
+  }
+
+  public getValidProofs = () => {
+    const validProofs: ISocialProofWithPlatform[] = []
+    for (const platform of forablePlatforms) {
+      const verification = this.verifications[platform]
+      if (!verification.verifiedStatus) {
+        continue
+      }
+      if (verification.verifiedStatus.status === VERIFIED_SOCIAL_STATUS.VALID) {
+        validProofs.push({platform, socialProofs: verification.socialProof!})
+      }
+    }
+    return validProofs
   }
 
   @computed
@@ -164,11 +185,7 @@ export class UserProofsStateStore {
         continue
       }
 
-      if (
-        !this.verifications[platformName]
-        || !this.verifications[platformName]!.socialProof
-        || !isEquivalent(signedSocialProof.socialProof, this.verifications[platformName]!.socialProof!)
-      ) {
+      if ( this.isNewVerification(platformName, signedSocialProof.socialProof)) {
         this.updateVerification(platformName, {socialProof: signedSocialProof.socialProof})
 
         this.verify(platformName, signedSocialProof.socialProof.proofURL)
@@ -177,6 +194,14 @@ export class UserProofsStateStore {
     }
     this.updateVerification(platformName, {lastFetchBlock: lastBlock})
     this.saveVerificationsToDB()
+  }
+  private isNewVerification(platform: PLATFORMS, newSocialProof: ISocialProof) {
+    const verification = this.verifications[platform]
+    if (! verification.socialProof) {
+      return true
+    }
+
+    return !isEquivalent(newSocialProof, verification.socialProof)
   }
 
   @action
@@ -214,11 +239,7 @@ export class UserProofsStateStore {
   private async verifyAll() {
     for (const platform of forablePlatforms) {
       const verification = this.verifications[platform]
-      if (verification
-        && verification.socialProof
-        && (!verification.verifiedStatus
-          || (isBeforeOneDay(verification.verifiedStatus.lastVerifiedAt))
-        )) {
+      if (verification.socialProof && isNeedVerify(verification.verifiedStatus)) {
         this.verify(platform, verification.socialProof.proofURL)
       }
     }
@@ -245,4 +266,13 @@ const getClaimTextFunctions = {
 
 function isEquivalent(a: object, b: object): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function isNeedVerify(verifiedStatus?: IVerifiedStatus): boolean {
+    return ! verifiedStatus || isBeforeOneDay(verifiedStatus.lastVerifiedAt)
+}
+
+interface ISocialProofWithPlatform {
+  platform: PLATFORMS
+  socialProofs: ISocialProof
 }

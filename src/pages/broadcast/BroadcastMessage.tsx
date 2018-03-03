@@ -23,9 +23,7 @@ import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
 import {
-  VERIFIED_SOCIAL_STATUS,
   PALTFORM_MODIFIER_CLASSES,
-  forablePlatforms,
 } from '../../stores/SocialProofsStore'
 
 interface IProps {
@@ -117,16 +115,11 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private getUsername() {
-    const { verifications } = this.props.userProofsStateStore
+    const { getValidProofs } = this.props.userProofsStateStore
 
-    for (const platform of forablePlatforms) {
-      const verification = verifications[platform]
-      if (
-        verification && verification.verifiedStatus &&
-        verification.verifiedStatus.status === VERIFIED_SOCIAL_STATUS.VALID
-      ) {
-        return verification.socialProof!.username
-      }
+    const validProofs = getValidProofs()
+    for (const validProof of validProofs) {
+        return validProof.socialProofs.username
     }
 
     return null
@@ -141,20 +134,12 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private renderPlatformIcons() {
-    const {
-      verifications,
-    } = this.props.userProofsStateStore
+    const { getValidProofs } = this.props.userProofsStateStore
+    const validProofs = getValidProofs()
 
     const platformIcons: JSX.Element[] = []
-    for (const platform of forablePlatforms) {
-      const verification = verifications[platform]
-      if (!verification
-        || !verification.verifiedStatus
-        || verification.verifiedStatus.status  === VERIFIED_SOCIAL_STATUS.INVALID
-      ) {
-        continue
-      }
-
+    for (const validProof of validProofs) {
+      const platform = validProof.platform
       platformIcons.push((
         <Icon
           key={platform}
