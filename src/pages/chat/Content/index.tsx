@@ -25,6 +25,10 @@ import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class ChatContent extends React.Component<IProps> {
+  public componentWillUnmount() {
+    // clear sessions and message caches
+    this.props.userStore.sessionsStore.disposeStore()
+  }
   public render() {
     const {
       user,
@@ -58,7 +62,7 @@ class ChatContent extends React.Component<IProps> {
             )}
             // Here is a hack, since antd does not provide renderEmpty prop
             // you can actually put any JSX.Element into emptyText
-            locale={{emptyText: <>No session</>}}
+            locale={{emptyText: <>No conversations</>}}
           />
         </div>
         {
@@ -74,10 +78,7 @@ class ChatContent extends React.Component<IProps> {
     const {
       sessionsStore,
     } = this.props.userStore
-    if (
-      !sessionsStore.isSwitchingSession
-      && !sessionsStore.isCurrentSession(session.sessionTag)
-    ) {
+    if (!sessionsStore.isCurrentSession(session.sessionTag)) {
       // TODO: catch and warn if session data could load
       await sessionsStore.selectSession(session)
     }

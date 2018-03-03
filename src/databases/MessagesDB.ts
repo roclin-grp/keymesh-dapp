@@ -167,8 +167,8 @@ export class MessagesDB {
     return this.dexieDB.messages.clear()
   }
 
-  private async updateSessionByMessageData(session: ISession, message?: IMessage, shouldAddUnread = false) {
-    if (message == null) {
+  private async updateSessionByMessageData(session: ISession, latestMessage?: IMessage, shouldAddUnread = false) {
+    if (latestMessage == null) {
       await this.dataBases.sessionsDB.updateSession(
         session,
         {
@@ -180,8 +180,8 @@ export class MessagesDB {
       return
     }
 
-    const isClosed = message.data.messageType === MESSAGE_TYPE.CLOSE_SESSION
-    const { payload } = message.data
+    const isClosed = latestMessage.data.messageType === MESSAGE_TYPE.CLOSE_SESSION
+    const { payload } = latestMessage.data
     const summary = isClosed
       ? '[Session Closed]'
       : `${payload.slice(0, SUMMARY_LENGTH)}${(payload.length > SUMMARY_LENGTH ? '...' : '')}`
@@ -189,7 +189,7 @@ export class MessagesDB {
     await this.dataBases.sessionsDB.updateSession(
       session,
       {
-        lastUpdate: message.data.timestamp,
+        lastUpdate: latestMessage.data.timestamp,
         summary,
         isClosed,
         unreadCount: shouldAddUnread ? session.meta.unreadCount + 1 : session.meta.unreadCount,

@@ -7,6 +7,7 @@ import {
   computed,
   Lambda,
   IValueDidChange,
+  IReactionDisposer,
 } from 'mobx'
 
 import ChatContext from './ChatContext'
@@ -31,14 +32,25 @@ export class SessionStore {
   public readonly chatContext: ChatContext
 
   private readonly sessionRef: ISession
+  private readonly disposeUpdateSessionReaction: IReactionDisposer
+  private readonly cachedChatMessageStores: { [messageID: string]: ChatMessageStore } = {}
 
-  private cachedMessageStores: { [messageID: string]: ChatMessageStore } = {}
   private isClearing = false
   private shouldAddUnread = true
 
   @computed
   public get isCurrentSession(): boolean {
     return this.sessionsStore.isCurrentSession(this.session.sessionTag)
+  }
+
+  @computed
+  private get updateableSessionData(): IUpdateSessionOptions {
+    return {
+      lastUpdate: this.session.meta.lastUpdate,
+      isClosed: this.session.meta.isClosed,
+      unreadCount: this.session.meta.unreadCount,
+      summary: this.session.data.summary,
+    }
   }
 
   constructor(
@@ -51,17 +63,9 @@ export class SessionStore {
     this.session = this.sessionRef = session
     this.chatContext = new ChatContext(userStore, this, contractStore)
 
-    reaction(
-      () =>
-        ({
-          lastUpdate: this.session.meta.lastUpdate,
-          isClosed: this.session.meta.isClosed,
-          unreadCount: this.session.meta.unreadCount,
-          summary: this.session.data.summary,
-        } as IUpdateSessionOptions),
-      (observableUserData) => {
-        Object.assign(this.sessionRef, observableUserData)
-      },
+    this.disposeUpdateSessionReaction = reaction(
+      () => this.updateableSessionData,
+      this.updateReferenceSession.bind(this),
     )
   }
 
@@ -97,6 +101,7 @@ export class SessionStore {
     )
   }
 
+  // TODO: refactor
   public async loadNewMessages(limit?: number) {
     const loadedMessagesCount = this.messages.length
     const hasMessages = loadedMessagesCount > 0
@@ -174,6 +179,23 @@ export class SessionStore {
     })
   }
 
+  /**
+   * new conversation
+   * save new created session with first message to db
+   */
+  public async saveSession(
+    firstMessage: IMessage,
+    addMessageOptions?: IAddMessageOptions,
+  ) {
+    await getDatabases().sessionsDB.addSession(this.session, firstMessage, {
+      shouldAddUnread: false,
+      ...addMessageOptions,
+    })
+
+    this.addMessage(firstMessage)
+    await this.refreshMemorySession()
+  }
+
   public async saveMessage(message: IMessage, options?: IAddMessageOptions) {
     await getDatabases().messagesDB.addMessage(this.session, message, {
       shouldAddUnread: this.shouldAddUnread,
@@ -205,32 +227,50 @@ export class SessionStore {
   public getMessageStore(message: IMessage): ChatMessageStore {
     const { messageID } = message
 
-    const oldStore = this.cachedMessageStores[messageID]
+    const oldStore = this.cachedChatMessageStores[messageID]
     if (oldStore != null) {
       return oldStore
     }
 
-    const newStore = new ChatMessageStore(message, this.metaMaskStore)
-    this.cachedMessageStores[messageID] = newStore
+    const newStore = new ChatMessageStore(this, message, this.metaMaskStore)
+    this.cachedChatMessageStores[messageID] = newStore
     return newStore
   }
 
-  public clearCachedStores() {
-    this.cachedMessageStores = {}
+  public removeCachedChatMessageStore(messageStore: ChatMessageStore) {
+    delete this.cachedChatMessageStores[messageStore.messageID]
+  }
+
+  public clearCachedChatMessageStores() {
+    for (const messageStore of Object.values(this.cachedChatMessageStores)) {
+      messageStore.disposeStore()
+    }
   }
 
   public disposeStore() {
-    this.sessionsStore.disposeSessionStore(this.session)
+    this.disposeUpdateSessionReaction()
+    this.clearCachedChatMessageStores()
+    this.sessionsStore.removeCachedSessionStore(this)
   }
 
   public async deleteSession() {
     this.disposeStore()
+
+    if (this.session.meta.isNewSession) {
+      this.sessionsStore.removeSession(this.session)
+      return
+    }
+
     await this.sessionsStore.deleteSession(this.session)
   }
 
   private async updateSession(args: IUpdateSessionOptions) {
     await getDatabases().sessionsDB.updateSession(this.session, args)
     this.updateMemorySession(args)
+  }
+
+  private updateReferenceSession(args: IUpdateSessionOptions) {
+    Object.assign(this.sessionRef, args)
   }
 
   @action

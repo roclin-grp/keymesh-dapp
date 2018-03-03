@@ -97,7 +97,9 @@ class Dialog extends React.Component<IProps, IState> {
       await sessionStore.chatContext.send({
         payload: plainText,
         timestamp: Date.now(),
-        messageType: MESSAGE_TYPE.NORMAL,
+        messageType: sessionStore.session.meta.isNewSession
+          ? MESSAGE_TYPE.HELLO
+          : MESSAGE_TYPE.NORMAL,
       })
 
       this.handleMessageDidSend()

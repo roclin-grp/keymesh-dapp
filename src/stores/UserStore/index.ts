@@ -30,8 +30,6 @@ import {
   downloadObjectAsJson,
 } from '../../utils/data'
 
-import IndexedDBStore from '../../IndexedDBStore'
-
 import ENV from '../../config'
 
 export class UserStore {
@@ -81,21 +79,14 @@ export class UserStore {
     private readonly usersStore: UsersStore,
   ) {
     this.usersDB = getDatabases().usersDB
-
     this.user = this.userRef = user
 
-    const indexedDBStore = new IndexedDBStore(
-      `${user.networkId}@${user.userAddress}`,
-    )
-
-    const cryptoBox = new CryptoBox(this, indexedDBStore, contractStore)
+    const cryptoBox = new CryptoBox(this.user, contractStore)
     this.cryptoBox = cryptoBox
 
-    this.preKeysManager = new PreKeysManager(this, indexedDBStore)
-
+    this.preKeysManager = new PreKeysManager(this)
     this.chatMessagesCenter = new MessageCenter(this, contractStore)
     this.sessionsStore = new SessionsStore(this, metaMaskStore, contractStore)
-
     this.boundSocialsStore = new BoundSocialsStore({
       userStore: this,
       contractStore: this.contractStore,
@@ -242,9 +233,15 @@ export class UserStore {
     this.updateMemoryUser(args)
   }
 
+  /**
+   * dispose this store and sub-stores,
+   * clean up side effect and caches
+   */
   public disposeStore() {
     this.disposeUpdateUserReaction()
-    this.usersStore.disposeUserStore(this.user)
+    this.chatMessagesCenter.stopFetchChatMessages()
+    this.sessionsStore.disposeStore()
+    this.usersStore.removeCachedUserStore(this)
   }
 
   private updateReferenceUser(args: IUpdateUserOptions) {
@@ -261,6 +258,10 @@ export class UserStore {
   private updateMemoryUser(args: IUpdateUserOptions) {
     Object.assign(this.user, args)
   }
+}
+
+export function getCryptoBoxIndexedDBName(user: IUser) {
+  return `${user.networkId}@${user.userAddress}`
 }
 
 export enum IDENTITY_UPLOAD_CHECKING_FAIL_CODE {

@@ -63,7 +63,7 @@ export class UsersStore {
   // FIXME: move to outside
   public readonly userProofsStatesStore: UserProofsStatesStore
 
-  private cachedUserStores: { [userAddress: string]: UserStore } = {}
+  private readonly cachedUserStores: { [userAddress: string]: UserStore } = {}
   private readonly usersDB: UsersDB
 
   constructor(
@@ -81,12 +81,12 @@ export class UsersStore {
     })
 
     reaction(
-      () => this.metaMaskStore.currentEthereumAccount,
+      () => metaMaskStore.currentEthereumAccount,
       this.checkOnChainRegisterRecord.bind(this),
     )
 
     observe(
-      () => this.metaMaskStore,
+      metaMaskStore,
       'currentEthereumNetwork',
       ({ oldValue, newValue }: IValueDidChange<MetaMaskStore['currentEthereumNetwork']>) =>
         this.reloadUsersIfNetworkChanged(newValue, oldValue),
@@ -146,7 +146,7 @@ export class UsersStore {
     // check if registered, avoid unnecessary transaction
     const {
       publicKey,
-    } = await this.contractStore.identitiesContract.getIdentity(ethereumAddress)
+    } = await identitiesContract.getIdentity(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
       this.setHasRegisterRecordOnChain(ethereumAddress, true)
       registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
@@ -231,17 +231,17 @@ export class UsersStore {
     return newStore
   }
 
-  public disposeUserStore(user: IUser) {
-    const oldStore = this.cachedUserStores[user.userAddress]
-    if (oldStore == null) {
-      return
-    }
-
-    delete this.cachedUserStores[user.userAddress]
+  public removeCachedUserStore(userStore: UserStore) {
+    delete this.cachedUserStores[userStore.user.userAddress]
   }
 
-  public clearCachedStores() {
-    this.cachedUserStores = {}
+  /**
+   * dispose all cached sub-stores
+   */
+  public clearCachedUserStores() {
+    for (const userStore of Object.values(this.cachedUserStores)) {
+      userStore.disposeStore()
+    }
   }
 
   // FIXME: no arrow function
@@ -256,10 +256,10 @@ export class UsersStore {
   // FIXME: no arrow function
   @action
   public useUser = (user: IUser) => {
-    if (this.hasUser) {
-      this.disposeUserStore(user)
-      this.currentUserStore!.chatMessagesCenter.stopFetchChatMessages()
+    if (this.currentUserStore != null) {
+      this.currentUserStore.disposeStore()
     }
+
     const userStore = this.getUserStore(user)
     this.currentUserStore = userStore
     userStore.chatMessagesCenter.startFetchMessages()
@@ -314,9 +314,8 @@ export class UsersStore {
     if (networkId == null || lastNetworkId === networkId) {
       return
     }
-
     this.users = []
-    this.clearCachedStores()
+    this.clearCachedUserStores()
     this.isLoadingUsers = true
 
     const users = await this.usersDB.getUsers(networkId!)

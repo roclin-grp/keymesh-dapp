@@ -48,9 +48,8 @@ export function getBroadcastTime(time: number): string {
 }
 
 export function getSessionTimestamp(time: number): string | null {
-  if (time === 0) {
-    // session without any messages
-    return null
+  if (time <= 0) {
+    throw new Error('Invalid session timestamp')
   }
 
   const {

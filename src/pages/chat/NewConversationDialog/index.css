@@ -11,3 +11,8 @@
 .dialogInputContainer {
   margin-top: auto;
 }
+
+.createNewSessionButton {
+  margin: auto;
+  margin-bottom: 2rem;
+}

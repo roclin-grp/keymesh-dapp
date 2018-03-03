@@ -20,7 +20,8 @@ export class MessageCenter {
   constructor(
     private readonly userStore: UserStore,
     private readonly contractStore: ContractStore,
-  ) {}
+  ) {
+  }
 
   public async startFetchMessages(
     interval = FETCH_BROADCAST_MESSAGES_INTERVAL,
@@ -106,8 +107,7 @@ export class MessageCenter {
         continue
       }
 
-      const processMessagePromise = this.userStore.sessionsStore
-        .saveMessage(chatMessage)
+      const processMessagePromise = this.saveMessage(chatMessage)
         .catch((err) => {
           storeLogger.error('saving message error:', err)
         })
@@ -115,6 +115,20 @@ export class MessageCenter {
     }
 
     await Promise.all(processMessagePromises)
+  }
+
+  private async saveMessage(chatMessage: IChatMessage) {
+    const { contact, subject } = chatMessage.session.data
+    const { sessionsStore } = this.userStore
+    const session = await sessionsStore.tryCreateNewSession(contact, subject)
+
+    const { message } = chatMessage
+    if (session.meta.isNewSession) {
+      await sessionsStore.saveNewSession(session, message)
+      return
+    }
+
+    await sessionsStore.getSessionStore(session).saveMessage(message)
   }
 }
 

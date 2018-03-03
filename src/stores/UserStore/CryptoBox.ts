@@ -5,16 +5,13 @@ import {
 } from 'wire-webapp-proteus'
 import { IMessage as ITrustmeshRawMessage } from '@keymesh/trustmesh/lib/Messages'
 
-import { padTo512Bytes, unpad512BytesMessage } from './helpers'
-import { IRawUnpaddedMessage, IRawPaddedMessage } from './typings'
-
 import { ContractStore } from '../ContractStore'
 import { getUserPublicKey } from '../UsersStore'
-import { IUser, UserStore } from '../UserStore'
+import { IUser, getCryptoBoxIndexedDBName } from '../UserStore'
 import { IChatMessage } from '../ChatMessageStore'
 
-import { MESSAGE_TYPE, createMessage } from '../../databases/MessagesDB'
-import { createSession } from '../../databases/SessionsDB'
+import { MESSAGE_TYPE, createMessage, IMessageData } from '../../databases/MessagesDB'
+import { createSession, ISession } from '../../databases/SessionsDB'
 
 import { sleep } from '../../utils'
 import {
@@ -27,6 +24,7 @@ import {
 } from '../../utils/proteus'
 import { hexFromUint8Array, uint8ArrayFromHex } from '../../utils/hex'
 import { solidityTimestampToJSTimestamp } from '../../utils/time'
+import { uint8ArrayFromString, stringFromUint8Array } from '../../utils/sodium'
 
 import PreKeyBundle from '../../PreKeyBundle'
 import Envelope, { IEnvelopeHeader } from '../../Envelope'
@@ -36,18 +34,18 @@ import IndexedDBStore from '../../IndexedDBStore'
  * Use to sign, verify, encrypt or decrypt message
  */
 export default class CryptoBox {
-  private readonly user: IUser
+  private readonly indexedDBStore: IndexedDBStore
   /**
    * don't access this directly, use `await this.getWireCryptoBox()`
    */
   private wireCryptoBox: WireCryptoBox | undefined
 
   constructor(
-    userStore: UserStore,
-    private readonly indexedDBStore: IndexedDBStore,
+    private readonly user: IUser,
     private readonly contractStore: ContractStore,
   ) {
-    this.user = userStore.user
+    const dbName = getCryptoBoxIndexedDBName(user)
+    this.indexedDBStore = new IndexedDBStore(dbName)
     this.loadWireCryptoBox()
   }
 
@@ -57,9 +55,10 @@ export default class CryptoBox {
   }
 
   public async verify(signature: string, message: string): Promise<boolean> {
+    const signatureBytes = uint8ArrayFromHex(signature)
     const identityKeyPair = await this.getIdentityKeyPair()
     return identityKeyPair.public_key.public_key.verify(
-      uint8ArrayFromHex(signature),
+      signatureBytes,
       message,
     )
   }
@@ -76,6 +75,7 @@ export default class CryptoBox {
     const wireCryptoBox = await this.getWireCryptoBox()
     const { session } = chatMessage
 
+    console.log('send3.1')
     const rawMessage: IRawUnpaddedMessage = {
       senderAddress: this.user.userAddress,
       subject: session.data.subject,
@@ -85,12 +85,14 @@ export default class CryptoBox {
     const { sessionTag } = session
     const isNewSession =
       chatMessage.message.data.messageType === MESSAGE_TYPE.HELLO
+    console.log('send3.2')
     const encryptedRawMessage = await wireCryptoBox.encrypt(
       sessionTag,
       paddedRawMessage.message,
       // pass preKeyBundle to create new session
       isNewSession ? preKeyBundle.serialise() : undefined,
     )
+    console.log('send3.3')
     const proteusEnvelope = proteusMessage.Envelope.deserialise(
       encryptedRawMessage,
     )
@@ -187,7 +189,9 @@ export default class CryptoBox {
   public async loadWireCryptoBox() {
     this.wireCryptoBox = undefined
     const newWireCryptoBox = new WireCryptoBox(this.indexedDBStore as any, 0)
+    console.log('loadWireCryptoBox')
     await newWireCryptoBox.load()
+    console.log('loadWireCryptoBox2')
     this.wireCryptoBox = newWireCryptoBox
   }
 
@@ -201,7 +205,7 @@ export default class CryptoBox {
 
   private async waitForCryptoBox(interval = 300): Promise<WireCryptoBox> {
     while (this.wireCryptoBox == null) {
-      sleep(interval)
+      await sleep(interval)
     }
 
     return this.wireCryptoBox
@@ -242,4 +246,41 @@ export default class CryptoBox {
       throw new Error('Invalid message: timstamp is not trusted')
     }
   }
+}
+
+export function padTo512Bytes(
+  rawMessage: IRawUnpaddedMessage,
+): IRawPaddedMessage {
+  const typeArrayText = uint8ArrayFromString(JSON.stringify(rawMessage))
+  const messageByteLength = typeArrayText.byteLength
+  if (messageByteLength >= 512) {
+    throw new RangeError('Message too large')
+  }
+  const message = new Uint8Array(512).fill(0xff)
+  message.set(typeArrayText)
+
+  return {
+    message,
+    messageByteLength,
+  }
+}
+
+export function unpad512BytesMessage(
+  rawMessage: IRawPaddedMessage,
+): IRawUnpaddedMessage {
+  const messageStr = stringFromUint8Array(
+    rawMessage.message.subarray(0, rawMessage.messageByteLength),
+  )
+  return JSON.parse(messageStr)
+}
+
+export interface IRawUnpaddedMessage {
+  messageData: IMessageData
+  subject: ISession['data']['subject']
+  senderAddress: string
+}
+
+export interface IRawPaddedMessage {
+  message: Uint8Array
+  messageByteLength: number
 }

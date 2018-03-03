@@ -28,32 +28,12 @@ import {
 } from '../../../stores/MetaMaskStore'
 
 import { getMessageTimeStamp } from '../../../utils/time'
-import { sleep } from '../../../utils'
 import { IMessage, MESSAGE_STATUS, MESSAGE_TYPE } from '../../../databases/MessagesDB'
-import { storeLogger } from '../../../utils/loggers'
 
 @inject(mapStoreToProps)
 @observer
 class Message extends React.Component<IProps> {
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
-  private unmounted = false
-
-  public async componentDidMount() {
-    const {
-      chatMessageStore,
-    } = this.injectedProps
-    if (chatMessageStore.messageStatus === MESSAGE_STATUS.DELIVERING) {
-      try {
-        await chatMessageStore.checkMessageStatus()
-      } catch (err) {
-        this.checkingDidFail(err)
-      }
-    }
-  }
-
-  public componentWillUnmount() {
-    this.unmounted = true
-  }
 
   public render() {
     const {
@@ -144,15 +124,6 @@ class Message extends React.Component<IProps> {
         {statusContent}
       </Tooltip>
     )
-  }
-
-  private checkingDidFail = async (err: Error) => {
-    await sleep(3000)
-    if (!this.unmounted) {
-      storeLogger.error('checking message fail:', err)
-      // retry checking
-      this.componentDidMount()
-    }
   }
 }
 

@@ -38,7 +38,9 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { getFieldDecorator } = this.props.form
+    const { getFieldDecorator, getFieldError, getFieldValue } = this.props.form
+    const hasAddress = getFieldValue('userAddress') != null
+    const isInvalidAddress = !hasAddress || getFieldError('userAddress') != null
     return (
       <div className={styles.dialog}>
         <Form>
@@ -63,7 +65,13 @@ class NewConversationDialog extends React.Component<IProps, IState> {
             )}
           </FormItem>
         </Form>
-        <Button disabled={this.state.isProcessing} onClick={this.handleCreate}>
+        <Button
+          className={styles.createNewSessionButton}
+          type="primary"
+          size="large"
+          disabled={this.state.isProcessing || isInvalidAddress}
+          onClick={this.handleCreate}
+        >
           {
             this.state.isProcessing
               ? 'Checking...'
@@ -106,7 +114,9 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       })
 
       try {
-        await sessionsStore.tryCreateNewSession(userAddress)
+        const session = await sessionsStore.tryCreateNewSession(userAddress)
+        sessionsStore.addSession(session)
+        await sessionsStore.selectSession(session)
       } catch (err) {
         this.handCreateFail(err)
       }

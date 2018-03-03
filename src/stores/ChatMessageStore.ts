@@ -1,38 +1,45 @@
 import { observable, action, computed } from 'mobx'
 
 import { MetaMaskStore } from './MetaMaskStore'
+import { SessionStore } from './SessionStore'
 
 import { getDatabases } from '../databases/index'
 import { MessagesDB, IMessage, MESSAGE_STATUS } from '../databases/MessagesDB'
 import { ISession } from '../databases/SessionsDB'
 
 import { storeLogger } from '../utils/loggers'
+import { sleep } from '../utils'
 
 import ENV from '../config'
 
 export class ChatMessageStore {
   @observable private _messageStatus: MESSAGE_STATUS
   private readonly messagesDB: MessagesDB
-  private isChecking = false
 
   @computed
   public get messageStatus(): MESSAGE_STATUS {
     return this._messageStatus
   }
 
+  public get messageID(): string {
+    return this.message.messageID
+  }
+
   constructor(
+    private readonly sessionStore: SessionStore,
     private readonly message: IMessage,
     private readonly metaMaskStore: MetaMaskStore,
   ) {
-    this._messageStatus = message.meta.status
+    const { status } = message.meta
+    this._messageStatus = status
     this.messagesDB = getDatabases().messagesDB
+
+    if (status === MESSAGE_STATUS.DELIVERING) {
+      this.checkMessageStatus()
+    }
   }
 
   public async checkMessageStatus() {
-    if (this.isChecking) {
-      return
-    }
-
     const { transactionHash } = this.message.meta
     if (transactionHash == null) {
       throw new Error('no transaction hash')
@@ -41,8 +48,6 @@ export class ChatMessageStore {
     const { getReceipt } = this.metaMaskStore.getProcessingTransactionHandler(
       transactionHash,
     )
-
-    this.isChecking = true
 
     try {
       await getReceipt(
@@ -53,9 +58,13 @@ export class ChatMessageStore {
 
       await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
     } catch (err) {
-      if ((err as Error).message.includes('Timeout')) {
-        storeLogger.warn('check message timeout')
+      const checkTransactionTimeout = (err as Error).message.includes('Timeout')
+      const hasfetchError = (err as Error).message.includes('Failed to fetch')
+
+      if (checkTransactionTimeout || hasfetchError) {
+        storeLogger.warn('check message fail:', err)
         // retry
+        await sleep(3000)
         this.checkMessageStatus()
         return
       }
@@ -63,6 +72,10 @@ export class ChatMessageStore {
       storeLogger.error('message sending fail:', err)
       await this.updateMessageStatus(MESSAGE_STATUS.FAILED)
     }
+  }
+
+  public disposeStore() {
+    this.sessionStore.removeCachedChatMessageStore(this)
   }
 
   private async updateMessageStatus(status: MESSAGE_STATUS) {

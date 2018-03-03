@@ -237,6 +237,7 @@ export interface ISessionDefaultData {
 }
 
 export interface ISessionConfigurableMeta {
+  // put isNewSession to sessionStore will be better?
   isNewSession?: boolean
 }
 
@@ -264,10 +265,10 @@ interface IDeleteSessionsOptions {
 }
 
 export interface IUpdateSessionOptions {
+  summary?: ISession['data']['summary']
   lastUpdate?: ISession['meta']['lastUpdate']
   isClosed?: ISession['meta']['isClosed']
   unreadCount?: ISession['meta']['unreadCount']
-  summary?: ISession['data']['summary']
 }
 
 export interface ICreatSessionFirstMessageArgs {

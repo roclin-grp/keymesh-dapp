@@ -59,12 +59,12 @@ export default class ChatContext {
       return
     }
 
-    await this.sessionStore.saveMessage(chatMessage.message)
-
-    const isNewSession = messageData.messageType === MESSAGE_TYPE.HELLO
-    if (isNewSession) {
-      this.userStore.sessionsStore.selectSession(this.sessionStore.session)
+    if (this.session.meta.isNewSession) {
+      await this.sessionStore.saveSession(chatMessage.message)
+      return
     }
+
+    await this.sessionStore.saveMessage(chatMessage.message)
   }
 
   private createNewMessage(messageData: IMessageData): IChatMessage {
@@ -90,7 +90,7 @@ export default class ChatContext {
 
   private async waitForReceiverPublicKey(interval = 300): Promise<proteusKeys.PublicKey> {
     while (this.receiverPublicKey == null) {
-      sleep(interval)
+      await sleep(interval)
     }
 
     return this.receiverPublicKey

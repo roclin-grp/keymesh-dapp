@@ -117,9 +117,6 @@ export class MetaMaskStore {
     }
 
     runInAction(() => {
-      this.currentEthereumAccount = undefined
-      this.currentEthereumNetwork = undefined
-
       delete this.connectFailCode
 
       if (account && networkID) {
@@ -131,13 +128,21 @@ export class MetaMaskStore {
         return
       }
 
+      if (!account && networkID) {
+        this.currentEthereumAccount = undefined
+        this.currentEthereumNetwork = networkID
+        this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.LOCKED
+        this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
+        return
+      }
+
       // FIXME: when does this occur?
       this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
 
-      if (!account && networkID) {
-        this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.LOCKED
-        return
-      }
+      // don't set to undefined before setting a new value
+      // will cause oldValue === undefined
+      this.currentEthereumAccount = undefined
+      this.currentEthereumNetwork = undefined
     })
   }
 

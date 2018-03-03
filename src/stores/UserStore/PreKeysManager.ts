@@ -1,6 +1,6 @@
 import { keys as proteusKeys } from 'wire-webapp-proteus'
 
-import { UserStore, IUser, USER_STATUS } from '.'
+import { UserStore, IUser, USER_STATUS, getCryptoBoxIndexedDBName } from '.'
 
 import { hexFromUint8Array } from '../../utils/hex'
 import { getPublicKeyFingerPrint } from '../../utils/proteus'
@@ -14,11 +14,12 @@ import ENV from '../../config'
 
 export class PreKeysManager {
   private readonly user: IUser
-  constructor(
-    private readonly userStore: UserStore,
-    private readonly indexedDBStore: IndexedDBStore,
-  ) {
-    this.user = userStore.user
+  private readonly indexedDBStore: IndexedDBStore
+  constructor(private readonly userStore: UserStore) {
+    const { user } = userStore
+    this.user = user
+    const dbName = getCryptoBoxIndexedDBName(user)
+    this.indexedDBStore = new IndexedDBStore(dbName)
   }
 
   public async uploadPreKeys(isRegister = false) {
