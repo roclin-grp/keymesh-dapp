@@ -27,7 +27,7 @@ import { solidityTimestampToJSTimestamp } from '../../utils/time'
 import { uint8ArrayFromString, stringFromUint8Array } from '../../utils/sodium'
 
 import PreKeyBundle from '../../PreKeyBundle'
-import Envelope, { IEnvelopeHeader } from '../../Envelope'
+import { Envelope, IEnvelopeHeader } from '../../Envelope'
 import IndexedDBStore from '../../IndexedDBStore'
 
 /**
@@ -75,7 +75,6 @@ export default class CryptoBox {
     const wireCryptoBox = await this.getWireCryptoBox()
     const { session } = chatMessage
 
-    console.log('send3.1')
     const rawMessage: IRawUnpaddedMessage = {
       senderAddress: this.user.userAddress,
       subject: session.data.subject,
@@ -85,14 +84,12 @@ export default class CryptoBox {
     const { sessionTag } = session
     const isNewSession =
       chatMessage.message.data.messageType === MESSAGE_TYPE.HELLO
-    console.log('send3.2')
     const encryptedRawMessage = await wireCryptoBox.encrypt(
       sessionTag,
       paddedRawMessage.message,
       // pass preKeyBundle to create new session
       isNewSession ? preKeyBundle.serialise() : undefined,
     )
-    console.log('send3.3')
     const proteusEnvelope = proteusMessage.Envelope.deserialise(
       encryptedRawMessage,
     )
@@ -189,9 +186,7 @@ export default class CryptoBox {
   public async loadWireCryptoBox() {
     this.wireCryptoBox = undefined
     const newWireCryptoBox = new WireCryptoBox(this.indexedDBStore as any, 0)
-    console.log('loadWireCryptoBox')
     await newWireCryptoBox.load()
-    console.log('loadWireCryptoBox2')
     this.wireCryptoBox = newWireCryptoBox
   }
 

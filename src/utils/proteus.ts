@@ -5,7 +5,7 @@ import {
 const ed2curve = require('ed2curve')
 
 import { uint8ArrayFromHex } from './hex'
-import Envelope from '../Envelope'
+import { Envelope } from '../Envelope'
 import { IPreKey } from '../PreKeyBundle'
 
 export function publicKeyFromHexStr(publicKeyHexString: string): proteusKeys.PublicKey {
