@@ -5,7 +5,7 @@ import {
 import {
   ETHEREUM_NETWORKS,
 } from '../stores/MetaMaskStore'
-import { IUserCaches, IUserCachesVerification , IUserCachesIdentity } from '../stores/UserCachesStore'
+import { IUserCaches, IUserCachesVerifications , IUserCachesIdentity } from '../stores/UserCachesStore'
 
 export class UserCachesDB {
   constructor(private dexieDB: TypeDexieWithTables) {}
@@ -19,7 +19,7 @@ export class UserCachesDB {
     networkId: ETHEREUM_NETWORKS,
     newData: {
       identity?: IUserCachesIdentity
-      verification?: IUserCachesVerification,
+      verifications?: IUserCachesVerifications,
     },
   ): Dexie.Promise<IUserCaches> {
     return this.table

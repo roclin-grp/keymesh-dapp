@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom'
 import { Icon, Button, Input } from 'antd'
 import * as styles from './index.css'
-import { signedClaimToClaimText } from '../../../stores/BoundSocialsStore'
+import { signedClaimToClaimText } from '../../../stores/SocialProofsStore'
 
 interface IProps {
   data: TwitterProvingData

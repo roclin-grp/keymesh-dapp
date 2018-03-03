@@ -23,10 +23,8 @@ import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
 import {
-  PLATFORMS,
-  VERIFY_SOCIAL_STATUS,
   PALTFORM_MODIFIER_CLASSES,
-} from '../../stores/BoundSocialsStore'
+} from '../../stores/SocialProofsStore'
 
 interface IProps {
   message: IBroadcastMessage
@@ -117,16 +115,11 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private getUsername() {
-    const {
-      userBoundSocials,
-      verifyStatuses,
-    } = this.props.userProofsStateStore
+    const { getValidProofs } = this.props.userProofsStateStore
 
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      const boundSocial = userBoundSocials[platform]
-      if (boundSocial && verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.VALID) {
-        return boundSocial.username
-      }
+    const validProofs = getValidProofs()
+    for (const validProof of validProofs) {
+        return validProof.socialProofs.username
     }
 
     return null
@@ -141,17 +134,12 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private renderPlatformIcons() {
-    const {
-      userBoundSocials,
-      verifyStatuses,
-    } = this.props.userProofsStateStore
+    const { getValidProofs } = this.props.userProofsStateStore
+    const validProofs = getValidProofs()
 
     const platformIcons: JSX.Element[] = []
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      if (userBoundSocials[platform] == null || verifyStatuses[platform].status === VERIFY_SOCIAL_STATUS.INVALID) {
-        continue
-      }
-
+    for (const validProof of validProofs) {
+      const platform = validProof.platform
       platformIcons.push((
         <Icon
           key={platform}

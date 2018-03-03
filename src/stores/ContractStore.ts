@@ -37,8 +37,8 @@ export class ContractStore {
   }
 
   @computed
-  public get boundSocialsContract() {
-    return this.trustmesh!.boundSocials
+  public get socialProofsContract() {
+    return this.trustmesh!.socialProofs
   }
 
   @computed

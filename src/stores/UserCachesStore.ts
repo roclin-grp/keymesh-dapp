@@ -1,7 +1,7 @@
 import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
-import { IVerifyStatuses, IBoundSocials, NewIVerifyStatuses } from './BoundSocialsStore'
+import { IVerifiedStatus, ISocialProof, PLATFORMS, forablePlatforms } from './SocialProofsStore'
 import { sha3 } from '../utils/cryptos'
 
 export class UserCachesStore {
@@ -22,17 +22,17 @@ export class UserCachesStore {
   ) {
   }
 
-  public async getVerification(userAddress: string): Promise<IUserCachesVerification> {
+  public async getVerifications(userAddress: string): Promise<IUserCachesVerifications> {
     const user = await this.userCachesDB.get(this.networkID, userAddress)
-    if (user && user.verification) {
-      return user.verification
+    if (user && user.verifications) {
+      return user.verifications
     }
 
-    return newEmptyVerification()
+    return getNewVerifications()
   }
 
-  public async setVerification(userAddress: string, verification: IUserCachesVerification) {
-    return this.userCachesDB.update(userAddress, this.networkID, { verification })
+  public async setVerifications(userAddress: string, verifications: IUserCachesVerifications) {
+    return this.userCachesDB.update(userAddress, this.networkID, { verifications })
   }
 
   public getAvatarHashByUserAddress = (userAddress: string): Promise<string> => {
@@ -87,28 +87,33 @@ export class UserCachesStore {
   }
 }
 
+export function getNewVerifications() {
+  const verifications = {}
+  for (const platform of forablePlatforms) {
+    verifications[platform] = {}
+  }
+  return verifications as IUserCachesVerifications
+}
+
 export interface IUserCachesIdentity {
   blockHash: string
   publicKey: string
   blockNumber: number
 }
+
 export interface IUserCachesVerification {
-  boundSocials: IBoundSocials
-  lastFetchBlock: number
-  verifyStatues: IVerifyStatuses
+  socialProof?: ISocialProof
+  lastFetchBlock?: number
+  verifiedStatus?: IVerifiedStatus
+}
+
+export type IUserCachesVerifications = {
+  [platformName in PLATFORMS]: IUserCachesVerification
 }
 
 export interface IUserCaches {
   networkId: ETHEREUM_NETWORKS
   userAddress: string
   identity?: IUserCachesIdentity
-  verification?: IUserCachesVerification
-}
-
-export function newEmptyVerification(): IUserCachesVerification {
-  return {
-    boundSocials: { nonce: 0 },
-    lastFetchBlock: 0,
-    verifyStatues: NewIVerifyStatuses(),
-  }
+  verifications?: IUserCachesVerifications
 }

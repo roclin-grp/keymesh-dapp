@@ -17,7 +17,7 @@ import { UserCachesStore } from './UserCachesStore'
 import ENV from '../config'
 import { base58ToChecksumAddress } from '../utils/cryptos'
 
-export class BoundSocialsStore {
+export class SocialProofsStore {
   private userStore: UserStore
   private contractStore: ContractStore
   private userCachesStore: UserCachesStore
@@ -36,8 +36,9 @@ export class BoundSocialsStore {
     this.userCachesStore = userCachesStore
   }
 
-  public uploadBindingSocial = async (
-    social: IBindingSocial,
+  public uploadProof = async (
+    platformName: PLATFORMS,
+    socialProof: ISocialProof,
     {
       transactionWillCreate = noop,
       transactionDidCreate = noop,
@@ -45,18 +46,16 @@ export class BoundSocialsStore {
       uploadingDidFail = noop,
     }: IUploadingLifecycle = {},
   ) => {
-    const verification = await this.userCachesStore.getVerification(this.userStore.user.userAddress)
-    const newBoundSocials: IBoundSocials = Object.assign({}, verification.boundSocials)
-
-    const { username, proofURL, platform } = social
-    newBoundSocials[platform] = { username, proofURL }
-
-    const signature = this.userStore.sign(JSON.stringify(newBoundSocials))
-    const signedBoundSocials: ISignedBoundSocials = { signature, socialMedias: newBoundSocials }
-    const signedBoundSocialsHex = utf8ToHex(JSON.stringify(signedBoundSocials))
+    const signature = this.userStore.sign(JSON.stringify(socialProof))
+    const signedProof: ISignedSocialProof = { signature, socialProof }
+    const signedProofHex = utf8ToHex(JSON.stringify(signedProof))
 
     transactionWillCreate()
-    this.contractStore.boundSocialsContract.bind(this.userStore.user.userAddress, signedBoundSocialsHex)
+    this.contractStore.socialProofsContract.uploadProof(
+      this.userStore.user.userAddress,
+      utf8ToHex(platformName),
+      signedProofHex,
+    )
       .on('transactionHash', async (hash) => {
         transactionDidCreate(hash)
       })
@@ -67,8 +66,7 @@ export class BoundSocialsStore {
             return
           }
 
-          await this.saveBoundSocialsToDB(newBoundSocials)
-
+          await this.saveSocialProofsToDB(platformName, socialProof)
           uploadingDidComplete()
         }
       })
@@ -77,14 +75,12 @@ export class BoundSocialsStore {
       })
   }
 
-  private async saveBoundSocialsToDB(boundSocials: IBoundSocials) {
-    boundSocials.nonce++
+  private async saveSocialProofsToDB(platformName: PLATFORMS, socialProof: ISocialProof) {
     const { userAddress } = this.userStore.user
-    const verification = await this.userCachesStore.getVerification(userAddress)
-    verification.boundSocials = boundSocials
-    verification.verifyStatues = NewIVerifyStatuses()
+    const verifications = await this.userCachesStore.getVerifications(userAddress)
+    verifications[platformName] = { socialProof }
 
-    return this.userCachesStore.setVerification(userAddress, verification)
+    return this.userCachesStore.setVerifications(userAddress, verifications)
   }
 }
 
@@ -125,6 +121,8 @@ export enum PLATFORMS {
   FACEBOOK = 'facebook',
 }
 
+export const forablePlatforms = Object.values(PLATFORMS) as PLATFORMS[]
+
 export const PLATFORM_LABELS = Object.freeze({
   [PLATFORMS.GITHUB]: 'GitHub',
   [PLATFORMS.TWITTER]: 'Twitter',
@@ -137,33 +135,20 @@ export const PALTFORM_MODIFIER_CLASSES = Object.freeze({
   [PLATFORMS.GITHUB]: 'gitHubTone',
 })
 
-export enum BINDING_SOCIAL_STATUS {
-  CHECKED = 100,
-  TRANSACTION_CREATED = 200,
-  CONFIRMED = 300,
-}
-
-export enum VERIFY_SOCIAL_STATUS {
+export enum VERIFIED_SOCIAL_STATUS {
   INVALID = 100,
   VALID = 200,
 }
 
 export const GITHUB_GIST_FILENAME = 'keymesh.md'
 
-export interface IBoundSocial {
+export interface ISocialProof {
   username: string
   proofURL: string
 }
 
-export interface IBoundSocials {
-  twitter?: IBoundSocial
-  github?: IBoundSocial
-  facebook?: IBoundSocial
-  nonce: number
-}
-
-export interface ISignedBoundSocials {
-  socialMedias: IBoundSocials
+export interface ISignedSocialProof {
+  socialProof: ISocialProof
   signature: string
 }
 
@@ -172,33 +157,7 @@ export interface ISignedClaim {
   signature: string
 }
 
-export interface IBindingSocial extends IBoundSocial {
-  signedClaim: ISignedClaim
-  status: BINDING_SOCIAL_STATUS
-  platform: PLATFORMS
-}
-
-export interface IBindingSocials {
-  twitter?: IBindingSocial
-  github?: IBindingSocial
-  facebook?: IBindingSocial
-}
-
-export interface IVerifyStatus {
-  status: VERIFY_SOCIAL_STATUS
+export interface IVerifiedStatus {
+  status: VERIFIED_SOCIAL_STATUS
   lastVerifiedAt: number
-}
-
-export interface IVerifyStatuses {
-  github: IVerifyStatus
-  twitter: IVerifyStatus
-  facebook: IVerifyStatus
-}
-
-export function NewIVerifyStatuses(): IVerifyStatuses {
-  return {
-    github: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
-    twitter: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
-    facebook: { status: VERIFY_SOCIAL_STATUS.INVALID, lastVerifiedAt: 0 },
-  }
 }

@@ -22,7 +22,7 @@ import { FacebookProvingData } from './facebook/FacebookProvingData'
 import {
   IStores,
 } from '../../stores'
-import { PLATFORMS, PLATFORM_LABELS } from '../../stores/BoundSocialsStore'
+import { PLATFORMS, PLATFORM_LABELS } from '../../stores/SocialProofsStore'
 
 import * as styles from './index.css'
 import { UsersStore } from '../../stores/UsersStore'

@@ -7,17 +7,22 @@ import {
 import { keys } from 'wire-webapp-proteus'
 
 import {
-  VERIFY_SOCIAL_STATUS,
-  IBoundSocials,
-  ISignedBoundSocials,
-  IVerifyStatuses,
-  NewIVerifyStatuses,
+  VERIFIED_SOCIAL_STATUS,
   PLATFORMS,
   GITHUB_GIST_FILENAME,
   claimTextToSignedClaim,
-} from './BoundSocialsStore'
+  ISignedSocialProof,
+  forablePlatforms,
+  ISocialProof,
+  IVerifiedStatus,
+} from './SocialProofsStore'
 import { ContractStore } from './ContractStore'
-import { UserCachesStore } from './UserCachesStore'
+import {
+  UserCachesStore,
+  IUserCachesVerifications,
+  IUserCachesVerification,
+  getNewVerifications,
+} from './UserCachesStore'
 import { UserProofsStatesStore } from './UserProofsStatesStore'
 import { FacebookResource } from '../resources/facebook'
 import { twitterResource } from '../resources/twitter'
@@ -25,17 +30,11 @@ import { GithubResource } from '../resources/github'
 import { UsersStore } from '../stores/UsersStore'
 import { sleep } from '../utils'
 import { sha3 } from '../utils/cryptos'
-import { hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
+import { hexToUtf8, uint8ArrayFromHex, utf8ToHex } from '../utils/hex'
 import { isBeforeOneDay } from '../utils/time'
 
 export class UserProofsStateStore {
-  @observable public verifyStatuses: IVerifyStatuses = NewIVerifyStatuses()
-  @observable public userBoundSocials: IBoundSocials = {
-    [PLATFORMS.TWITTER]: undefined,
-    [PLATFORMS.GITHUB]: undefined,
-    [PLATFORMS.FACEBOOK]: undefined,
-    nonce: 0,
-  }
+  @observable public verifications: IUserCachesVerifications = getNewVerifications()
   @observable public isVerifying = {
     [PLATFORMS.TWITTER]: false,
     [PLATFORMS.GITHUB]: false,
@@ -47,7 +46,6 @@ export class UserProofsStateStore {
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
-  @observable private userLastFetchBlock: number = 0
   private publicKey: keys.PublicKey | undefined
   private userCachesStore: UserCachesStore
   private userProofsStatesStore: UserProofsStatesStore
@@ -63,9 +61,29 @@ export class UserProofsStateStore {
     this.init()
   }
 
+  public getValidProofs = () => {
+    const validProofs: ISocialProofWithPlatform[] = []
+    for (const platform of forablePlatforms) {
+      const verification = this.verifications[platform]
+      if (!verification.verifiedStatus) {
+        continue
+      }
+      if (verification.verifiedStatus.status === VERIFIED_SOCIAL_STATUS.VALID) {
+        validProofs.push({platform, socialProofs: verification.socialProof!})
+      }
+    }
+    return validProofs
+  }
+
   @computed
-  public get isLoadingProofs() {
-    return this.userLastFetchBlock === 0
+  public get isFirstLoadingProofs(): boolean {
+    for (const platform of forablePlatforms) {
+      const verifiction = this.verifications[platform]
+      if (!verifiction || verifiction.lastFetchBlock === 0) {
+          return true
+      }
+    }
+    return false
   }
 
   @computed
@@ -93,7 +111,7 @@ export class UserProofsStateStore {
 
     while (this.isFetchingUserProofs) {
       try {
-        await this.fetchUserProofs()
+        await this.fetchUserAllPlatformProofs()
       } finally {
         await sleep(interval)
       }
@@ -122,12 +140,12 @@ export class UserProofsStateStore {
         signedClaim.userAddress,
       )
 
-      this.updateVerifyStatus(platform, isValid ? VERIFY_SOCIAL_STATUS.VALID : VERIFY_SOCIAL_STATUS.INVALID)
+      this.updateVerifyStatus(platform, isValid ? VERIFIED_SOCIAL_STATUS.VALID : VERIFIED_SOCIAL_STATUS.INVALID)
     } catch (err) {
-      this.updateVerifyStatus(platform, VERIFY_SOCIAL_STATUS.INVALID)
+      this.updateVerifyStatus(platform, VERIFIED_SOCIAL_STATUS.INVALID)
     } finally {
       this.setIsVerifying(platform, false)
-      this.saveVerificationToDB()
+      this.saveVerificationsToDB()
     }
   }
 
@@ -135,42 +153,62 @@ export class UserProofsStateStore {
     this.userProofsStatesStore.disposeUserProofsStateStore(this.userAddress)
   }
 
-  private async fetchUserProofs() {
-    const publicKey = this.publicKey
-    if (!publicKey) {
+  private async fetchUserAllPlatformProofs() {
+    for (const platform of forablePlatforms) {
+      this.fetchUserPlaformProof(platform, this.userAddress)
+    }
+  }
+
+  private async fetchUserPlaformProof(platformName: PLATFORMS, userAddress: string) {
+    if (!this.publicKey) {
       return
     }
 
+    const verification = this.verifications[platformName]
+    const fromBlock = verification && verification.lastFetchBlock !== undefined ? verification.lastFetchBlock : 0
+
     const {
       lastBlock,
-      result: bindEvents,
-    } = await this.contractStore.boundSocialsContract.getBindings({
-      fromBlock: this.userLastFetchBlock,
-      userAddress: this.userAddress,
+      result: ProofEvents,
+    } = await this.contractStore.socialProofsContract.ProofEvent({
+      fromBlock,
+      filter: {platformName: utf8ToHex(platformName), userAddress},
     })
 
-    runInAction(() => {
-      this.userLastFetchBlock = lastBlock
-    })
-    for (let i = bindEvents.length - 1; i >= 0; i--) {
-      const bindEvent: any = bindEvents[i]
-      const _signedBoundSocial: ISignedBoundSocials = JSON.parse(hexToUtf8(bindEvent.signedBoundSocials))
-      if (_signedBoundSocial.socialMedias.nonce > this.userBoundSocials.nonce) {
-        if (!publicKey.verify(
-          uint8ArrayFromHex(_signedBoundSocial.signature),
-          JSON.stringify(_signedBoundSocial.socialMedias),
-        )) {
-          continue
-        }
-
-        runInAction(() => {
-          this.userBoundSocials = _signedBoundSocial.socialMedias
-        })
-        this.verifyAll()
-        break
+    for (let i = ProofEvents.length - 1; i >= 0; i--) {
+      const proofEvent = ProofEvents[i]
+      const signedSocialProof: ISignedSocialProof = JSON.parse(hexToUtf8(proofEvent.data))
+      if (!this.publicKey.verify(
+        uint8ArrayFromHex(signedSocialProof.signature),
+        JSON.stringify(signedSocialProof.socialProof),
+      )) {
+        continue
       }
+
+      if ( this.isNewVerification(platformName, signedSocialProof.socialProof)) {
+        this.updateVerification(platformName, {socialProof: signedSocialProof.socialProof})
+
+        this.verify(platformName, signedSocialProof.socialProof.proofURL)
+      }
+      break
     }
-    this.saveVerificationToDB()
+    this.updateVerification(platformName, {lastFetchBlock: lastBlock})
+    this.saveVerificationsToDB()
+  }
+  private isNewVerification(platform: PLATFORMS, newSocialProof: ISocialProof) {
+    const verification = this.verifications[platform]
+    if (! verification.socialProof) {
+      return true
+    }
+
+    return !isEquivalent(newSocialProof, verification.socialProof)
+  }
+
+  @action
+  private updateVerification(platform: PLATFORMS, verification: IUserCachesVerification) {
+    const fullVerification = Object.assign(verification, this.verifications[platform])
+    this.verifications[platform] = fullVerification
+    this.verifications = Object.assign({}, this.verifications)
   }
 
   private async waitForInitialise(interval = 1000) {
@@ -179,44 +217,32 @@ export class UserProofsStateStore {
     }
   }
 
-  private async verifyAll(onlyBeforeOneDay: boolean = false) {
-    const {
-      userBoundSocials,
-      verifyStatuses,
-    } = this
-
-    for (const platform of Object.values(PLATFORMS) as PLATFORMS[]) {
-      const boundSocial = userBoundSocials[platform]
-      if (boundSocial && (!onlyBeforeOneDay || isBeforeOneDay(verifyStatuses[platform].lastVerifiedAt))) {
-        this.verify(platform, boundSocial.proofURL)
-      }
-    }
-  }
-
-  private saveVerificationToDB() {
-    this.userCachesStore.setVerification(this.userAddress, {
-      boundSocials: this.userBoundSocials,
-      lastFetchBlock: this.userLastFetchBlock,
-      verifyStatues: this.verifyStatuses,
-    })
+  private saveVerificationsToDB() {
+    this.userCachesStore.setVerifications(this.userAddress, this.verifications)
   }
 
   private async init() {
     const identity = await this.userCachesStore.getIdentityByUserAddress(this.userAddress)
-    const verifications = await this.userCachesStore.getVerification(this.userAddress)
-    const verifyStatues = verifications.verifyStatues
+    const verifications = await this.userCachesStore.getVerifications(this.userAddress)
     runInAction(async () => {
       this.userBlockHash = identity.blockHash
-      this.userBoundSocials = verifications.boundSocials
-      this.userLastFetchBlock = verifications.lastFetchBlock
-      this.verifyStatuses = verifyStatues
+      this.verifications = verifications
     })
 
     this.publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
     runInAction(() => {
       this.finishedInit = true
     })
-    this.verifyAll(true)
+    this.verifyAll()
+  }
+
+  private async verifyAll() {
+    for (const platform of forablePlatforms) {
+      const verification = this.verifications[platform]
+      if (verification.socialProof && isNeedVerify(verification.verifiedStatus)) {
+        this.verify(platform, verification.socialProof.proofURL)
+      }
+    }
   }
 
   @action
@@ -224,15 +250,11 @@ export class UserProofsStateStore {
     this.isVerifying[platform] = value
   }
 
-  @action
-  private updateVerifyStatus(platform: PLATFORMS, verifyStatus: VERIFY_SOCIAL_STATUS) {
-    Object.assign(this.verifyStatuses, {
-      [platform]: {
-        status: verifyStatus,
+  private updateVerifyStatus(platform: PLATFORMS, verifiedStatus: VERIFIED_SOCIAL_STATUS) {
+    this.updateVerification(platform, {verifiedStatus: {
+        status: verifiedStatus,
         lastVerifiedAt: new Date().getTime(),
-      },
-    })
-    this.isVerifying[platform] = false
+    }})
   }
 }
 
@@ -240,4 +262,17 @@ const getClaimTextFunctions = {
   [PLATFORMS.FACEBOOK]: (proofURL: string) => FacebookResource.getPost(proofURL),
   [PLATFORMS.TWITTER]: (proofURL: string) => twitterResource.getTweet(proofURL),
   [PLATFORMS.GITHUB]: (proofURL: string) => GithubResource.getGistFileContent(proofURL, GITHUB_GIST_FILENAME),
+}
+
+function isEquivalent(a: object, b: object): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function isNeedVerify(verifiedStatus?: IVerifiedStatus): boolean {
+    return ! verifiedStatus || isBeforeOneDay(verifiedStatus.lastVerifiedAt)
+}
+
+interface ISocialProofWithPlatform {
+  platform: PLATFORMS
+  socialProofs: ISocialProof
 }
