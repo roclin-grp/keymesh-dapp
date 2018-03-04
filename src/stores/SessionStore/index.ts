@@ -12,7 +12,6 @@ import {
 
 import ChatContext from './ChatContext'
 
-import { MetaMaskStore } from '../MetaMaskStore'
 import { ContractStore } from '../ContractStore'
 import { UserStore } from '../UserStore'
 import { SessionsStore } from '../SessionsStore'
@@ -22,15 +21,17 @@ import { getDatabases } from '../../databases'
 import { IUpdateSessionOptions, ISession } from '../../databases/SessionsDB'
 import { IAddMessageOptions, IMessage } from '../../databases/MessagesDB'
 
+import { sleep } from '../../utils'
+
 export class SessionStore {
   @observable public readonly session: ISession
   @observable.ref public messages: IMessage[] = []
-  @observable public isLoading = true
   @observable public isLoadingOldMessages = false
   @observable public newUnreadCount = 0
   @observable public draftMessage = ''
   public readonly chatContext: ChatContext
 
+  public isLoading = false
   private readonly sessionRef: ISession
   private readonly disposeUpdateSessionReaction: IReactionDisposer
   private readonly cachedChatMessageStores: { [messageID: string]: ChatMessageStore } = {}
@@ -57,8 +58,7 @@ export class SessionStore {
     session: ISession,
     private readonly sessionsStore: SessionsStore,
     userStore: UserStore,
-    private readonly metaMaskStore: MetaMaskStore,
-    contractStore: ContractStore,
+    private readonly contractStore: ContractStore,
   ) {
     this.session = this.sessionRef = session
     this.chatContext = new ChatContext(userStore, this, contractStore)
@@ -84,8 +84,12 @@ export class SessionStore {
       this.session.userAddress,
     )
     if (session != null) {
-      this.updateMemorySession(session.meta)
-      this.sessionsStore.sortSessions()
+      this.updateMemorySession({
+        summary: session.data.summary,
+        lastUpdate: session.meta.lastUpdate,
+        isClosed: session.meta.isClosed,
+        unreadCount: session.meta.unreadCount,
+      })
     }
   }
 
@@ -101,22 +105,31 @@ export class SessionStore {
     )
   }
 
+  public async waitForMessagesLoading(interval = 300) {
+    while (this.isLoading) {
+      await sleep(interval)
+    }
+  }
+
   // TODO: refactor
   public async loadNewMessages(limit?: number) {
+    if (this.isLoading) {
+      return
+    }
+
     const loadedMessagesCount = this.messages.length
     const hasMessages = loadedMessagesCount > 0
     const lastMessageTimestamp = hasMessages
       ? this.messages[loadedMessagesCount - 1].data.timestamp
       : 0
+
     if (lastMessageTimestamp === this.session.meta.lastUpdate) {
       // no new messages
       return
     }
 
+    this.isLoading = true
     const { messagesDB } = getDatabases()
-    runInAction(() => {
-      this.isLoading = true
-    })
     const newMessages = await messagesDB.getMessagesOfSession(this.session, {
       timestampAfter: lastMessageTimestamp + 1,
       limit,
@@ -135,12 +148,10 @@ export class SessionStore {
       })
     }
 
-    runInAction(() => {
-      if (newMessagesCount > 0) {
-        this.messages = this.messages.concat(newMessages)
-      }
-      this.isLoading = false
-    })
+    if (newMessagesCount > 0) {
+      this.appendMessages(newMessages)
+    }
+    this.isLoading = false
   }
 
   public async loadOldMessages(limit?: number) {
@@ -183,17 +194,17 @@ export class SessionStore {
    * new conversation
    * save new created session with first message to db
    */
-  public async saveSession(
+  public async saveSessionWithMessage(
     firstMessage: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
-    await getDatabases().sessionsDB.addSession(this.session, firstMessage, {
-      shouldAddUnread: false,
+    const { sessionsDB } = getDatabases()
+    await sessionsDB.addSession(this.session, firstMessage, {
       ...addMessageOptions,
+      shouldAddUnread: false,
     })
 
     this.addMessage(firstMessage)
-    await this.refreshMemorySession()
   }
 
   public async saveMessage(message: IMessage, options?: IAddMessageOptions) {
@@ -215,6 +226,7 @@ export class SessionStore {
       runInAction(() => {
         this.newUnreadCount = this.newUnreadCount - newUnreadCount
       })
+      this.isClearing = false
     }
   }
 
@@ -232,7 +244,7 @@ export class SessionStore {
       return oldStore
     }
 
-    const newStore = new ChatMessageStore(this, message, this.metaMaskStore)
+    const newStore = new ChatMessageStore(this, message, this.contractStore)
     this.cachedChatMessageStores[messageID] = newStore
     return newStore
   }
@@ -270,12 +282,28 @@ export class SessionStore {
   }
 
   private updateReferenceSession(args: IUpdateSessionOptions) {
-    Object.assign(this.sessionRef, args)
+    this.updateSessionOrRefSession(args, true)
+  }
+
+  private updateMemorySession(args: IUpdateSessionOptions) {
+    this.updateSessionOrRefSession(args)
+    this.sessionsStore.sortSessions()
   }
 
   @action
-  private updateMemorySession(args: IUpdateSessionOptions) {
-    Object.assign(this.session, args)
+  private updateSessionOrRefSession(args: IUpdateSessionOptions, ref = false) {
+    const oldSummary = ref ? this.sessionRef.data.summary : this.session.data.summary
+    const {
+      // if we don't use oldSummary as defaul, will set summary to undefined..
+      summary = oldSummary,
+      ...meta,
+    } = args
+    const data = {
+      summary,
+    }
+
+    Object.assign(ref ? this.sessionRef.meta : this.session.meta, meta)
+    Object.assign(ref ? this.sessionRef.data : this.session.data, data)
   }
 
   @action
@@ -288,5 +316,10 @@ export class SessionStore {
     }
 
     this.refreshMemorySession()
+  }
+
+  @action
+  private appendMessages(messages: IMessage[]) {
+    this.messages = this.messages.concat(messages)
   }
 }

@@ -89,7 +89,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     }
 
     return (
-      <a onClick={this.resetUserAddress}>
+      <a onClick={this.resetUserAddress} className={styles.resetUserAddress}>
         <Icon type="close-circle" onClick={this.resetUserAddress} />
       </a>
     )

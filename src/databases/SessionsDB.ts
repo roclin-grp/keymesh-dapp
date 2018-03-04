@@ -136,14 +136,14 @@ export class SessionsDB {
     const { sessions } = this.dexieDB
 
     const {
-      summary,
+      summary = session.data.summary,
       ...optionsMeta,
     } = options
-    const meta = {
+    const meta: ISession['meta'] = {
       ...session.meta,
       ...optionsMeta,
     }
-    const data = {
+    const data: ISession['data'] = {
       ...session.data,
       summary,
     }

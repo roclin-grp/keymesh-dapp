@@ -1,6 +1,5 @@
 import { observable, action, runInAction, computed } from 'mobx'
 
-import { MetaMaskStore } from './MetaMaskStore'
 import { ContractStore } from './ContractStore'
 import { getUserPublicKey } from './UsersStore'
 import { UserStore } from './UserStore'
@@ -19,7 +18,7 @@ import { getPreKeysPackage } from '../PreKeysPackage'
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
   @observable.ref public currentSessionStore: SessionStore | undefined
-  @observable public isSwitchingSession = false
+  @observable public isLoadingSessionData = false
 
   private readonly sessionsDB: SessionsDB
   private readonly cachedSessionStores: {
@@ -33,7 +32,6 @@ export class SessionsStore {
 
   constructor(
     private readonly userStore: UserStore,
-    private readonly metaMaskStore: MetaMaskStore,
     private readonly contractStore: ContractStore,
   ) {
     this.sessionsDB = getDatabases().sessionsDB
@@ -43,11 +41,6 @@ export class SessionsStore {
   }
 
   public async tryCreateNewSession(receiverAddress: string, subject?: string): Promise<ISession> {
-    const existedSession = this.sessions.find((session) => session.data.contact === receiverAddress)
-    if (existedSession != null) {
-      return existedSession
-    }
-
     this.validateReceiver(receiverAddress)
 
     const sessionData: ISessionData = {
@@ -76,13 +69,22 @@ export class SessionsStore {
     )
   }
 
-  public async saveNewSession(
+  public async saveNewSessionWithMessage(
     session: ISession,
-    firstMessage?: IMessage,
+    firstMessage: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
     await this.sessionsDB.addSession(session, firstMessage, addMessageOptions)
-    this.addSession(session)
+
+    const newSession = await getDatabases().sessionsDB.getSession(
+      session.sessionTag,
+      session.userAddress,
+    )
+    if (newSession == null) {
+      throw new Error('fail to save session')
+    }
+
+    this.addSession(newSession)
   }
 
   public async deleteSession(session: ISession) {
@@ -108,7 +110,6 @@ export class SessionsStore {
       session,
       this,
       this.userStore,
-      this.metaMaskStore,
       this.contractStore,
     )
     this.cachedSessionStores[sessionTag] = newStore
@@ -137,17 +138,21 @@ export class SessionsStore {
   @action
   public async selectSession(session: ISession) {
     const currentSessionStore = this.getSessionStore(session)
+    this.currentSessionStore = currentSessionStore
+
     await currentSessionStore.loadNewMessages()
-    runInAction(() => {
-      this.currentSessionStore = currentSessionStore
-    })
   }
 
   @action
   public sortSessions() {
     this.sessions.sort(
-      (sessionA, sessionB) =>
-        sessionA.meta.lastUpdate > sessionB.meta.lastUpdate ? -1 : 1,
+      (sessionA, sessionB) => {
+        if (sessionA.meta.isNewSession) {
+          // stick to top
+          return -1
+        }
+        return sessionA.meta.lastUpdate > sessionB.meta.lastUpdate ? -1 : 1
+      },
     )
     this.sessions = this.sessions.slice()
   }
@@ -178,7 +183,7 @@ export class SessionsStore {
   }
 
   private async validateReceiver(receiverAddress: string) {
-        // TODO: should cache public keys
+    // TODO: should cache public keys
     // try to get user's public key
     const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
     // try to get user's pre-keys

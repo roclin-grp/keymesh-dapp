@@ -146,12 +146,13 @@ class Messages extends React.Component<IProps, IState> {
     300,
   )
 
-  private sessionStoreDidLoad = (store: SessionStore) => {
+  private sessionStoreDidLoad = async (store: SessionStore) => {
     this.disposeNewMessageListener = store.listenForNewMessage(this.handleReceiveNewMessage)
     if (store.newUnreadCount > 0) {
       store.clearNewUnreadCount()
     }
     store.setShouldAddUnread(false)
+    await store.waitForMessagesLoading()
     this.scrollToBottom()
   }
 

@@ -6,6 +6,7 @@ import { IChatMessage } from '../ChatMessageStore'
 
 import { sleep } from '../../utils'
 import { storeLogger } from '../../utils/loggers'
+import { createSession } from '../../databases/SessionsDB'
 
 export class MessageCenter {
   private isFetching = false
@@ -90,9 +91,9 @@ export class MessageCenter {
     for (const trustmeshRawMessage of messages) {
       const decryptMessagePromise = this.userStore.cryptoBox
         .decryptMessage(trustmeshRawMessage)
-        .catch((err) => {
-          // TODO: handle unexpected decrypt error, avoid message lost
-          storeLogger.error('decrypt message error:', err)
+        .catch(() => {
+          // some decrypt errors is expected (Duplicate messages, unmatched receiver)
+          // TODO: handle unexpected decrypt errors, avoid message lost
           return null
         })
       decryptMessagesPromises.push(decryptMessagePromise)
@@ -118,17 +119,24 @@ export class MessageCenter {
   }
 
   private async saveMessage(chatMessage: IChatMessage) {
-    const { contact, subject } = chatMessage.session.data
     const { sessionsStore } = this.userStore
-    const session = await sessionsStore.tryCreateNewSession(contact, subject)
+
+    const { sessionTag } = chatMessage.session
+    const existedSession = this.userStore.sessionsStore.sessions
+    .find((session) => session.sessionTag === sessionTag)
 
     const { message } = chatMessage
-    if (session.meta.isNewSession) {
-      await sessionsStore.saveNewSession(session, message)
+    if (existedSession == null) {
+      const session = await createSession(
+        this.userStore.user,
+        chatMessage.session.data,
+        sessionTag,
+      )
+      await sessionsStore.saveNewSessionWithMessage(session, message)
       return
     }
 
-    await sessionsStore.getSessionStore(session).saveMessage(message)
+    await sessionsStore.getSessionStore(existedSession).saveMessage(message)
   }
 }
 

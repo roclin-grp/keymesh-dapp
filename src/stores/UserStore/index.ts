@@ -15,7 +15,7 @@ import {
   REGISTER_FAIL_CODE,
   getAvatarHashByUser,
 } from '../UsersStore'
-import { BoundSocialsStore } from '../BoundSocialsStore'
+import { SocialProofsStore } from '../SocialProofsStore'
 import { SessionsStore } from '../SessionsStore'
 
 import { getDatabases } from '../../databases'
@@ -38,7 +38,7 @@ export class UserStore {
   public readonly preKeysManager: PreKeysManager
   public readonly chatMessagesCenter: MessageCenter
   public readonly sessionsStore: SessionsStore
-  public readonly boundSocialsStore: BoundSocialsStore
+  public readonly socialProofsStore: SocialProofsStore
 
   private readonly usersDB: UsersDB
   private readonly userRef: IUser
@@ -86,10 +86,10 @@ export class UserStore {
 
     this.preKeysManager = new PreKeysManager(this)
     this.chatMessagesCenter = new MessageCenter(this, contractStore)
-    this.sessionsStore = new SessionsStore(this, metaMaskStore, contractStore)
-    this.boundSocialsStore = new BoundSocialsStore({
+    this.sessionsStore = new SessionsStore(this, contractStore)
+    this.socialProofsStore = new SocialProofsStore({
       userStore: this,
-      contractStore: this.contractStore,
+      contractStore,
       userCachesStore: this.usersStore.userCachesStore,
     })
 

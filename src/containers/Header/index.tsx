@@ -213,6 +213,17 @@ class Header extends React.Component<IProps, IState> {
         </Link>
       )
     }
+    if (!hasUser && usableUsers.length > 0) {
+      return (
+        <Link to="/accounts">
+          <Button
+            type="primary"
+          >
+            Manage account
+          </Button>
+        </Link>
+      )
+    }
     if (!hasUser) {
       return null
     }

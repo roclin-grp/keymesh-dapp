@@ -96,7 +96,7 @@ class Message extends React.Component<IProps> {
     }
 
     const iconElement = <Icon className={styles.messageStatusIcon} type="loading"/>
-    const statusStr = MESSAGE_STATUS_STR[messageStatus]
+    const statusStr = <span>{MESSAGE_STATUS_STR[messageStatus]}</span>
 
     let statusContent: JSX.Element
     if (explorerURL == null) {

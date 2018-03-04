@@ -1,6 +1,6 @@
 import { observable, action, computed } from 'mobx'
 
-import { MetaMaskStore } from './MetaMaskStore'
+import { ContractStore } from './ContractStore'
 import { SessionStore } from './SessionStore'
 
 import { getDatabases } from '../databases/index'
@@ -28,7 +28,7 @@ export class ChatMessageStore {
   constructor(
     private readonly sessionStore: SessionStore,
     private readonly message: IMessage,
-    private readonly metaMaskStore: MetaMaskStore,
+    private readonly contractStore: ContractStore,
   ) {
     const { status } = message.meta
     this._messageStatus = status
@@ -45,7 +45,7 @@ export class ChatMessageStore {
       throw new Error('no transaction hash')
     }
 
-    const { getReceipt } = this.metaMaskStore.getProcessingTransactionHandler(
+    const { getReceipt } = this.contractStore.getProcessingTransactionHandler(
       transactionHash,
     )
 

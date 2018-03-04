@@ -240,7 +240,7 @@ class Accounts extends React.Component<IProps, IState> {
         case REGISTER_FAIL_CODE.UNKNOWN:
         default:
           if ((err as Error).message.includes('User denied transaction signature')) {
-            return 'Register fail, you reject the transaction.'
+            return 'Fail to register, you reject the transaction.'
           }
           storeLogger.error('Unexpected register error:', err as Error)
           return 'Something went wrong, please retry.'

@@ -17,7 +17,7 @@
 }
 
 .submitButton {
-  position: absolute;
+  position: absolute !important;
   bottom: 10px;
   right: 10px;
 }

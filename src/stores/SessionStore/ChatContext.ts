@@ -23,6 +23,7 @@ import {
 
 import PreKeyBundle, { IPreKey } from '../../PreKeyBundle'
 import { getPreKeysPackage } from '../../PreKeysPackage'
+import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
 
 export default class ChatContext {
   private readonly session: ISession
@@ -50,7 +51,8 @@ export default class ChatContext {
     const preKeyBundle = await this.getPreKeyBundle(receiverPublicKey)
     const cipherText = await this.userStore.cryptoBox.encryptMessage(chatMessage, preKeyBundle)
 
-    const { transactionHash } = await this.contractStore.messagesContract.publish(cipherText)
+    const promiEvent = this.contractStore.messagesContract.publish(cipherText)
+    const transactionHash = await transactionPromiEventToPromise(promiEvent)
     chatMessage.message.meta.transactionHash = transactionHash
 
     const isClosingSession = messageData.messageType === MESSAGE_TYPE.CLOSE_SESSION
@@ -60,11 +62,11 @@ export default class ChatContext {
     }
 
     if (this.session.meta.isNewSession) {
-      await this.sessionStore.saveSession(chatMessage.message)
+      await this.sessionStore.saveSessionWithMessage(chatMessage.message)
       return
     }
 
-    await this.sessionStore.saveMessage(chatMessage.message)
+    await this.sessionStore.saveMessage(chatMessage.message, { shouldAddUnread: false })
   }
 
   private createNewMessage(messageData: IMessageData): IChatMessage {

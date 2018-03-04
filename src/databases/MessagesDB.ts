@@ -132,9 +132,9 @@ export class MessagesDB {
       messages,
     } = this.dexieDB
 
-    const meta = {
+    const meta: IMessage['meta'] = {
       ...message.meta,
-      options,
+      ...options,
     }
     await messages.update(messageID, { meta })
 
@@ -185,7 +185,6 @@ export class MessagesDB {
     const summary = isClosed
       ? '[Session Closed]'
       : `${payload.slice(0, SUMMARY_LENGTH)}${(payload.length > SUMMARY_LENGTH ? '...' : '')}`
-
     await this.dataBases.sessionsDB.updateSession(
       session,
       {
