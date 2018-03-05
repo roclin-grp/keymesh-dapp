@@ -107,14 +107,14 @@ class NewConversationDialog extends React.Component<IProps, IState> {
         this.resetUserAddress()
         return
       }
-      const { sessionsStore } = this.props
 
       this.setState({
         isProcessing: true,
       })
 
+      const { sessionsStore } = this.props
       try {
-        const session = await sessionsStore.tryCreateNewSession(userAddress)
+        const session = await sessionsStore.createNewConversation(userAddress)
         sessionsStore.addSession(session)
         await sessionsStore.selectSession(session)
       } catch (err) {
@@ -137,20 +137,28 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     message.error('Create session fail, please retry')
   }
 
-  private validUserAddress = (
+  private validUserAddress = async (
     _: object,
     userAddress: string | undefined,
-    done: (isValid?: boolean) => void,
+    done: (errorMessage?: string) => void,
   ) => {
+    // antd's issue
     if (userAddress != null) {
       if (userAddress === '') {
         return done()
       }
       if (userAddress === this.props.user.userAddress) {
-        return (done as any)(`Can't send message to yourself!`)
+        return done(`Can't send message to yourself!`)
       }
       if (!isAddress(userAddress)) {
-        return (done as any)('Invalid address!')
+        return done('Invalid address!')
+      }
+      try {
+        // check receiver's public key and pre-keys package
+        await this.props.sessionsStore.validateReceiver(userAddress)
+        return done()
+      } catch (err) {
+        return done('User not existed!')
       }
     }
     done()

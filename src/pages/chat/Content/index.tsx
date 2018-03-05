@@ -40,6 +40,7 @@ class ChatContent extends React.Component<IProps> {
         <div className={styles.sessionList}>
           <div className={styles.sessionListTopBar}>
             <Button
+              disabled={!sessionsStore.hasSelectedSession}
               onClick={this.handleNewConversationClick}
               className={styles.newConversationButton}
               icon="plus"

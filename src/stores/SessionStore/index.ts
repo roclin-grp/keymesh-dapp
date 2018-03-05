@@ -2,12 +2,10 @@ import {
   observable,
   runInAction,
   action,
-  reaction,
   observe,
   computed,
   Lambda,
   IValueDidChange,
-  IReactionDisposer,
 } from 'mobx'
 
 import ChatContext from './ChatContext'
@@ -18,8 +16,8 @@ import { SessionsStore } from '../SessionsStore'
 import { ChatMessageStore } from '../ChatMessageStore'
 
 import { getDatabases } from '../../databases'
-import { IUpdateSessionOptions, ISession } from '../../databases/SessionsDB'
-import { IAddMessageOptions, IMessage } from '../../databases/MessagesDB'
+import { IUpdateSessionOptions, ISession, SessionsDB, ISessionConfigurableMeta } from '../../databases/SessionsDB'
+import { IAddMessageOptions, IMessage, MessagesDB } from '../../databases/MessagesDB'
 
 import { sleep } from '../../utils'
 
@@ -33,7 +31,8 @@ export class SessionStore {
 
   public isLoading = false
   private readonly sessionRef: ISession
-  private readonly disposeUpdateSessionReaction: IReactionDisposer
+  private readonly messagesDB: MessagesDB
+  private readonly sessionsDB: SessionsDB
   private readonly cachedChatMessageStores: { [messageID: string]: ChatMessageStore } = {}
 
   private isClearing = false
@@ -44,16 +43,6 @@ export class SessionStore {
     return this.sessionsStore.isCurrentSession(this.session.sessionTag)
   }
 
-  @computed
-  private get updateableSessionData(): IUpdateSessionOptions {
-    return {
-      lastUpdate: this.session.meta.lastUpdate,
-      isClosed: this.session.meta.isClosed,
-      unreadCount: this.session.meta.unreadCount,
-      summary: this.session.data.summary,
-    }
-  }
-
   constructor(
     session: ISession,
     private readonly sessionsStore: SessionsStore,
@@ -61,12 +50,10 @@ export class SessionStore {
     private readonly contractStore: ContractStore,
   ) {
     this.session = this.sessionRef = session
+    const { messagesDB, sessionsDB } = getDatabases()
+    this.messagesDB = messagesDB
+    this.sessionsDB = sessionsDB
     this.chatContext = new ChatContext(userStore, this, contractStore)
-
-    this.disposeUpdateSessionReaction = reaction(
-      () => this.updateableSessionData,
-      this.updateReferenceSession.bind(this),
-    )
   }
 
   @action
@@ -79,17 +66,12 @@ export class SessionStore {
   }
 
   public async refreshMemorySession() {
-    const session = await getDatabases().sessionsDB.getSession(
+    const session = await this.sessionsDB.getSession(
       this.session.sessionTag,
       this.session.userAddress,
     )
     if (session != null) {
-      this.updateMemorySession({
-        summary: session.data.summary,
-        lastUpdate: session.meta.lastUpdate,
-        isClosed: session.meta.isClosed,
-        unreadCount: session.meta.unreadCount,
-      })
+      this.updateMemorySession(session)
     }
   }
 
@@ -129,8 +111,7 @@ export class SessionStore {
     }
 
     this.isLoading = true
-    const { messagesDB } = getDatabases()
-    const newMessages = await messagesDB.getMessagesOfSession(this.session, {
+    const newMessages = await this.messagesDB.getMessagesOfSession(this.session, {
       timestampAfter: lastMessageTimestamp + 1,
       limit,
     })
@@ -160,11 +141,10 @@ export class SessionStore {
       return
     }
 
-    const { messagesDB } = getDatabases()
     runInAction(() => {
       this.isLoadingOldMessages = true
     })
-    const oldMessages = await messagesDB.getMessagesOfSession(this.session, {
+    const oldMessages = await this.messagesDB.getMessagesOfSession(this.session, {
       timestampBefore: this.messages[messagesLength - 1].data.timestamp,
       limit,
     })
@@ -198,8 +178,7 @@ export class SessionStore {
     firstMessage: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
-    const { sessionsDB } = getDatabases()
-    await sessionsDB.addSession(this.session, firstMessage, {
+    await this.sessionsDB.addSession(this.session, firstMessage, {
       ...addMessageOptions,
       shouldAddUnread: false,
     })
@@ -208,7 +187,7 @@ export class SessionStore {
   }
 
   public async saveMessage(message: IMessage, options?: IAddMessageOptions) {
-    await getDatabases().messagesDB.addMessage(this.session, message, {
+    await this.messagesDB.addMessage(this.session, message, {
       shouldAddUnread: this.shouldAddUnread,
       ...options,
     })
@@ -260,7 +239,6 @@ export class SessionStore {
   }
 
   public disposeStore() {
-    this.disposeUpdateSessionReaction()
     this.clearCachedChatMessageStores()
     this.sessionsStore.removeCachedSessionStore(this)
   }
@@ -277,33 +255,26 @@ export class SessionStore {
   }
 
   private async updateSession(args: IUpdateSessionOptions) {
-    await getDatabases().sessionsDB.updateSession(this.session, args)
-    this.updateMemorySession(args)
-  }
-
-  private updateReferenceSession(args: IUpdateSessionOptions) {
-    this.updateSessionOrRefSession(args, true)
-  }
-
-  private updateMemorySession(args: IUpdateSessionOptions) {
-    this.updateSessionOrRefSession(args)
-    this.sessionsStore.sortSessions()
+    const session = await this.sessionsDB.updateSession(this.session, args)
+    this.updateMemorySession(session)
   }
 
   @action
-  private updateSessionOrRefSession(args: IUpdateSessionOptions, ref = false) {
-    const oldSummary = ref ? this.sessionRef.data.summary : this.session.data.summary
+  private updateMemorySession(session: ISession) {
     const {
-      // if we don't use oldSummary as defaul, will set summary to undefined..
-      summary = oldSummary,
-      ...meta,
-    } = args
-    const data = {
-      summary,
-    }
+      meta,
+      data,
+    } = session
 
-    Object.assign(ref ? this.sessionRef.meta : this.session.meta, meta)
-    Object.assign(ref ? this.sessionRef.data : this.session.data, data)
+    // set new conversation flag to false
+    const extraMeta: ISessionConfigurableMeta = { isNewSession: false }
+
+    Object.assign(this.session.meta, meta, extraMeta)
+    Object.assign(this.session.data, data)
+    Object.assign(this.sessionRef.meta, meta, extraMeta)
+    Object.assign(this.sessionRef.data, data)
+
+    this.sessionsStore.sortSessions()
   }
 
   @action

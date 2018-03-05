@@ -30,6 +30,8 @@ import {
 import { getMessageTimeStamp } from '../../../utils/time'
 import { IMessage, MESSAGE_STATUS, MESSAGE_TYPE } from '../../../databases/MessagesDB'
 
+import ENV from '../../../config'
+
 @inject(mapStoreToProps)
 @observer
 class Message extends React.Component<IProps> {
@@ -90,13 +92,34 @@ class Message extends React.Component<IProps> {
     const currentNetwork = this.injectedProps.metaMaskStore.currentEthereumNetwork!
     const explorerURL = ETHEREUM_NETWORK_TX_URL_PREFIX[currentNetwork]
 
-    const { messageStatus } = this.injectedProps.chatMessageStore
+    const { messageStatus, confirmationCounter } = this.injectedProps.chatMessageStore
     if (messageStatus === MESSAGE_STATUS.DELIVERED) {
       return null
     }
 
-    const iconElement = <Icon className={styles.messageStatusIcon} type="loading"/>
-    const statusStr = <span>{MESSAGE_STATUS_STR[messageStatus]}</span>
+    const isFailed = messageStatus === MESSAGE_STATUS.FAILED
+
+    const iconType = isFailed ? 'close-circle-o' : 'loading'
+    const iconElement = (
+      <Icon className={classnames(styles.messageStatusIcon, { [styles.failed]: isFailed })} type={iconType} />
+    )
+
+    const statusStr = (
+      <span
+        className={classnames(styles.messageStatusStr, { [styles.failed]: isFailed })}
+      >
+          {MESSAGE_STATUS_STR[messageStatus]}
+      </span>
+    )
+
+    const displayConfirmationCounter = (
+      confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER
+        ? ENV.REQUIRED_CONFIRMATION_NUMBER
+        : confirmationCounter
+    )
+    const confirmationCounterStr = isFailed
+      ? null
+      : `(${displayConfirmationCounter}/${ENV.REQUIRED_CONFIRMATION_NUMBER})`
 
     let statusContent: JSX.Element
     if (explorerURL == null) {
@@ -104,6 +127,7 @@ class Message extends React.Component<IProps> {
         <span className={styles.messageStatus}>
           {iconElement}
           {statusStr}
+          {confirmationCounterStr}
         </span>
       )
     } else {
@@ -115,12 +139,15 @@ class Message extends React.Component<IProps> {
         >
           {iconElement}
           {statusStr}
+          {confirmationCounterStr}
         </a>
       )
     }
 
+    const tooltipTitle = isFailed ? 'Transaction has error' : 'Transaction processing'
+
     return (
-      <Tooltip title="Transaction processing" placement="bottom">
+      <Tooltip placement="left" title={tooltipTitle}>
         {statusContent}
       </Tooltip>
     )

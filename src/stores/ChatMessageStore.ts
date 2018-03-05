@@ -14,7 +14,13 @@ import ENV from '../config'
 
 export class ChatMessageStore {
   @observable private _messageStatus: MESSAGE_STATUS
+  @observable private _confirmationCounter: number = 0
   private readonly messagesDB: MessagesDB
+
+  @computed
+  public get confirmationCounter(): number {
+    return this._confirmationCounter
+  }
 
   @computed
   public get messageStatus(): MESSAGE_STATUS {
@@ -54,6 +60,7 @@ export class ChatMessageStore {
         ENV.REQUIRED_CONFIRMATION_NUMBER,
         ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
         ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
+        this.handleConfirmation.bind(this),
       )
 
       await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
@@ -86,6 +93,11 @@ export class ChatMessageStore {
   @action
   private updateMemoryMessageStatus(status: MESSAGE_STATUS) {
     this._messageStatus = status
+  }
+
+  @action
+  private handleConfirmation(confirmationCount: number) {
+    this._confirmationCounter = confirmationCount
   }
 }
 

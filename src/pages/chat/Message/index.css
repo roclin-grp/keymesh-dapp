@@ -85,3 +85,8 @@
 .messageStatusIcon:not(:last-child) {
   margin-right: 0.5rem;
 }
+
+.messageStatusIcon.failed,
+.messageStatusStr.failed {
+  color: #ff4d4f;
+}
