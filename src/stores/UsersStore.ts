@@ -144,14 +144,14 @@ export class UsersStore {
     const identitiesContract = this.contractStore.identitiesContract
 
     // check if registered, avoid unnecessary transaction
-    const {
-      publicKey,
-    } = await identitiesContract.getIdentity(ethereumAddress)
-    if (!isHexZeroValue(publicKey)) {
-      this.setHasRegisterRecordOnChain(ethereumAddress, true)
-      registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
-      return
-    }
+    // const {
+    //   publicKey,
+    // } = await identitiesContract.getIdentity(ethereumAddress)
+    // if (!isHexZeroValue(publicKey)) {
+    //   this.setHasRegisterRecordOnChain(ethereumAddress, true)
+    //   registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
+    //   return
+    // }
 
     const identityKeyPair = proteusKeys.IdentityKeyPair.new()
     const userPublicKeyFingerprint = getPublicKeyFingerPrint(identityKeyPair.public_key)
@@ -295,6 +295,7 @@ export class UsersStore {
     } = await this.contractStore.identitiesContract.getIdentity(userAddress)
 
     const hasRegisterRecordOnChain = !isHexZeroValue(publicKey)
+    // TODO: disable existed local user if public key has changed
     this.setHasRegisterRecordOnChain(userAddress, hasRegisterRecordOnChain)
   }
 
