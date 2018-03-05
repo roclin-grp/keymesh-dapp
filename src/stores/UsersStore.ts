@@ -4,7 +4,13 @@ import {
   computed,
   reaction,
   runInAction,
+  observe,
+  IValueDidChange,
 } from 'mobx'
+import {
+  keys as proteusKeys,
+} from 'wire-webapp-proteus'
+
 import {
   MetaMaskStore,
   ETHEREUM_NETWORKS,
@@ -26,14 +32,6 @@ import {
 } from './UserProofsStatesStore'
 
 import {
-  keys,
-} from 'wire-webapp-proteus'
-const {
-  IdentityKeyPair,
-  PreKey,
-} = keys
-
-import {
   noop,
 } from '../utils'
 import {
@@ -41,8 +39,9 @@ import {
 } from '../utils/hex'
 import {
   getPublicKeyFingerPrint,
-  generatePublicKeyFromHexStr,
+  publicKeyFromHexStr,
 } from '../utils/proteus'
+import { sha3, isAddress } from '../utils/cryptos'
 
 import {
   getDatabases,
@@ -52,72 +51,60 @@ import {
   ICreateUserArgs,
 } from '../databases/UsersDB'
 
-import { sha3 } from '../utils/cryptos'
-
 import IndexedDBStore from '../IndexedDBStore'
 
 export class UsersStore {
-  public static getAvatarHashByUser(user: IUser): string {
-    switch (user.status) {
-      case USER_STATUS.OK:
-      case USER_STATUS.IDENTITY_UPLOADED:
-        return sha3(`${user.userAddress}${user.blockHash}`)
-      default:
-        return ''
-    }
-  }
-
   @observable.ref public users: IUser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
   @observable public isLoadingUsers = true
   @observable public hasRegisterRecordOnChain = false
+  // FIXME: move to outside
+  public readonly userCachesStore: UserCachesStore
+  // FIXME: move to outside
+  public readonly userProofsStatesStore: UserProofsStatesStore
 
-  public userCachesStore: UserCachesStore
-  public userProofsStatesStore: UserProofsStatesStore
-
-  private usersDB: UsersDB
-  private lastNetworkId: ETHEREUM_NETWORKS | undefined
-  private cachedUserStores: {
-    [userAddress: string]: UserStore,
-  } = {}
+  private readonly cachedUserStores: { [userAddress: string]: UserStore } = {}
+  private readonly usersDB: UsersDB
 
   constructor(
-    private metaMaskStore: MetaMaskStore,
-    private contractStore: ContractStore,
+    private readonly metaMaskStore: MetaMaskStore,
+    private readonly contractStore: ContractStore,
   ) {
     this.usersDB = getDatabases().usersDB
+
+    // FIXME: move to outside
     this.userCachesStore = new UserCachesStore(this, metaMaskStore)
+    // FIXME: move to outside
     this.userProofsStatesStore = new UserProofsStatesStore({
       usersStore: this,
       contractStore: this.contractStore,
     })
 
     reaction(
-      () => this.metaMaskStore.currentEthereumAccount,
-      this.checkOnChainRegisterRecord,
+      () => metaMaskStore.currentEthereumAccount,
+      this.checkOnChainRegisterRecord.bind(this),
     )
 
-    reaction(
-      () => ({
-        isActive: this.metaMaskStore.isActive,
-        networkId: this.metaMaskStore.currentEthereumNetwork,
-      }),
-      this.reloadUsersIfNetworkChanged,
+    observe(
+      metaMaskStore,
+      'currentEthereumNetwork',
+      ({ oldValue, newValue }: IValueDidChange<MetaMaskStore['currentEthereumNetwork']>) =>
+        this.reloadUsersIfNetworkChanged(newValue, oldValue),
     )
   }
 
   @computed
-  public get usableUsers() {
+  public get usableUsers(): IUser[] {
     return this.users.filter((user) => user.status === USER_STATUS.OK)
   }
 
   @computed
-  public get hasUser() {
+  public get hasUser(): boolean {
     return this.currentUserStore != null
   }
 
   @computed
-  public get walletCorrespondingUser() {
+  public get walletCorrespondingUser(): IUser | undefined {
     const {
       currentEthereumAccount,
     } = this.metaMaskStore
@@ -125,12 +112,12 @@ export class UsersStore {
   }
 
   @computed
-  public get hasWalletCorrespondingUsableUser() {
+  public get hasWalletCorrespondingUsableUser(): boolean {
     return this.walletCorrespondingUser != null
   }
 
   @computed
-  public get hasRegisterRecordOnLocal() {
+  public get hasRegisterRecordOnLocal(): boolean {
     const {
       isActive,
       currentEthereumAccount,
@@ -139,25 +126,12 @@ export class UsersStore {
       && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) !== -1)
   }
 
-  public async getUserPublicKey(userAddress: string) {
-    if (userAddress === '') {
-      return undefined
-    }
-
-    const {
-      publicKey: identityFingerprint,
-    } = await this.getIdentityByUserAddress(userAddress)
-    if (isHexZeroValue(identityFingerprint)) {
-      return undefined
-    }
-
-    return generatePublicKeyFromHexStr(identityFingerprint)
-  }
-
+  // TODO: remove this
   public getIdentityByUserAddress(userAddress: string) {
     return this.contractStore.identitiesContract.getIdentity(userAddress)
   }
 
+  // TODO: refactor
   public register = async ({
     transactionWillCreate = noop,
     transactionDidCreate = noop,
@@ -172,18 +146,14 @@ export class UsersStore {
     // check if registered, avoid unnecessary transaction
     const {
       publicKey,
-    } = await this.getIdentityByUserAddress(ethereumAddress)
+    } = await identitiesContract.getIdentity(ethereumAddress)
     if (!isHexZeroValue(publicKey)) {
-      if (ethereumAddress === this.metaMaskStore.currentEthereumAccount) {
-        runInAction(() => {
-          this.hasRegisterRecordOnChain = true
-        })
-      }
+      this.setHasRegisterRecordOnChain(ethereumAddress, true)
       registerDidFail(null, REGISTER_FAIL_CODE.OCCUPIED)
       return
     }
 
-    const identityKeyPair = IdentityKeyPair.new()
+    const identityKeyPair = proteusKeys.IdentityKeyPair.new()
     const userPublicKeyFingerprint = getPublicKeyFingerPrint(identityKeyPair.public_key)
 
     transactionWillCreate()
@@ -194,7 +164,8 @@ export class UsersStore {
           // crytobox data
           const store = new IndexedDBStore(`${ethereumNetworkId}@${ethereumAddress}`)
           await store.save_identity(identityKeyPair)
-          await store.save_prekey(PreKey.last_resort())
+          const lastResortPreKey = proteusKeys.PreKey.last_resort()
+          await store.save_prekey(lastResortPreKey)
 
           const user = await this.createUser(
             {
@@ -222,35 +193,29 @@ export class UsersStore {
       })
   }
 
-  public deleteUser = async (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
+  public async deleteUser(networkId: ETHEREUM_NETWORKS, userAddress: string) {
     const { usersDB } = this
     const user = await usersDB.getUser(networkId, userAddress)
-    if (user != null) {
-      await usersDB.deleteUser(user)
-      if (this.metaMaskStore.currentEthereumNetwork === networkId) {
-        this.removeUser(user)
-      }
+    if (user == null) {
+      return
+    }
+
+    await usersDB.deleteUser(user)
+    if (this.metaMaskStore.currentEthereumNetwork === networkId) {
+      this.removeUser(user)
     }
   }
 
-  public importUser = async (stringifyData: string) => {
+  public async importUser(stringifyData: string): Promise<IUser> {
     const user = await this.usersDB.restoreUserFromExportedData(
       this.metaMaskStore.currentEthereumNetwork!,
       JSON.parse(stringifyData),
     )
-    runInAction(() => {
-      this.addUser(user)
-    })
+    this.addUser(user)
     return user
   }
 
-  public getAvatarHashByUserAddress = async (userAddress: string) => {
-    const { blockNumber } = await this.getIdentityByUserAddress(userAddress)
-    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
-    return sha3(`${userAddress}${blockHash}`)
-  }
-
-  public getUserStore = (user: IUser): UserStore => {
+  public getUserStore(user: IUser): UserStore {
     const oldStore = this.cachedUserStores[user.userAddress]
     if (oldStore != null) {
       return oldStore
@@ -266,19 +231,20 @@ export class UsersStore {
     return newStore
   }
 
-  public disposeUserStore(user: IUser) {
-    const oldStore = this.cachedUserStores[user.userAddress]
-    if (oldStore == null) {
-      return
+  public removeCachedUserStore(userStore: UserStore) {
+    delete this.cachedUserStores[userStore.user.userAddress]
+  }
+
+  /**
+   * dispose all cached sub-stores
+   */
+  public clearCachedUserStores() {
+    for (const userStore of Object.values(this.cachedUserStores)) {
+      userStore.disposeStore()
     }
-
-    delete this.cachedUserStores[user.userAddress]
   }
 
-  public clearCachedStores() {
-    this.cachedUserStores = {}
-  }
-
+  // FIXME: no arrow function
   public isCurrentUser = (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
     return (
       this.hasUser
@@ -287,17 +253,22 @@ export class UsersStore {
     )
   }
 
+  // FIXME: no arrow function
   @action
   public useUser = (user: IUser) => {
-    if (this.hasUser) {
-      this.currentUserStore!.disposeStore()
+    if (this.currentUserStore != null) {
+      this.currentUserStore.disposeStore()
     }
+
     const userStore = this.getUserStore(user)
     this.currentUserStore = userStore
+    userStore.chatMessagesCenter.startFetchMessages()
+
+    // save record to local storage
     setNetworkLastUsedUserAddress(user)
   }
 
-  private createUser = async (args: ICreateUserArgs) => {
+  private async createUser(args: ICreateUserArgs): Promise<IUser> {
     const user = await this.usersDB.createUser(args)
 
     this.addUser(user)
@@ -305,37 +276,46 @@ export class UsersStore {
     return user
   }
 
-  private checkOnChainRegisterRecord = async (userAddress?: string) => {
+  private async checkOnChainRegisterRecord(userAddress?: string) {
     if (
-      userAddress != null
-      && this.metaMaskStore.isActive
-      && !this.contractStore.isNotAvailable
+      !this.metaMaskStore.isActive ||
+      userAddress == null ||
+      this.contractStore.isNotAvailable
     ) {
-      const {
-        publicKey,
-      } = await this.getIdentityByUserAddress(userAddress)
-
-      if (userAddress === this.metaMaskStore.currentEthereumAccount) {
-        runInAction(() => {
-          this.hasRegisterRecordOnChain = !isHexZeroValue(publicKey)
-        })
-      }
-    }
-  }
-
-  private reloadUsersIfNetworkChanged = async ({
-    networkId,
-    isActive,
-  }: {
-      networkId: ETHEREUM_NETWORKS | undefined,
-      isActive: boolean,
-    }) => {
-    if (!isActive || this.lastNetworkId === networkId ) {
       return
     }
 
+    if (this.hasWalletCorrespondingUsableUser) {
+      this.setHasRegisterRecordOnChain(userAddress, true)
+      return
+    }
+
+    const {
+      publicKey,
+    } = await this.contractStore.identitiesContract.getIdentity(userAddress)
+
+    const hasRegisterRecordOnChain = !isHexZeroValue(publicKey)
+    this.setHasRegisterRecordOnChain(userAddress, hasRegisterRecordOnChain)
+  }
+
+  @action
+  private setHasRegisterRecordOnChain(userAddress: string, value: boolean) {
+    if (userAddress !== this.metaMaskStore.currentEthereumAccount) {
+      return
+    }
+
+    this.hasRegisterRecordOnChain = value
+  }
+
+  private async reloadUsersIfNetworkChanged(
+    networkId: ETHEREUM_NETWORKS | undefined,
+    lastNetworkId: ETHEREUM_NETWORKS | undefined,
+  ) {
+    if (networkId == null || lastNetworkId === networkId) {
+      return
+    }
     this.users = []
-    this.clearCachedStores()
+    this.clearCachedUserStores()
     this.isLoadingUsers = true
 
     const users = await this.usersDB.getUsers(networkId!)
@@ -347,23 +327,17 @@ export class UsersStore {
     }
 
     runInAction(() => {
-      this.loadUsers(users)
+      this.users = users
+      this.unsetUser()
       if (user != null) {
         this.useUser(user)
       }
       this.isLoadingUsers = false
     })
-    this.lastNetworkId = networkId
   }
 
   @action
-  private loadUsers = (users: IUser[]) => {
-    this.users = users
-    this.unsetUser()
-  }
-
-  @action
-  private addUser = (user: IUser) => {
+  private addUser(user: IUser) {
     // we should ideally prepend the new user to the list
     // this.users = [user].concat(this.users)
     // but `key` props are not preserved in antd list
@@ -374,8 +348,10 @@ export class UsersStore {
   }
 
   @action
-  private removeUser = (user: IUser) => {
-    this.users = this.users.filter((_user) => _user.userAddress !== user.userAddress)
+  private removeUser(user: IUser) {
+    this.users = this.users.filter(
+      (_user) => _user.userAddress !== user.userAddress,
+    )
 
     if (this.isCurrentUser(user.networkId, user.userAddress)) {
       this.unsetUser()
@@ -383,8 +359,18 @@ export class UsersStore {
   }
 
   @action
-  private unsetUser = () => {
+  private unsetUser() {
     this.currentUserStore = undefined
+  }
+}
+
+export function getAvatarHashByUser(user: IUser): string {
+  switch (user.status) {
+    case USER_STATUS.OK:
+    case USER_STATUS.IDENTITY_UPLOADED:
+      return sha3(`${user.userAddress}${user.blockHash}`)
+    default:
+      return ''
   }
 }
 
@@ -395,8 +381,27 @@ function setNetworkLastUsedUserAddress({
   localStorage.setItem(`keymesh@${networkId}@last-used-user`, userAddress)
 }
 
-function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS) {
+function getNetworkLastUsedUserAddress(networkId: ETHEREUM_NETWORKS): string {
   return (localStorage.getItem(`keymesh@${networkId}@last-used-user`) || '').toString()
+}
+
+export async function getUserPublicKey(
+  userAddress: string,
+  contractStore: ContractStore,
+): Promise<proteusKeys.PublicKey> {
+  if (!isAddress(userAddress)) {
+    throw new Error('address not valid')
+  }
+
+  const {
+    publicKey,
+  } = await contractStore.identitiesContract.getIdentity(userAddress)
+
+  if (isHexZeroValue(publicKey)) {
+    throw new Error('cannot find identity')
+  }
+
+  return publicKeyFromHexStr(publicKey)
 }
 
 export enum REGISTER_FAIL_CODE {

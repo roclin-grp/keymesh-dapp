@@ -282,21 +282,22 @@ class AccountListItem extends React.Component<IProps, IState> {
     })
   }
 
-  private identityDidUpload = () => {
+  private identityDidUpload = async () => {
     if (this.unmounted) {
       return
     }
-
-    this.injectedProps.userStore.uploadPreKeys({
-      preKeysDidUpload: this.preKeysDidUpload,
-      preKeysUploadDidFail: this.preKeysUploadDidFail,
-      isRegister: true,
-    }).catch(this.preKeysUploadDidFail)
 
     this.setState({
       status: REGISTER_STATUS.IDENTITY_UPLOADED,
       helpMessage: 'Uploading pre-keys to cloud server',
     })
+
+    try {
+      await this.injectedProps.userStore.preKeysManager.uploadPreKeys(true)
+      this.preKeysDidUpload()
+    } catch (err) {
+      this.preKeysUploadDidFail(err)
+    }
   }
 
   private preKeysDidUpload = async () => {

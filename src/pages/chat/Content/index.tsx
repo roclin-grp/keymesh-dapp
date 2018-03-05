@@ -20,43 +20,19 @@ import {
 import {
   UserStore,
 } from '../../../stores/UserStore'
-import {
-  ISession,
-} from '../../../stores/SessionStore'
+
+import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class ChatContent extends React.Component<IProps> {
-  public componentDidMount() {
-    this.userStoreDidLoad(this.props.userStore)
-  }
-
   public componentWillUnmount() {
-    this.userStoreWillunload(this.props.userStore)
-    this.props.userStore.sessionsStore.clearCachedStores()
-    this.props.userStore.chatMessagesStore.clearCachedStores()
+    // clear sessions and message caches
+    this.props.userStore.sessionsStore.disposeStore()
   }
-
-  public componentWillUpdate({userStore: nextUserStore}: IProps) {
-    const currentUserStore = this.props.userStore
-    if (nextUserStore !== currentUserStore) {
-      this.userStoreWillunload(currentUserStore)
-    }
-  }
-
-  public componentDidUpdate({userStore: prevUserStore}: IProps) {
-    const currentUserStore = this.props.userStore
-    if (prevUserStore !== currentUserStore) {
-      this.userStoreDidLoad(currentUserStore)
-    }
-  }
-
   public render() {
     const {
-      user: {
-        userAddress,
-      },
+      user,
       sessionsStore,
-      chatMessagesStore,
     } = this.props.userStore
 
     return (
@@ -77,7 +53,7 @@ class ChatContent extends React.Component<IProps> {
             renderItem={(session: ISession) => (
               <Session
                 className={classnames({
-                  [styles.selectedSession]: sessionsStore.isCurrentSession(session.userAddress, session.sessionTag),
+                  [styles.selectedSession]: sessionsStore.isCurrentSession(session.sessionTag),
                 })}
                 key={session.sessionTag}
                 sessionStore={sessionsStore.getSessionStore(session)}
@@ -86,13 +62,13 @@ class ChatContent extends React.Component<IProps> {
             )}
             // Here is a hack, since antd does not provide renderEmpty prop
             // you can actually put any JSX.Element into emptyText
-            locale={{emptyText: <>No session</>}}
+            locale={{emptyText: <>No conversations</>}}
           />
         </div>
         {
           sessionsStore.hasSelectedSession
-            ? <Dialog chatMessagesStore={chatMessagesStore!} sessionStore={sessionsStore.currentSessionStore!} />
-            : <NewConversationDialog chatMessagesStore={chatMessagesStore!} selfAddress={userAddress} />
+            ? <Dialog sessionStore={sessionsStore.currentSessionStore!} />
+            : <NewConversationDialog sessionsStore={sessionsStore} user={user} />
         }
       </div>
     )
@@ -102,10 +78,7 @@ class ChatContent extends React.Component<IProps> {
     const {
       sessionsStore,
     } = this.props.userStore
-    if (
-      !sessionsStore.isSwitchingSession
-      && !sessionsStore.isCurrentSession(session.userAddress, session.sessionTag)
-    ) {
+    if (!sessionsStore.isCurrentSession(session.sessionTag)) {
       // TODO: catch and warn if session data could load
       await sessionsStore.selectSession(session)
     }
@@ -113,17 +86,6 @@ class ChatContent extends React.Component<IProps> {
 
   private handleNewConversationClick = () => {
     this.props.userStore.sessionsStore.unselectSession()
-  }
-
-  private userStoreDidLoad = (userStore: UserStore) => {
-    userStore.chatMessagesStore.startFetchChatMessages()
-    if (!userStore.sessionsStore.isLoaded) {
-      userStore.sessionsStore.loadSessions()
-    }
-  }
-
-  private userStoreWillunload = (userStore: UserStore) => {
-    userStore.chatMessagesStore.stopFetchChatMessages()
   }
 }
 

@@ -1,4 +1,5 @@
-.prefixIcon {
+.prefixIcon,
+.resetUserAddress {
   color: rgba(0,0,0,.25);
 }
 
@@ -10,4 +11,9 @@
 
 .dialogInputContainer {
   margin-top: auto;
+}
+
+.createNewSessionButton {
+  margin: auto;
+  margin-bottom: 2rem;
 }

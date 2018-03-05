@@ -7,7 +7,7 @@ import {
   IUser,
 } from '../../../stores/UserStore'
 import {
-  UsersStore,
+  getAvatarHashByUser,
 } from '../../../stores/UsersStore'
 
 import * as styles from './index.css'
@@ -34,7 +34,7 @@ class SwitchUserOption extends React.Component<IProps, IState> {
         <HashAvatar
           className={styles.userAvatar}
           size="small"
-          hash={UsersStore.getAvatarHashByUser(user)}
+          hash={getAvatarHashByUser(user)}
         />
         <UserAddress address={user.userAddress} maxLength={8} />
       </a>

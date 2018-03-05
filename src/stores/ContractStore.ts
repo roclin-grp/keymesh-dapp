@@ -8,6 +8,8 @@ import {
 import {
   getContracts,
   ITrustMeshContracts,
+  getProcessingTransactionHandlers,
+  IProcessingTransactionHandlers,
 } from '@keymesh/trustmesh'
 
 import {
@@ -56,6 +58,10 @@ export class ContractStore {
       () => this.metaMaskStore.currentEthereumNetwork,
       () => this.configureTrustMesh(),
     )
+  }
+
+  public getProcessingTransactionHandler(hash: string): IProcessingTransactionHandlers {
+    return getProcessingTransactionHandlers(this.web3, hash)
   }
 
   private async configureTrustMesh() {

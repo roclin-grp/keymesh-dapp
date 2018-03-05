@@ -47,7 +47,11 @@ export function getBroadcastTime(time: number): string {
   return `${localTimeStr} - ${day} ${monthStr} ${year}`
 }
 
-export function getSessionTimestamp(time: number): string {
+export function getSessionTimestamp(time: number): string | null {
+  if (time <= 0) {
+    throw new Error('Invalid session timestamp')
+  }
+
   const {
     day,
     month,
@@ -165,6 +169,10 @@ export function isCurrentYear(time: number): boolean {
   const { year } = getDateInfo(time)
   const nowDate = new Date()
   return nowDate.getFullYear().toString() === year
+}
+
+export function solidityTimestampToJSTimestamp(timeStr: string): number {
+  return Number(timeStr) * 1000
 }
 
 export interface IAgo {

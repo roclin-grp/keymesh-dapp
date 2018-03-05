@@ -14,7 +14,6 @@ import {
 } from '../stores/MetaMaskStore'
 import {
   IUser,
-  IContact,
   USER_STATUS,
 } from '../stores/UserStore'
 
@@ -23,7 +22,7 @@ export class UsersDB {
 
   public getUsers(networkId: ETHEREUM_NETWORKS, status?: USER_STATUS) {
     return this.dexieDB.users
-      .where(Object.assign({ networkId }, status == null ? null : { status }))
+      .where({ networkId , ...(status && { status })})
       .toArray()
   }
 
@@ -44,17 +43,18 @@ export class UsersDB {
     const {
       users,
     } = this.dexieDB
+    const defaultData = {
+      status: USER_STATUS.PENDING,
+      blockHash: '0x0',
+      lastFetchBlockOfChatMessages: 0,
+    }
+    const newUser: IUser = {
+      ...defaultData,
+      ...user,
+    }
+
     return users
-      .add(Object.assign(
-        {},
-        {
-          status: USER_STATUS.PENDING,
-          blockHash: '0x0',
-          lastFetchBlockOfChatMessages: 0,
-          contacts: [],
-        },
-        user,
-      ))
+      .add(newUser)
       .then((primaryKeys) => users.get(primaryKeys)) as Dexie.Promise<IUser>
   }
 
@@ -106,32 +106,6 @@ export class UsersDB {
       .then(() => users.get([networkId, userAddress])) as Dexie.Promise<IUser>
   }
 
-  public addContact(user: IUser, contact: IContact) {
-    if (user.contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
-      return Dexie.Promise.resolve(1)
-    }
-
-    return this.updateUser(
-      user,
-      {
-        contacts: user.contacts.concat(contact),
-      },
-    )
-  }
-
-  public deleteContact(user: IUser, contact: IContact) {
-    if (!user.contacts.find((_contact) => _contact.userAddress === contact.userAddress)) {
-      return Dexie.Promise.resolve(1)
-    }
-
-    return this.updateUser(
-      user,
-      {
-        contacts: user.contacts.filter((_contact) => _contact.userAddress !== contact.userAddress),
-      },
-    )
-  }
-
   public deleteUser(user: IUser) {
     const {
       users,
@@ -147,7 +121,7 @@ export class UsersDB {
       await users
         .delete([networkId, userAddress])
 
-      await this.databases.sessionsDB.deleteSessions(user)
+      await this.databases.sessionsDB.deleteSessions(user, { isDeleteUser: true })
 
       await this.databases.messagesDB.deleteMessagesOfUser(user)
     })
@@ -179,5 +153,4 @@ export interface IUpdateUserOptions {
   status?: USER_STATUS
   blockHash?: string
   lastFetchBlockOfChatMessages?: number
-  contacts?: IContact[]
 }

@@ -1,158 +1,192 @@
-import {
-  observable,
-  action,
-  runInAction,
-  computed,
-} from 'mobx'
-import {
-  SessionStore,
-  ISession,
-} from './SessionStore'
-import {
-  UserStore,
-} from './UserStore'
+import { observable, action, runInAction, computed } from 'mobx'
 
+import { ContractStore } from './ContractStore'
+import { getUserPublicKey } from './UsersStore'
+import { UserStore } from './UserStore'
+import { SessionStore } from './SessionStore'
+
+import { getDatabases } from '../databases'
 import {
-  getDatabases,
-} from '../databases'
-import {
-  ICreateSessionArgs,
   SessionsDB,
+  ISession,
+  createSession,
+  ISessionData,
 } from '../databases/SessionsDB'
+import { IMessage, IAddMessageOptions } from '../databases/MessagesDB'
+import { getPreKeysPackage } from '../PreKeysPackage'
 
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
   @observable.ref public currentSessionStore: SessionStore | undefined
-  @observable public isLoadingSessions = false
-  @observable public isSwitchingSession = false
-  @observable public isLoaded = false
+  @observable public isLoadingSessionData = false
 
-  private sessionsDB: SessionsDB
-  private userStore: UserStore
-  private cachedSessionStores: {
+  private readonly sessionsDB: SessionsDB
+  private readonly cachedSessionStores: {
     [sessionTag: string]: SessionStore,
   } = {}
 
   @computed
-  public get hasSelectedSession() {
+  public get hasSelectedSession(): boolean {
     return this.currentSessionStore != null
   }
 
-  constructor({
-    userStore,
-  }: {
-      userStore: UserStore,
-    }) {
-    this.userStore = userStore
+  constructor(
+    private readonly userStore: UserStore,
+    private readonly contractStore: ContractStore,
+  ) {
     this.sessionsDB = getDatabases().sessionsDB
-  }
-
-  public isCurrentSession = (userAddress: string, sessionTag: string) => {
-    return (
-      this.hasSelectedSession
-      && this.currentSessionStore!.session.userAddress === userAddress
-      && this.currentSessionStore!.session.sessionTag === sessionTag
-    )
-  }
-
-  public loadSessions = async () => {
-    if (!this.isLoaded) {
-      runInAction(() => {
-        this.isLoadingSessions = true
-      })
-      const sessions = await this.sessionsDB.getSessions(this.userStore.user)
-      this.cachedSessionStores = {}
-      runInAction(() => {
-        this.sessions = sessions
-        this.isLoadingSessions = false
-        if (sessions.length > 0) {
-          this.selectSession(sessions[0])
-        }
-        this.isLoaded = true
-      })
+    if (userStore.isRegisterCompleted) {
+      this.loadSessions()
     }
   }
 
-  public createSession = async (args: ICreateSessionArgs) => {
-    const { user } = this.userStore
+  public async tryCreateNewSession(receiverAddress: string, subject?: string): Promise<ISession> {
+    this.validateReceiver(receiverAddress)
 
-    const session = await this.sessionsDB.createSession(
-      user,
-      args,
-    )
-    this.addSession(session)
-    return session
+    const sessionData: ISessionData = {
+      contact: receiverAddress,
+      subject,
+    }
+    const newSession = createSession(this.userStore.user, sessionData, undefined, { isNewSession: true })
+    return newSession
   }
 
-  public deleteSession = async (session: ISession) => {
-    await this.sessionsDB.deleteSession(session)
+  public async loadSessions() {
+    const sessions = await this.sessionsDB.getSessions(this.userStore.user)
+
+    runInAction(() => {
+      this.sessions = sessions
+      if (sessions.length > 0) {
+        this.selectSession(sessions[0])
+      }
+    })
+  }
+
+  public isCurrentSession(sessionTag: string): boolean {
+    return (
+      this.hasSelectedSession &&
+      this.currentSessionStore!.session.sessionTag === sessionTag
+    )
+  }
+
+  public async saveNewSessionWithMessage(
+    session: ISession,
+    firstMessage: IMessage,
+    addMessageOptions?: IAddMessageOptions,
+  ) {
+    await this.sessionsDB.addSession(session, firstMessage, addMessageOptions)
+
+    const newSession = await getDatabases().sessionsDB.getSession(
+      session.sessionTag,
+      session.userAddress,
+    )
+    if (newSession == null) {
+      throw new Error('fail to save session')
+    }
+
+    this.addSession(newSession)
+  }
+
+  public async deleteSession(session: ISession) {
+    // TODO: maybe we should move these logic into db
+    const { sessionsDB } = this
+    const sessionInDB = await sessionsDB.getSession(session.sessionTag, session.userAddress)
+    if (sessionInDB == null) {
+      return
+    }
+
+    await sessionsDB.deleteSession(session)
     this.removeSession(session)
   }
 
-  public getSessionStore = (session: ISession): SessionStore => {
-    const oldStore = this.cachedSessionStores[session.sessionTag]
+  public getSessionStore(session: ISession): SessionStore {
+    const { sessionTag } = session
+    const oldStore = this.cachedSessionStores[sessionTag]
     if (oldStore != null) {
       return oldStore
     }
 
-    const newStore = new SessionStore(session, {
-      sessionsStore: this,
-    })
-    this.cachedSessionStores[session.sessionTag] = newStore
+    const newStore = new SessionStore(
+      session,
+      this,
+      this.userStore,
+      this.contractStore,
+    )
+    this.cachedSessionStores[sessionTag] = newStore
     return newStore
   }
 
-  public clearCachedStores() {
-    this.cachedSessionStores = {}
+  public removeCachedSessionStore(sessionStore: SessionStore) {
+    delete this.cachedSessionStores[sessionStore.session.sessionTag]
   }
 
-  public disposeSessionStore(session: ISession) {
-    const oldStore = this.cachedSessionStores[session.sessionTag]
-    if (oldStore == null) {
-      return
+  public clearCachedSessionStores() {
+    for (const sessionStore of Object.values(this.cachedSessionStores)) {
+      // clear message stores
+      sessionStore.disposeStore()
     }
+  }
 
-    delete this.cachedSessionStores[session.sessionTag]
+  /**
+   * dispose this store and sub-stores
+   * clean up side effect and caches
+   */
+  public disposeStore() {
+    this.clearCachedSessionStores()
   }
 
   @action
-  public sortSessions = () => {
-    this.sessions.sort((sessionA, sessionB) => sessionA.lastUpdate > sessionB.lastUpdate ? -1 : 1)
+  public async selectSession(session: ISession) {
+    const currentSessionStore = this.getSessionStore(session)
+    this.currentSessionStore = currentSessionStore
+
+    await currentSessionStore.loadNewMessages()
+  }
+
+  @action
+  public sortSessions() {
+    this.sessions.sort(
+      (sessionA, sessionB) => {
+        if (sessionA.meta.isNewSession) {
+          // stick to top
+          return -1
+        }
+        return sessionA.meta.lastUpdate > sessionB.meta.lastUpdate ? -1 : 1
+      },
+    )
     this.sessions = this.sessions.slice()
   }
 
   @action
-  public selectSession = async (session: ISession) => {
-    const currentSessionStore = this.getSessionStore(session)
-    this.isSwitchingSession = true
-    await currentSessionStore.loadNewMessages()
-    runInAction(() => {
-      this.currentSessionStore = currentSessionStore
-      this.isSwitchingSession = false
-    })
-  }
-
-  @action
-  public unselectSession = () => {
+  public unselectSession() {
     this.currentSessionStore = undefined
   }
 
   @action
-  private addSession = (session: ISession) => {
+  public addSession(session: ISession) {
     this.sessions = [session].concat(this.sessions)
   }
 
   @action
-  private removeSession = (session: ISession) => {
-    const remainSessions = this.sessions = this.sessions.filter(
+  public removeSession(session: ISession) {
+    const remainSessions = this.sessions.filter(
       (_session) => session.sessionTag !== _session.sessionTag,
     )
+    this.sessions = remainSessions
 
-    if (this.isCurrentSession(session.userAddress, session.sessionTag)) {
+    if (this.isCurrentSession(session.sessionTag)) {
       this.unselectSession()
       if (remainSessions.length > 0) {
         this.selectSession(remainSessions[0])
       }
     }
+  }
+
+  private async validateReceiver(receiverAddress: string) {
+    // TODO: should cache public keys
+    // try to get user's public key
+    const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
+    // try to get user's pre-keys
+    await getPreKeysPackage(receiverAddress, publicKey)
   }
 }

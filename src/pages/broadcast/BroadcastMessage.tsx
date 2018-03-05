@@ -114,15 +114,15 @@ export default class BroadcastMessage extends React.Component<IProps> {
     this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
   }
 
-  private getUsername() {
+  private getUsername(): string | null {
     const { getValidProofs } = this.props.userProofsStateStore
 
     const validProofs = getValidProofs()
-    for (const validProof of validProofs) {
-        return validProof.socialProofs.username
+    if (validProofs.length === 0) {
+      return null
     }
 
-    return null
+    return validProofs[0].socialProofs.username
   }
 
   private renderUsername(username: string | null) {

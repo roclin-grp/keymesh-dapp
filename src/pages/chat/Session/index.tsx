@@ -17,20 +17,18 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  ISession,
   SessionStore,
 } from '../../../stores/SessionStore'
 
 import { getSessionTimestamp } from '../../../utils/time'
+import { ISession } from '../../../databases/SessionsDB'
 
 @observer
 class Session extends React.Component<IProps> {
   public render() {
     const {
-      contact,
-      summary,
-      lastUpdate,
-      unreadCount,
+      meta,
+      data,
     } = this.props.sessionStore.session
 
     return (
@@ -42,18 +40,18 @@ class Session extends React.Component<IProps> {
         >
           <List.Item.Meta
             avatar={(
-              <Badge count={unreadCount} overflowCount={99}>
+              <Badge count={meta.unreadCount} overflowCount={99}>
                 <HashAvatar
                   size="large"
                   shape="square"
-                  hash={SessionStore.getAvatarHashByContact(contact)}
+                  hash="" // FXIME
                 />
               </Badge>
             )}
-            title={<UserAddress address={contact.userAddress} maxLength={11} />}
-            description={<span className={styles.summary}>{summary}</span>}
+            title={<UserAddress address={data.contact} maxLength={11} />}
+            description={this.renderSummary()}
           />
-          <span>{getSessionTimestamp(lastUpdate)}</span>
+          {this.renderTimestamp()}
         </List.Item>
       </a>
     )
@@ -65,6 +63,27 @@ class Session extends React.Component<IProps> {
       sessionStore,
     } = this.props
     onClick(sessionStore.session)
+  }
+
+  private renderSummary() {
+    const { summary } = this.props.sessionStore.session.data
+    if (summary === '') {
+      // empty session
+      return null
+    }
+
+    return <span className={styles.summary}>{summary}</span>
+  }
+
+  private renderTimestamp() {
+    const { session } = this.props.sessionStore
+
+    if (session.data.summary === '') {
+      // empty session
+      return null
+    }
+
+    return <span>{getSessionTimestamp(session.meta.lastUpdate)}</span>
   }
 }
 

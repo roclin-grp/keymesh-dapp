@@ -18,23 +18,15 @@ import {
   observer,
 } from 'mobx-react'
 import {
-  ChatMessagesStore,
-} from '../../../stores/ChatMessagesStore'
-import {
-  SENDING_FAIL_CODE,
-} from '../../../stores/ChatMessagesStore/typings'
-import {
-  MESSAGE_TYPE,
-} from '../../../stores/ChatMessageStore'
-import {
   SessionStore,
 } from '../../../stores/SessionStore'
 
+import { MESSAGE_TYPE } from '../../../databases/MessagesDB'
+
+// helper
 import {
   noop,
 } from '../../../utils'
-
-// helper
 import {
   storeLogger,
 } from '../../../utils/loggers'
@@ -51,6 +43,11 @@ class Dialog extends React.Component<IProps, IState> {
 
   public componentWillUnmount() {
     this.unmounted = true
+
+    if (this.props.sessionStore.session.meta.isNewSession) {
+      // is new create session, delete it
+      this.props.sessionStore.deleteSession()
+    }
   }
 
   public render() {
@@ -62,7 +59,7 @@ class Dialog extends React.Component<IProps, IState> {
       <div className={styles.dialog}>
         <div className={styles.header}>
           <h3 className={styles.title}>
-            {session.subject || session.contact.userAddress}
+            {session.data.subject || session.data.contact}
           </h3>
           <Button
             onClick={this.showDeleteSessionConfirm}
@@ -84,28 +81,34 @@ class Dialog extends React.Component<IProps, IState> {
     )
   }
 
-  private handleSubmit = (plainText: string) => {
-    if (!this.state.isSending) {
-      this.setState({
-        isSending: true,
-        sendButtonContent: 'Checking...',
+  private handleSubmit = async (plainText: string) => {
+    if (this.state.isSending) {
+      return
+    }
+
+    this.setState({
+      isSending: true,
+      sendButtonContent: 'Processing...',
+    })
+
+    const { sessionStore } = this.props
+    try {
+      this.handleStartSending()
+      await sessionStore.chatContext.send({
+        payload: plainText,
+        timestamp: Date.now(),
+        messageType: sessionStore.session.meta.isNewSession
+          ? MESSAGE_TYPE.HELLO
+          : MESSAGE_TYPE.NORMAL,
       })
-      this.props.chatMessagesStore.sendMessage(
-        this.props.sessionStore.session.contact.userAddress,
-        MESSAGE_TYPE.NORMAL,
-        {
-          transactionWillCreate: this.transactionWillCreate,
-          transactionDidCreate: this.transactionDidCreate,
-          messageDidCreate: this.messageDidCreate,
-          sendingDidFail: this.sendingDidFail,
-          plainText,
-          sessionTag: this.props.sessionStore.session.sessionTag,
-        },
-      ).catch(this.sendingDidFail)
+
+      this.handleMessageDidSend()
+    } catch (err) {
+      this.handleSendFail(err)
     }
   }
 
-  private transactionWillCreate = () => {
+  private handleStartSending = () => {
     if (!this.unmounted) {
       this.setState({
         sendButtonContent: 'Please confirm the transaction...',
@@ -113,15 +116,7 @@ class Dialog extends React.Component<IProps, IState> {
     }
   }
 
-  private transactionDidCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Sending...',
-      })
-    }
-  }
-
-  private messageDidCreate = () => {
+  private handleMessageDidSend = () => {
     if (!this.unmounted) {
       this.messagesScrollToBottom()
       this.setState({
@@ -132,29 +127,23 @@ class Dialog extends React.Component<IProps, IState> {
     }
   }
 
-  private sendingDidFail = (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-
-      message.error((() => {
-        switch (code) {
-          case SENDING_FAIL_CODE.INVALID_MESSAGE:
-            return 'Fail to send message, please enter message!'
-          case SENDING_FAIL_CODE.SEND_TO_YOURSELF:
-          case SENDING_FAIL_CODE.INVALID_USER_ADDRESS:
-          case SENDING_FAIL_CODE.INVALID_MESSAGE_TYPE:
-          default:
-            if ((err as Error).message.includes('User denied transaction signature')) {
-              return 'Fail to send message, you reject the transaction.'
-            }
-            storeLogger.error('Unexpected message sending error:', err as Error)
-            return 'Fail to send message, please retry.'
-        }
-      })())
+  private handleSendFail = (err: Error) => {
+    if (this.unmounted) {
+      return
     }
+
+    this.setState({
+      isSending: false,
+      sendButtonContent: 'Send',
+    })
+
+    if (err.message.includes('User denied transaction signature')) {
+      message.error('Fail to send message, you reject the transaction.')
+      return
+    }
+
+    storeLogger.error('Unexpected message sending error:', err)
+    message.error('Fail to send message, please retry.')
   }
 
   private showDeleteSessionConfirm = () => {
@@ -178,7 +167,6 @@ class Dialog extends React.Component<IProps, IState> {
 }
 
 interface IProps {
-  chatMessagesStore: ChatMessagesStore
   sessionStore: SessionStore
 }
 

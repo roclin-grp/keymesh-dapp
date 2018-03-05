@@ -1,10 +1,11 @@
 import { runInAction, observable } from 'mobx'
+import { keys as proteusKeys } from 'wire-webapp-proteus'
 import { noop } from '../utils/'
 import { UsersStore } from './UsersStore'
 import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
-import { keys } from 'wire-webapp-proteus'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
+import { getUserPublicKey } from './UsersStore'
 import ENV from '../config'
 
 export class BroadcastMessagesStore {
@@ -17,7 +18,7 @@ export class BroadcastMessagesStore {
   private lastFetchBlock: number = 0
   private broadcastMessagesSignatures: string[] = []
   private cachedUserPublicKeys: {
-    [userAddress: string]: keys.PublicKey,
+    [userAddress: string]: proteusKeys.PublicKey,
   } = {}
 
   constructor({
@@ -31,7 +32,7 @@ export class BroadcastMessagesStore {
     this.contractStore = contractStore
   }
 
-  public publishBroadcastMessage = (
+  public async publishBroadcastMessage(
     message: string,
     {
       transactionWillCreate = noop,
@@ -39,7 +40,7 @@ export class BroadcastMessagesStore {
       publishDidComplete = noop,
       publishDidFail = noop,
     }: IPublishBroadcastOptions = {},
-  ) => {
+  ) {
     const {
       hasUser,
       currentUserStore,
@@ -48,7 +49,7 @@ export class BroadcastMessagesStore {
       return
     }
 
-    const signature = currentUserStore!.sign(message)
+    const signature = await currentUserStore!.cryptoBox.sign(message)
     const timestamp = Date.now()
     const signedMessage: ISignedBroadcastMessage = {
       message,
@@ -146,7 +147,7 @@ export class BroadcastMessagesStore {
       return publicKey
     }
 
-    const userPublicKey = await this.usersStore.getUserPublicKey(userAddress)
+    const userPublicKey = await getUserPublicKey(userAddress, this.contractStore)
     if (userPublicKey != null) {
       this.cachedUserPublicKeys[userAddress] = userPublicKey
     }

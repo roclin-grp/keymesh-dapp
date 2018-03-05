@@ -6,42 +6,31 @@ import {
   Input,
   Icon,
   message,
+  Button,
 } from 'antd'
 const FormItem = Form.Item
 import {
   FormComponentProps,
 } from 'antd/lib/form'
-import DialogTextArea from '../DialogTextArea'
 
 // style
 import * as styles from './index.css'
 
 // state management
-import {
-  ChatMessagesStore,
-} from '../../../stores/ChatMessagesStore'
-import {
-  SENDING_FAIL_CODE,
-} from '../../../stores/ChatMessagesStore/typings'
-import {
-  MESSAGE_TYPE,
-} from '../../../stores/ChatMessageStore'
+import { IUser } from '../../../stores/UserStore'
+import { SessionsStore } from '../../../stores/SessionsStore'
 
 // helper
-import {
-  storeLogger,
-} from '../../../utils/loggers'
 import { isAddress } from '../../../utils/cryptos'
+import { storeLogger } from '../../../utils/loggers'
 
 // TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
-  public readonly state: Readonly<IState> = Object.freeze({
-    isSending: false,
-    sendButtonContent: 'Send',
-  })
+  public readonly state: Readonly<IState> = {
+    isProcessing: false,
+  }
 
   private unmounted = false
-
   private userAddressInput: Input | null = null
 
   public componentWillUnmount() {
@@ -49,8 +38,9 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { getFieldDecorator, getFieldValue } = this.props.form
-    const userAddress = getFieldValue('userAddress')
+    const { getFieldDecorator, getFieldError, getFieldValue } = this.props.form
+    const hasAddress = getFieldValue('userAddress') != null
+    const isInvalidAddress = !hasAddress || getFieldError('userAddress') != null
     return (
       <div className={styles.dialog}>
         <Form>
@@ -65,111 +55,86 @@ class NewConversationDialog extends React.Component<IProps, IState> {
             })(
               <Input
                 autoFocus={true}
-                disabled={this.state.isSending}
+                disabled={this.state.isProcessing}
                 spellCheck={false}
                 placeholder="Receiver Address"
                 prefix={<Icon type="user" className={styles.prefixIcon} />}
-                suffix={
-                  userAddress != null
-                  && userAddress !== ''
-                  && !this.state.isSending
-                    // FIXME: wrap icon to a clickable element
-                    ? <Icon type="close-circle" onClick={this.resetUserAddress} />
-                    : null
-                }
+                suffix={this.renderResetUserAddress()}
                 ref={(node) => this.userAddressInput = node}
               />,
             )}
           </FormItem>
         </Form>
-        <DialogTextArea
-          className={styles.dialogInputContainer}
-          isSending={this.state.isSending}
-          buttonContent={this.state.sendButtonContent}
-          onSubmit={this.handleSubmit}
-        />
+        <Button
+          className={styles.createNewSessionButton}
+          type="primary"
+          size="large"
+          disabled={this.state.isProcessing || isInvalidAddress}
+          onClick={this.handleCreate}
+        >
+          {
+            this.state.isProcessing
+              ? 'Checking...'
+              : 'Create new conversation'
+          }
+        </Button>
       </div>
     )
   }
 
-  private handleSubmit = (plainText: string) => {
-    if (!this.state.isSending) {
-      this.props.form.validateFields((err: Error, {
-        userAddress,
-      }: IFormData) => {
-        if (!err) {
-          this.setState({
-            isSending: true,
-            sendButtonContent: 'Checking...',
-          })
-          this.props.chatMessagesStore.sendMessage(
-            userAddress,
-            MESSAGE_TYPE.HELLO,
-            {
-              transactionWillCreate: this.transactionWillCreate,
-              transactionDidCreate: this.transactionDidCreate,
-              messageDidCreate: this.messageDidCreate,
-              sendingDidFail: this.sendingDidFail,
-              plainText,
-            },
-          ).catch(this.sendingDidFail)
-        } else {
-          this.resetUserAddress()
-        }
-      })
+  private renderResetUserAddress() {
+    const userAddress = this.props.form.getFieldValue('userAddress')
+    if (userAddress == null || userAddress === '' || this.state.isProcessing) {
+      return null
     }
+
+    return (
+      <a onClick={this.resetUserAddress} className={styles.resetUserAddress}>
+        <Icon type="close-circle" onClick={this.resetUserAddress} />
+      </a>
+    )
   }
 
-  private transactionWillCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Please confirm the transaction...',
-      })
+  private handleCreate = () => {
+    if (this.state.isProcessing) {
+      return
     }
+
+    this.props.form.validateFields(async (err: Error, {
+      userAddress,
+    }: IFormData) => {
+      if (err) {
+        this.resetUserAddress()
+        return
+      }
+      const { sessionsStore } = this.props
+
+      this.setState({
+        isProcessing: true,
+      })
+
+      try {
+        const session = await sessionsStore.tryCreateNewSession(userAddress)
+        sessionsStore.addSession(session)
+        await sessionsStore.selectSession(session)
+      } catch (err) {
+        this.handCreateFail(err)
+      }
+    })
   }
 
-  private transactionDidCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        sendButtonContent: 'Sending...',
-      })
+  private handCreateFail(err: Error) {
+    if (this.unmounted) {
+      return
     }
-  }
 
-  private messageDidCreate = () => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-    }
-  }
+    this.setState({
+      isProcessing: false,
+    })
 
-  private sendingDidFail = (err: Error | null, code = SENDING_FAIL_CODE.UNKNOWN) => {
-    if (!this.unmounted) {
-      this.setState({
-        isSending: false,
-        sendButtonContent: 'Send',
-      })
-
-      message.error((() => {
-        switch (code) {
-          case SENDING_FAIL_CODE.INVALID_USER_ADDRESS:
-            return `Fail to send, please enter receiver address!`
-          case SENDING_FAIL_CODE.SEND_TO_YOURSELF:
-            return `Fail to send, can't send message to yourself!`
-          case SENDING_FAIL_CODE.INVALID_MESSAGE:
-            return 'Fail to send, receiver address is invalid!'
-          case SENDING_FAIL_CODE.INVALID_MESSAGE_TYPE:
-          default:
-            if ((err as Error).message.includes('User denied transaction signature')) {
-              return 'Fail to send, you reject the transaction.'
-            }
-            storeLogger.error('Unexpected register error:', err as Error)
-            return 'Fail to send, please retry.'
-        }
-      })())
-    }
+    // TODO: show error detail
+    storeLogger.error(err)
+    message.error('Create session fail, please retry')
   }
 
   private validUserAddress = (
@@ -181,7 +146,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       if (userAddress === '') {
         return done()
       }
-      if (userAddress === this.props.selfAddress) {
+      if (userAddress === this.props.user.userAddress) {
         return (done as any)(`Can't send message to yourself!`)
       }
       if (!isAddress(userAddress)) {
@@ -203,13 +168,12 @@ class NewConversationDialog extends React.Component<IProps, IState> {
 }
 
 interface IProps extends FormComponentProps {
-  selfAddress: string
-  chatMessagesStore: ChatMessagesStore
+  user: IUser
+  sessionsStore: SessionsStore
 }
 
 interface IState {
-  isSending: boolean
-  sendButtonContent: React.ReactNode
+  isProcessing: boolean
 }
 
 interface IFormData {

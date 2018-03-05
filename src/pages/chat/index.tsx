@@ -2,7 +2,6 @@ import * as React from 'react'
 
 // component
 import Content from './Content'
-import Loading from './Loading'
 
 // state management
 import {
@@ -27,10 +26,6 @@ class Chat extends React.Component {
 
   public render() {
     const currentUserStore = this.injectedProps.usersStore.currentUserStore!
-
-    if (!currentUserStore.isCryptoboxReady) {
-      return <Loading message="Loading..." />
-    }
 
     return <Content userStore={currentUserStore!} />
   }

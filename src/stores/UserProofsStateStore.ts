@@ -4,7 +4,7 @@ import {
   runInAction,
   action,
 } from 'mobx'
-import { keys } from 'wire-webapp-proteus'
+import { keys as proteusKeys } from 'wire-webapp-proteus'
 
 import {
   VERIFIED_SOCIAL_STATUS,
@@ -27,7 +27,7 @@ import { UserProofsStatesStore } from './UserProofsStatesStore'
 import { FacebookResource } from '../resources/facebook'
 import { twitterResource } from '../resources/twitter'
 import { GithubResource } from '../resources/github'
-import { UsersStore } from '../stores/UsersStore'
+import { UsersStore, getUserPublicKey } from '../stores/UsersStore'
 import { sleep } from '../utils'
 import { sha3 } from '../utils/cryptos'
 import { hexToUtf8, uint8ArrayFromHex, utf8ToHex } from '../utils/hex'
@@ -46,7 +46,7 @@ export class UserProofsStateStore {
   @observable private userAddress: string = ''
   @observable private userBlockHash: string = '0x0'
   @observable private finishedInit: boolean = false
-  private publicKey: keys.PublicKey | undefined
+  private publicKey: proteusKeys.PublicKey | undefined
   private userCachesStore: UserCachesStore
   private userProofsStatesStore: UserProofsStatesStore
 
@@ -211,7 +211,7 @@ export class UserProofsStateStore {
     this.verifications = Object.assign({}, this.verifications)
   }
 
-  private async waitForInitialise(interval = 1000) {
+  private async waitForInitialise(interval = 300) {
     while (!this.finishedInit) {
       await sleep(interval)
     }
@@ -229,7 +229,7 @@ export class UserProofsStateStore {
       this.verifications = verifications
     })
 
-    this.publicKey = await this.usersStore.getUserPublicKey(this.userAddress)
+    this.publicKey = await getUserPublicKey(this.userAddress, this.contractStore)
     runInAction(() => {
       this.finishedInit = true
     })

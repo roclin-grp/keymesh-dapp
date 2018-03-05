@@ -46,7 +46,7 @@ export class SocialProofsStore {
       uploadingDidFail = noop,
     }: IUploadingLifecycle = {},
   ) => {
-    const signature = this.userStore.sign(JSON.stringify(socialProof))
+    const signature = await this.userStore.cryptoBox.sign(JSON.stringify(socialProof))
     const signedProof: ISignedSocialProof = { signature, socialProof }
     const signedProofHex = utf8ToHex(JSON.stringify(signedProof))
 

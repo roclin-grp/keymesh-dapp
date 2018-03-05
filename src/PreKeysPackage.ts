@@ -1,8 +1,13 @@
 import * as CBOR from 'wire-webapp-cbor'
-import {
-  uint8ArrayFromHex,
-  hexFromUint8Array,
-} from './utils/hex'
+import { keys as proteusKeys } from 'wire-webapp-proteus'
+
+import { uint8ArrayFromHex, hexFromUint8Array } from './utils/hex'
+import { unixToday } from './utils/time'
+import { publicKeyFromHexStr } from './utils/proteus'
+
+import { IPreKey } from './PreKeyBundle'
+
+import ENV from './config'
 
 export class PreKeysPackage {
   public static deserialize(buf: ArrayBuffer) {
@@ -32,7 +37,9 @@ export class PreKeysPackage {
             for (let j = 0; j < npropsPreKey; j += 1) {
               const preKeyId = d.u16()
               if (preKeyId) {
-                preKeyPublicKeys[preKeyId] = hexFromUint8Array(new Uint8Array(d.bytes()))
+                preKeyPublicKeys[preKeyId] = hexFromUint8Array(
+                  new Uint8Array(d.bytes()),
+                )
               } else {
                 d.skip()
               }
@@ -54,11 +61,7 @@ export class PreKeysPackage {
     public preKeyPublicKeys: IPreKeyPublicKeyFingerprints,
     public interval: number,
     public lastPrekeyDate: number,
-  ) {
-    this.interval = interval
-    this.lastPrekeyDate = lastPrekeyDate
-    this.preKeyPublicKeys = preKeyPublicKeys
-  }
+  ) {}
 
   public serialise() {
     const e = new CBOR.Encoder()
@@ -80,6 +83,71 @@ export class PreKeysPackage {
       e.bytes(uint8ArrayFromHex(this.preKeyPublicKeys[preKeyId]))
     })
   }
+
+  public getAvailablePreKey(): IPreKey {
+    const { lastPrekeyDate, preKeyPublicKeys } = this
+
+    let preKeyID = unixToday()
+    let preKeyPublicKeyFingerprint: string | undefined
+
+    if (preKeyID < lastPrekeyDate) {
+      const limitDay = preKeyID - this.interval
+      while (preKeyID > limitDay) {
+        preKeyPublicKeyFingerprint = preKeyPublicKeys[preKeyID]
+        if (preKeyPublicKeyFingerprint != null) {
+          break
+        }
+        preKeyID -= 1
+      }
+    }
+
+    // If not found, use last-resort pre-key
+    if (preKeyPublicKeyFingerprint == null) {
+      preKeyID = lastPrekeyDate
+      preKeyPublicKeyFingerprint = preKeyPublicKeys[lastPrekeyDate]
+    }
+
+    const publicKey = publicKeyFromHexStr(preKeyPublicKeyFingerprint)
+    return {
+      id: preKeyID,
+      publicKey,
+    }
+  }
+}
+
+export async function getPreKeysPackage(
+  userAddress: string,
+  publicKey: proteusKeys.PublicKey,
+): Promise<PreKeysPackage> {
+  const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${userAddress}`
+  const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
+
+  const resp = await fetch(uploadPreKeysUrl, fetchOptions)
+  if (resp.status === 200) {
+    const downloadedPreKeys = await resp.text()
+    const [preKeysPackageSerializedStr, signature] = downloadedPreKeys.split(
+      ' ',
+    )
+    if (preKeysPackageSerializedStr === '' || signature === '') {
+      throw new Error('the data is broken')
+    }
+
+    if (
+      !publicKey.verify(
+        uint8ArrayFromHex(signature),
+        preKeysPackageSerializedStr,
+      )
+    ) {
+      throw new Error('pre-keys package\'s signature is invalid.')
+    }
+
+    if (preKeysPackageSerializedStr !== '') {
+      return PreKeysPackage.deserialize(uint8ArrayFromHex(
+        preKeysPackageSerializedStr,
+      ).buffer as ArrayBuffer)
+    }
+  }
+  throw new Error('status is not 200')
 }
 
 export interface IPreKeyPublicKeyFingerprints {

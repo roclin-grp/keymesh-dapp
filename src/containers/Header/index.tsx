@@ -21,6 +21,7 @@ import UserAddress from '../../components/UserAddress'
 // style
 import classnames from 'classnames'
 import * as styles from './index.css'
+import logo from './logo.png'
 
 // state management
 import {
@@ -85,7 +86,11 @@ class Header extends React.Component<IProps, IState> {
               className={styles.logoText}
               to="/"
             >
-              Keymesh
+              <img
+                src={logo}
+                alt="Keymesh"
+                className={styles.logoImage}
+              />
             </Link>
           </h1>
           <Menu
@@ -208,6 +213,17 @@ class Header extends React.Component<IProps, IState> {
         </Link>
       )
     }
+    if (!hasUser && usableUsers.length > 0) {
+      return (
+        <Link to="/accounts">
+          <Button
+            type="primary"
+          >
+            Manage account
+          </Button>
+        </Link>
+      )
+    }
     if (!hasUser) {
       return null
     }
@@ -326,10 +342,7 @@ class Header extends React.Component<IProps, IState> {
       isExporting: true,
     })
     try {
-      const {
-        exportUser,
-      } = this.injectedProps.usersStore.currentUserStore!
-      await exportUser()
+      await this.injectedProps.usersStore.currentUserStore!.exportUser()
     } catch (err) {
       storeLogger.error('Unexpected export user error:', err)
       if (!this.isUnmounted) {

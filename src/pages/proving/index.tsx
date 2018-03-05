@@ -42,7 +42,7 @@ type IPropsWithRouter = IProps & RouteComponentProps<IParams>
 @inject(mapStoreToProps)
 @observer
 class Proving extends React.Component<IPropsWithRouter> {
-  private finishedReactionDisposer: Lambda | null = null
+  private disposeProvingCompletedReaction: Lambda | null = null
   private unmounted = false
 
   public componentDidMount() {
@@ -50,20 +50,13 @@ class Proving extends React.Component<IPropsWithRouter> {
       return
     }
 
-    this.finishedReactionDisposer = this.props.data!.setupFinishedReaction(async () => {
-      // redirect to /profile in 2 sec after finished
-      await sleep(2000)
-      // do nothing if already left this page
-      if (!this.unmounted) {
-        this.props.history.replace('/profile')
-      }
-    })
+    this.disposeProvingCompletedReaction = this.props.data!.onProvingCompleted(this.handleProvingCompleted)
   }
 
   public componentWillUnmount() {
     this.unmounted = true
-    if (this.finishedReactionDisposer !== null) {
-      this.finishedReactionDisposer()
+    if (this.disposeProvingCompletedReaction !== null) {
+      this.disposeProvingCompletedReaction()
     }
   }
 
@@ -113,6 +106,15 @@ class Proving extends React.Component<IPropsWithRouter> {
         return <FacebookProving data={data as FacebookProvingData} />
       default:
         return null
+    }
+  }
+
+  private handleProvingCompleted = async () => {
+    // redirect to /profile in 2 sec after finished
+    await sleep(2000)
+    // do nothing if already left this page
+    if (!this.unmounted) {
+      this.props.history.replace('/profile')
     }
   }
 }
