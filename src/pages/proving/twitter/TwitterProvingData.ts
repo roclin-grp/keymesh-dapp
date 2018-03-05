@@ -67,7 +67,8 @@ export class TwitterProvingData extends ProvingData {
 }
 
 function getClaimTweetURL(tweets: ITweet[], claimText: string): string | null {
-  for (const tweet of tweets) {
+  for (let tweet of tweets) {
+    tweet = TwitterResource.replaceShortURL(tweet)
     if (tweet.full_text === claimText) {
       return `https://twitter.com/statuses/${tweet.id_str}`
     }
