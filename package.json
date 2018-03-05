@@ -5,7 +5,9 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel serve src/index.html",
-    "build": "parcel build src/index.html --public-url /",
+    "build": "NODE_ENV='production' parcel build src/index.html --public-url='/'",
+    "syncS3": "aws s3 sync --delete ./dist/  s3://aws-website-keymail-dev-3ni40/",
+    "release": "yarn build && yarn syncS3",
     "css-types": "tcm src",
     "postinstall": "yarn css-types",
     "precommit": "lint-staged"
@@ -38,7 +40,7 @@
     "typescript": "^2.7.1"
   },
   "dependencies": {
-    "@keymesh/trustmesh": "^0.0.4",
+    "@keymesh/trustmesh": "^0.0.6",
     "antd": "^3.0.3",
     "bs58check": "^2.1.1",
     "classnames": "^2.2.5",
