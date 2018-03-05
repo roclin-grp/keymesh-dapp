@@ -1,6 +1,8 @@
 import * as React from 'react'
 import {
   Link,
+  withRouter,
+  RouteComponentProps,
 } from 'react-router-dom'
 
 // component
@@ -45,15 +47,16 @@ import {
 import {
   storeLogger,
 } from '../../../utils/loggers'
+import { sleep } from '../../../utils'
 
 @inject(mapStoreToProps)
 @observer
 class AccountListItem extends React.Component<IProps, IState> {
-  public readonly state = Object.freeze({
+  public readonly state: Readonly<IState> = {
     status: REGISTER_STATUS.PENDING,
     helpMessage: '',
     isDeleting: false,
-  })
+  }
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
 
@@ -312,7 +315,15 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     if (users.length === 1) {
       await useUser(this.props.user)
+
+      // redirect and guide user to proving
+      this.props.history.push('/profile')
+      // await render..
+      await sleep(100)
       message.success('You have successfully registered and logged in!')
+
+      await sleep(4000)
+      message.info('You can now let others know you by proving yourself on social media!')
     }
 
     this.setState({
@@ -443,7 +454,7 @@ const REGISTER_STATUS_ICON_TYPE = Object.freeze({
 }
 
 // typing
-interface IProps {
+interface IProps extends RouteComponentProps<{}> {
   user: IUser
   className?: string
 }
@@ -460,4 +471,4 @@ interface IState {
   helpMessage: string
 }
 
-export default AccountListItem
+export default withRouter(AccountListItem)

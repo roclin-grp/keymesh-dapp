@@ -48,6 +48,7 @@ import {
 import {
   storeLogger,
 } from '../../utils/loggers'
+import { sleep } from '../../utils'
 
 @inject(({
   metaMaskStore,
@@ -306,8 +307,15 @@ class Accounts extends React.Component<IProps, IState> {
         if (!this.unmounted) {
           if (this.injectedProps.usersStore.users.length === 1) {
             await this.injectedProps.usersStore.useUser(user)
+
+            this.injectedProps.history.push('/profile')
+            await sleep(50)
             message.success('You have successfully imported account and logged in!')
+
+            await sleep(4000)
+            message.info('You can now let others know you by proving yourself on social media!')
           } else {
+            await sleep(50)
             message.success('Account imported successfully')
           }
         }
