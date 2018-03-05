@@ -104,7 +104,7 @@ export default abstract class ProvingData {
   }
 
   private async uploadBindingProof(proof: ISocialProof): Promise<void> {
-    this.usersStore.currentUserStore!.SocialProofsStore.uploadProof(this.platform, proof, {
+    this.usersStore.currentUserStore!.socialProofsStore.uploadProof(this.platform, proof, {
       transactionWillCreate: () => {
         this.setCheckProofButton('Please confirm the transaction...')
         this.setStep(2)
@@ -120,7 +120,7 @@ export default abstract class ProvingData {
   }
 
   private async generateSignedClaim(userAddress: string): Promise<ISignedClaim> {
-    const signature = await this.usersStore.currentUserStore!.sign(userAddress)
+    const signature = await this.usersStore.currentUserStore!.cryptoBox.sign(userAddress)
     return {
       userAddress,
       signature,
