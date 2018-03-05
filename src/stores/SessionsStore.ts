@@ -40,9 +40,15 @@ export class SessionsStore {
     }
   }
 
-  public async tryCreateNewSession(receiverAddress: string, subject?: string): Promise<ISession> {
-    this.validateReceiver(receiverAddress)
+  public async validateReceiver(receiverAddress: string) {
+    // TODO: should cache public keys
+    // try to get user's public key
+    const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
+    // try to get user's pre-keys
+    await getPreKeysPackage(receiverAddress, publicKey)
+  }
 
+  public async createNewConversation(receiverAddress: string, subject?: string): Promise<ISession> {
     const sessionData: ISessionData = {
       contact: receiverAddress,
       subject,
@@ -137,10 +143,17 @@ export class SessionsStore {
 
   @action
   public async selectSession(session: ISession) {
-    const currentSessionStore = this.getSessionStore(session)
-    this.currentSessionStore = currentSessionStore
+    const newSessionStore = this.getSessionStore(session)
 
-    await currentSessionStore.loadNewMessages()
+    const { currentSessionStore } = this
+    if (currentSessionStore != null && currentSessionStore.session.meta.isNewSession) {
+      // remove new created conversation
+      this.removeSession(currentSessionStore.session)
+    }
+
+    this.currentSessionStore = newSessionStore
+
+    await newSessionStore.loadNewMessages()
   }
 
   @action
@@ -180,13 +193,5 @@ export class SessionsStore {
         this.selectSession(remainSessions[0])
       }
     }
-  }
-
-  private async validateReceiver(receiverAddress: string) {
-    // TODO: should cache public keys
-    // try to get user's public key
-    const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
-    // try to get user's pre-keys
-    await getPreKeysPackage(receiverAddress, publicKey)
   }
 }

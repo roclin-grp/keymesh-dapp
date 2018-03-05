@@ -28,7 +28,6 @@ class Session extends React.Component<IProps> {
   public render() {
     const {
       meta,
-      data,
     } = this.props.sessionStore.session
 
     return (
@@ -48,13 +47,22 @@ class Session extends React.Component<IProps> {
                 />
               </Badge>
             )}
-            title={<UserAddress address={data.contact} maxLength={11} />}
+            title={this.renderTitle()}
             description={this.renderSummary()}
           />
           {this.renderTimestamp()}
         </List.Item>
       </a>
     )
+  }
+
+  private renderTitle() {
+    const { session } = this.props.sessionStore
+    if (session.meta.isNewSession) {
+      return 'New conversation'
+    }
+
+    return <UserAddress address={session.data.contact} maxLength={11} />
   }
 
   private handleClick = () => {

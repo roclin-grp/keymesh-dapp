@@ -149,7 +149,7 @@ class Dialog extends React.Component<IProps, IState> {
   private showDeleteSessionConfirm = () => {
     confirm({
       title: 'Are you sure delete this conversation?',
-      content: 'You will NOT able to receive his/her messages after deleted!',
+      content: 'You will NOT able to receive messages of this conversation after deleted!',
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
