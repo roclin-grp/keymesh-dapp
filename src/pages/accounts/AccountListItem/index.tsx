@@ -315,13 +315,15 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     if (users.length === 1) {
       await useUser(this.props.user)
-      await sleep(300)
-      message.success('You have successfully registered and logged in!', 1.5)
 
       // redirect and guide user to proving
       this.props.history.push('/profile')
-      await sleep(3000)
-      message.success('You can now let others know you by proving yourself on social media!')
+      // await render..
+      await sleep(100)
+      message.success('You have successfully registered and logged in!')
+
+      await sleep(4000)
+      message.info('You can now let others know you by proving yourself on social media!')
     }
 
     this.setState({
