@@ -30,6 +30,9 @@ export default class ChatContext {
   private readonly receiverAddress: string
   /**
    * don't access this directly, use `await this.getWireCryptoBox()`
+   *
+   * TODO: save receiver public key to database,
+   * close session if receiver public key has changed
    */
   private receiverPublicKey: proteusKeys.PublicKey | undefined
 

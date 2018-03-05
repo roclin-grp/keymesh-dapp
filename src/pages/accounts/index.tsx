@@ -11,6 +11,7 @@ import {
   Upload,
   message,
   List,
+  Modal,
 } from 'antd'
 import AccountListItem from './AccountListItem'
 import {
@@ -151,7 +152,26 @@ class Accounts extends React.Component<IProps, IState> {
     }
 
     if (hasRegisterRecordOnChain) {
-      return <p>This address already registered, please use another wallet address or import existed account.</p>
+      return (
+        <>
+          <p>
+            This address already registered, please import the existed account or take over it.
+          </p>
+          <p>
+            By clicking the button below and confirm the transaction,
+            you will create a new account and replace the old one.
+          </p>
+          <Button
+            loading={isCreatingTransaction}
+            size="large"
+            type="primary"
+            disabled={isCreatingTransaction}
+            onClick={this.handleConfirmTakeOver}
+          >
+            {isCreatingTransaction ? registerButtonContent : 'Take over'}
+          </Button>
+        </>
+      )
     }
 
     return (
@@ -164,7 +184,7 @@ class Accounts extends React.Component<IProps, IState> {
           disabled={isCreatingTransaction}
           onClick={this.handleRegister}
         >
-          {registerButtonContent}
+          {isCreatingTransaction ? registerButtonContent : 'Register'}
         </Button>
       </>
     )
@@ -208,6 +228,17 @@ class Accounts extends React.Component<IProps, IState> {
       transactionDidCreate: this.transactionDidCreate,
     })
       .catch(this.registerDidFail)
+  }
+
+  private handleConfirmTakeOver = () => {
+    Modal.confirm({
+      title: 'Are you sure take over this address?',
+      content: 'After take over, you can NOT use the account currently binding to this address anymore!',
+      okText: 'Take over it',
+      cancelText: 'Cancel',
+      okType: 'danger',
+      onOk: this.handleRegister,
+    })
   }
 
   private transactionWillCreate = () => {

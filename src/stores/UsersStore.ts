@@ -295,6 +295,7 @@ export class UsersStore {
     } = await this.contractStore.identitiesContract.getIdentity(userAddress)
 
     const hasRegisterRecordOnChain = !isHexZeroValue(publicKey)
+    // TODO: disable existed local user if public key has changed
     this.setHasRegisterRecordOnChain(userAddress, hasRegisterRecordOnChain)
   }
 
