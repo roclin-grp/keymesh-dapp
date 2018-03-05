@@ -1,11 +1,33 @@
 import ENV from '../config'
 
+export interface ITweetURL {
+    display_url: string
+    expanded_url: string
+    indicies: number[]
+    url: string
+}
+
+export interface ITweetEntities {
+    urls: ITweetURL[]
+}
+
 export interface ITweet {
   full_text: string
   id_str: string
+  entities: ITweetEntities
 }
 
 export class TwitterResource {
+  public static replaceShortURL(tweet: ITweet): ITweet {
+    let text = tweet.full_text
+    for (const urlEntity of tweet.entities.urls) {
+      text = text.replace(urlEntity.url, urlEntity.expanded_url)
+    }
+    tweet.full_text = text
+
+    return tweet
+  }
+
   private accessToken: string = ''
 
   constructor(
@@ -29,7 +51,8 @@ export class TwitterResource {
     const id = parts[0]
     const uri = `/1.1/statuses/show.json?id=${id}&exclude_replies=true&tweet_mode=extended`
 
-    const tweet = await this.fetch<ITweet>(uri)
+    let tweet = await this.fetch<ITweet>(uri)
+    tweet = TwitterResource.replaceShortURL(tweet)
     return tweet.full_text
   }
 

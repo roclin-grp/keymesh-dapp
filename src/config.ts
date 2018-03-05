@@ -14,7 +14,7 @@ export default process.env.NODE_ENV === 'production' ? {
   TWITTER_OAUTH_API: TEST_OAUTH_API_PREFIX + '/Prod/oauth/twitter/authorize_url',
   TWITTER_OAUTH_CALLBACK: TEST_OAUTH_API_PREFIX + '/Prod/oauth/twitter/callback',
   FACEBOOK_APP_ID: '162817767674605',
-  DEPLOYED_ADDRESS: 'https://test.keymail.io',
+  DEPLOYED_ADDRESS: 'https://test.keymesh.io',
 } : {
   REQUIRED_CONFIRMATION_NUMBER: 1,
   ESTIMATE_AVERAGE_BLOCK_TIME: 5000,
