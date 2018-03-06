@@ -158,7 +158,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
         await this.props.sessionsStore.validateReceiver(userAddress)
         return done()
       } catch (err) {
-        return done('User not existed!')
+        return done('User had not registered with KeyMesh')
       }
     }
     done()
