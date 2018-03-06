@@ -186,11 +186,6 @@ export class UserStore {
           return
         }
 
-        if (blockCounter >= ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER) {
-          checkingDidFail(null, IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT)
-          return
-        }
-
         window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
       } catch (err) {
         checkingDidFail(err)

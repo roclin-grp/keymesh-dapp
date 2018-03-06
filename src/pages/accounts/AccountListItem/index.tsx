@@ -12,7 +12,7 @@ import {
   Spin,
   Icon,
   Tooltip,
-  Popconfirm,
+  // Popconfirm,
   message,
 } from 'antd'
 import HashAvatar from '../../../components/HashAvatar'
@@ -55,7 +55,7 @@ class AccountListItem extends React.Component<IProps, IState> {
   public readonly state: Readonly<IState> = {
     status: REGISTER_STATUS.PENDING,
     helpMessage: '',
-    isDeleting: false,
+    // isDeleting: false,
   }
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
@@ -100,6 +100,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     return (
       <List.Item
+        className={styles.container}
         actions={this.renderActions()}
       >
         <List.Item.Meta
@@ -128,47 +129,45 @@ class AccountListItem extends React.Component<IProps, IState> {
     } = this.injectedProps.usersStore
     const {
       status,
-      isDeleting,
+      // isDeleting,
     } = this.state
 
-    const deleteButton = (
-      <Popconfirm
-        title="Are you sure delete this user?"
-        onConfirm={this.handleDeleteUser}
-        okText="Delete"
-        okType="danger"
-      >
-        <Button
-          key={`delete-${user.userAddress}`}
-          loading={isDeleting}
-          size="large"
-          type="danger"
-          disabled={isDeleting}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete'}
-        </Button>
-      </Popconfirm>
-    )
+    // const deleteButton = (
+    //   <Popconfirm
+    //     title="Are you sure delete this user?"
+    //     onConfirm={this.handleDeleteUser}
+    //     okText="Delete"
+    //     okType="danger"
+    //   >
+    //     <Button
+    //       key={`delete-${user.userAddress}`}
+    //       loading={isDeleting}
+    //       size="large"
+    //       type="danger"
+    //       disabled={isDeleting}
+    //     >
+    //       {isDeleting ? 'Deleting...' : 'Delete'}
+    //     </Button>
+    //   </Popconfirm>
+    // )
 
     switch (status) {
       case REGISTER_STATUS.DONE:
         if (isCurrentUser(user.networkId, user.userAddress)) {
           return [
-            deleteButton,
+            // deleteButton,
           ]
         }
         return [
           <Button
             key={`switch-${user.userAddress}`}
-            size="large"
             type="primary"
             onClick={this.handleSwitchUser}
           >
-            Switch
+            Sign In
           </Button>,
-          deleteButton,
+          // deleteButton,
         ]
-      case REGISTER_STATUS.TIMEOUT:
       case REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL:
       case REGISTER_STATUS.UNEXCEPTED_ERROR:
         return [
@@ -180,12 +179,12 @@ class AccountListItem extends React.Component<IProps, IState> {
           >
             Retry
           </Button>,
-          deleteButton,
+          // deleteButton,
         ]
       case REGISTER_STATUS.TRANSACTION_ERROR:
       default:
         return [
-          deleteButton,
+          // deleteButton,
         ]
     }
   }
@@ -238,25 +237,25 @@ class AccountListItem extends React.Component<IProps, IState> {
       case REGISTER_STATUS.DONE:
       default:
         if (isCurrentUser(user.networkId, user.userAddress)) {
-          return 'Current user'
+          return 'Current'
         }
         return null
     }
   }
 
-  private handleDeleteUser = async () => {
-    const {
-      userAddress,
-      networkId,
-    } = this.props.user
-    this.setState({
-      isDeleting: true,
-    })
-    await this.injectedProps.usersStore.deleteUser(networkId, userAddress)
-    this.setState({
-      isDeleting: false,
-    })
-  }
+  // private handleDeleteUser = async () => {
+  //   const {
+  //     userAddress,
+  //     networkId,
+  //   } = this.props.user
+  //   this.setState({
+  //     isDeleting: true,
+  //   })
+  //   await this.injectedProps.usersStore.deleteUser(networkId, userAddress)
+  //   this.setState({
+  //     isDeleting: false,
+  //   })
+  // }
 
   private handleSwitchUser = () => {
     this.injectedProps.usersStore.useUser(this.props.user)
@@ -467,7 +466,7 @@ interface IInjectedProps {
 
 interface IState {
   status: REGISTER_STATUS
-  isDeleting: boolean
+  // isDeleting: boolean
   helpMessage: string
 }
 

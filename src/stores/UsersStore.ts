@@ -104,26 +104,28 @@ export class UsersStore {
   }
 
   @computed
-  public get walletCorrespondingUser(): IUser | undefined {
-    const {
-      currentEthereumAccount,
-    } = this.metaMaskStore
-    return this.usableUsers.find((user) => user.userAddress === currentEthereumAccount)
+  public get walletCorrespondingAvailableUser(): IUser | undefined {
+    const { walletCorrespondingUser } = this
+    if (walletCorrespondingUser == null || walletCorrespondingUser.status !== USER_STATUS.OK) {
+      return
+    }
+    return walletCorrespondingUser
   }
 
   @computed
-  public get hasWalletCorrespondingUsableUser(): boolean {
-    return this.walletCorrespondingUser != null
+  public get hasWalletCorrespondingAvailableUser(): boolean {
+    return this.walletCorrespondingAvailableUser != null
+  }
+
+  @computed
+  public get walletCorrespondingUser(): IUser | undefined {
+    const { currentEthereumAccount } = this.metaMaskStore
+    return this.users.find((user) => user.userAddress === currentEthereumAccount)
   }
 
   @computed
   public get hasRegisterRecordOnLocal(): boolean {
-    const {
-      isActive,
-      currentEthereumAccount,
-    } = this.metaMaskStore
-    return isActive
-      && (this.users.findIndex((user) => user.userAddress === currentEthereumAccount) !== -1)
+    return this.walletCorrespondingUser != null
   }
 
   // TODO: remove this
@@ -285,7 +287,7 @@ export class UsersStore {
       return
     }
 
-    if (this.hasWalletCorrespondingUsableUser) {
+    if (this.hasWalletCorrespondingAvailableUser) {
       this.setHasRegisterRecordOnChain(userAddress, true)
       return
     }
