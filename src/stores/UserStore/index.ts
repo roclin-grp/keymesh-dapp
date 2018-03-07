@@ -45,11 +45,17 @@ export class UserStore {
   private readonly disposeUpdateUserReaction: IReactionDisposer
 
   @computed
-  public get isCurrentUser(): boolean {
+  public get isCurrentWalletCorrespondingUser(): boolean {
     return (
-      this.metaMaskStore.currentEthereumNetwork != null &&
-      this.user.networkId === this.metaMaskStore.currentEthereumNetwork
+      this.metaMaskStore.currentEthereumAccount != null &&
+      this.user.userAddress === this.metaMaskStore.currentEthereumAccount
     )
+  }
+
+  @computed
+  public get isUsing(): boolean {
+    const { currentUserStore } = this.usersStore
+    return currentUserStore != null && currentUserStore.user.userAddress === this.user.userAddress
   }
 
   @computed
@@ -226,6 +232,15 @@ export class UserStore {
   public async updateUser(args: IUpdateUserOptions) {
     await this.usersDB.updateUser(this.user, args)
     this.updateMemoryUser(args)
+  }
+
+  public useUser() {
+    return this.usersStore.useUser(this.user)
+  }
+
+  public deleteUser() {
+    this.disposeStore()
+    return this.usersStore.deleteUser(this.user.networkId, this.user.userAddress)
   }
 
   /**

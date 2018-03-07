@@ -1,17 +1,27 @@
 .container {
-  width: 60%;
+  width: 70%;
   margin-top: 4rem;
 }
 
+@media screen and (max-width: 1024px) {
+  .container {
+    width: 95%;
+  }
+}
+
 .userAddress {
-  display: block;
-  margin-bottom: 2rem;
+  display: inline-flex;
+  width: 100%;
+  margin-bottom: 24px;
+  line-height: 32px;
 }
 
 .registerButton {
   padding: 0 48px;
   font-size: large;
   margin-bottom: 1rem;
+  /* looks more reponsive */
+  transition: color 0s;
 }
 
 .registerButtonWrapper:not(:nth-last-child(3)) {
@@ -23,9 +33,19 @@
 }
 
 .otherAccounts {
-  margin-bottom: 4rem;
+  margin-bottom: 2rem;
 }
 
-.uploadButton {
+.helpIcon {
+  margin-left: 0.5rem;
+}
+
+.importExportButtons {
   margin-bottom: 4rem;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.exportButton {
+  margin-left: 1rem;
 }

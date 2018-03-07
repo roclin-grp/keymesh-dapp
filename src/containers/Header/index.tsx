@@ -208,7 +208,7 @@ class Header extends React.Component<IProps, IState> {
           <Button
             type="primary"
           >
-            Create account
+            Sign Up
           </Button>
         </Link>
       )
@@ -219,7 +219,7 @@ class Header extends React.Component<IProps, IState> {
           <Button
             type="primary"
           >
-            Manage account
+            Sign In
           </Button>
         </Link>
       )

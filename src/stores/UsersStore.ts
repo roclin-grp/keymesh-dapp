@@ -23,6 +23,7 @@ import {
   UserStore,
   IUser,
   USER_STATUS,
+  getCryptoBoxIndexedDBName,
 } from './UserStore'
 import {
   UserCachesStore,
@@ -57,6 +58,7 @@ export class UsersStore {
   @observable.ref public users: IUser[] = []
   @observable.ref public currentUserStore: UserStore | undefined
   @observable public isLoadingUsers = true
+  @observable public isCheckingRegisterRecord = true
   @observable public hasRegisterRecordOnChain = false
   // FIXME: move to outside
   public readonly userCachesStore: UserCachesStore
@@ -126,6 +128,12 @@ export class UsersStore {
   @computed
   public get hasRegisterRecordOnLocal(): boolean {
     return this.walletCorrespondingUser != null
+  }
+
+  @computed
+  public get walletCorrespondingUserStore(): UserStore | undefined {
+    const { walletCorrespondingUser } = this
+    return walletCorrespondingUser && this.getUserStore(walletCorrespondingUser)
   }
 
   // TODO: remove this
@@ -203,6 +211,9 @@ export class UsersStore {
     }
 
     await usersDB.deleteUser(user)
+    const dbName = getCryptoBoxIndexedDBName(user)
+    const indexedDBStore = new IndexedDBStore(dbName)
+    await indexedDBStore.delete_all()
     if (this.metaMaskStore.currentEthereumNetwork === networkId) {
       this.removeUser(user)
     }
@@ -279,11 +290,13 @@ export class UsersStore {
   }
 
   private async checkOnChainRegisterRecord(userAddress?: string) {
+    this.setIsCheckingRegisterRecord(true)
     if (
       !this.metaMaskStore.isActive ||
       userAddress == null ||
       this.contractStore.isNotAvailable
     ) {
+      this.setIsCheckingRegisterRecord(false)
       return
     }
 
@@ -302,12 +315,18 @@ export class UsersStore {
   }
 
   @action
+  private setIsCheckingRegisterRecord(value: boolean) {
+    this.isCheckingRegisterRecord = value
+  }
+
+  @action
   private setHasRegisterRecordOnChain(userAddress: string, value: boolean) {
     if (userAddress !== this.metaMaskStore.currentEthereumAccount) {
       return
     }
 
     this.hasRegisterRecordOnChain = value
+    this.setIsCheckingRegisterRecord(false)
   }
 
   private async reloadUsersIfNetworkChanged(

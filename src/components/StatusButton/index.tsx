@@ -4,6 +4,7 @@ import {
   Button,
   Icon,
 } from 'antd'
+import { ButtonProps } from 'antd/lib/button'
 
 // style
 import classnames from 'classnames'
@@ -15,6 +16,7 @@ function StatusButton({
   disabled,
   onClick,
   children,
+  buttonProps,
   ...statusProps,
 }: IProps) {
   return (
@@ -25,6 +27,7 @@ function StatusButton({
         type="primary"
         disabled={disabled}
         onClick={onClick}
+        {...buttonProps}
       >
         {children}
       </Button>
@@ -63,12 +66,20 @@ function renderStatusIcon(statusType: IProps['statusType']) {
   )
 }
 
+export enum STATUS_TYPE {
+  LOADING = 'loading',
+  INFO = 'info',
+  SUCCESS = 'success',
+  WARN = 'warn',
+  ERROR = 'error',
+}
+
 const STATUS_ICON_TYPES = Object.freeze({
-  loading: 'loading',
-  info: 'info-circle',
-  success: 'check-circle',
-  warn: 'exclamation-circle',
-  error: 'close-circle',
+  [STATUS_TYPE.LOADING]: 'loading',
+  [STATUS_TYPE.INFO]: 'info-circle',
+  [STATUS_TYPE.SUCCESS]: 'check-circle',
+  [STATUS_TYPE.WARN]: 'exclamation-circle',
+  [STATUS_TYPE.ERROR]: 'close-circle',
 })
 
 const STATUS_ICON_MODIFIERS = Object.freeze({
@@ -80,7 +91,7 @@ const STATUS_ICON_MODIFIERS = Object.freeze({
 
 interface IStatusProps {
   statusClassName?: string
-  statusType?: 'loading' | 'info' | 'success' | 'warn' | 'error'
+  statusType?: STATUS_TYPE
   statusContent?: React.ReactNode
 }
 
@@ -90,6 +101,7 @@ interface IProps extends IStatusProps {
   buttonClassName?: string
   disabled?: boolean
   onClick?: React.FormEventHandler<HTMLButtonElement>
+  buttonProps?: ButtonProps
 }
 
 export default StatusButton
