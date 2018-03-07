@@ -18,7 +18,7 @@ import { Modal } from 'antd'
 
 import { storeLogger } from '../../utils/loggers'
 
-const DEFAULT_CHECK_PROOF_BUTTON_CONTENT = 'OK posted! Upload to blockchain!'
+export const DEFAULT_CHECK_PROOF_BUTTON_CONTENT = 'OK posted! Upload to blockchain!'
 
 export default abstract class ProvingData {
   @observable public claim: ISignedClaim | undefined
@@ -79,6 +79,25 @@ export default abstract class ProvingData {
   public abstract get platform(): PLATFORMS
   protected abstract init(): void
   protected abstract getProofURL(claimText: string): Promise<string | null>
+  protected uploadingDidCompleteCallback() {
+    this.setStep(3)
+  }
+
+  protected showCheckingError(content: string) {
+    Modal.error({
+      title: 'Check claim error',
+      content,
+    })
+  }
+
+  @action
+  protected setCheckProofButton(
+    content: string,
+    disabled: boolean = content !== DEFAULT_CHECK_PROOF_BUTTON_CONTENT,
+  ) {
+    this.checkProofButtonContent = content
+    this.checkProofButtonDisabled = disabled
+  }
 
   private async getBindingSocial(): Promise<IBindingProof | null> {
     const signedClaim = this.claim
@@ -113,7 +132,7 @@ export default abstract class ProvingData {
         this.setCheckProofButton('Uploading...')
       },
       uploadingDidComplete: () => {
-        this.setStep(3)
+        this.uploadingDidCompleteCallback()
       },
       uploadingDidFail: this.uploadingDidFail,
     }).catch(this.uploadingDidFail)
@@ -135,22 +154,6 @@ export default abstract class ProvingData {
     storeLogger.error('Uploading binding fail\n', err)
     this.showCheckingError('Something went wrong, please retry.')
     this.setCheckProofButton(DEFAULT_CHECK_PROOF_BUTTON_CONTENT)
-  }
-
-  private showCheckingError(content: string) {
-    Modal.error({
-      title: 'Check claim error',
-      content,
-    })
-  }
-
-  @action
-  private setCheckProofButton(
-    content: string,
-    disabled: boolean = content !== DEFAULT_CHECK_PROOF_BUTTON_CONTENT,
-  ) {
-    this.checkProofButtonContent = content
-    this.checkProofButtonDisabled = disabled
   }
 
   @action
