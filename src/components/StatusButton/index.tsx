@@ -10,27 +10,38 @@ import { ButtonProps } from 'antd/lib/button'
 import classnames from 'classnames'
 import * as classes from './index.css'
 
-function StatusButton({
-  className,
-  buttonClassName,
-  disabled,
-  onClick,
-  children,
-  buttonProps,
-  ...statusProps,
-}: IProps) {
+function StatusButton(props: IProps) {
+  const {
+    className,
+    buttonClassName,
+    disabled,
+    onClick,
+    children,
+    buttonProps,
+    renderButton,
+    ...statusProps,
+  } = props
+
+  const buttonClass = classnames(classes.button, buttonClassName)
+
   return (
     <div className={classnames(classes.container, className)}>
-      <Button
-        className={classnames(classes.button, buttonClassName)}
-        size="large"
-        type="primary"
-        disabled={disabled}
-        onClick={onClick}
-        {...buttonProps}
-      >
-        {children}
-      </Button>
+      {
+        renderButton
+          ? renderButton({...props, className: buttonClass })
+          : (
+            <Button
+              className={buttonClass}
+              size="large"
+              type="primary"
+              disabled={disabled}
+              onClick={onClick}
+              {...buttonProps}
+            >
+              {children}
+            </Button>
+          )
+      }
       {renderStatus(statusProps)}
     </div>
   )
@@ -96,6 +107,7 @@ interface IStatusProps {
 }
 
 interface IProps extends IStatusProps {
+  renderButton?: (props: IProps) => React.ReactNode
   children?: React.ReactNode
   className?: string
   buttonClassName?: string

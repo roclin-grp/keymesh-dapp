@@ -1,3 +1,5 @@
+import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
+
 import {
   UserStore,
 } from './UserStore'
@@ -51,28 +53,22 @@ export class SocialProofsStore {
     const signedProofHex = utf8ToHex(JSON.stringify(signedProof))
 
     transactionWillCreate()
-    this.contractStore.socialProofsContract.uploadProof(
+    const promiEvent = this.contractStore.socialProofsContract.uploadProof(
       this.userStore.user.userAddress,
       utf8ToHex(platformName),
       signedProofHex,
     )
-      .on('transactionHash', async (hash) => {
-        transactionDidCreate(hash)
-      })
-      .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === ENV.REQUIRED_CONFIRMATION_NUMBER) {
-          if (!receipt.events) {
-            uploadingDidFail(new Error('Unknown error'))
-            return
-          }
+    const transactionHash = await transactionPromiEventToPromise(promiEvent)
+    transactionDidCreate(transactionHash)
+    const { getReceipt } = await this.contractStore.getProcessingTransactionHandler(transactionHash)
 
-          await this.saveSocialProofsToDB(platformName, socialProof)
-          uploadingDidComplete()
-        }
-      })
-      .on('error', (error: Error) => {
-        uploadingDidFail(error)
-      })
+    try {
+      await getReceipt()
+      await this.saveSocialProofsToDB(platformName, socialProof)
+      uploadingDidComplete()
+    } catch (err) {
+      uploadingDidFail(err)
+    }
   }
 
   private async saveSocialProofsToDB(platformName: PLATFORMS, socialProof: ISocialProof) {
@@ -105,14 +101,9 @@ export function claimTextToSignedClaim(claimText: string): ISignedClaim {
   }
 }
 
-export enum UPLOADING_FAIL_CODE {
-  UNKNOWN = 0,
-  NO_NEW_BINDING,
-}
-
 interface IUploadingLifecycle extends ITransactionLifecycle {
   uploadingDidComplete?: () => void
-  uploadingDidFail?: (err: Error | null, code?: UPLOADING_FAIL_CODE) => void
+  uploadingDidFail?: (err: Error | null) => void
 }
 
 export enum PLATFORMS {
@@ -121,7 +112,7 @@ export enum PLATFORMS {
   FACEBOOK = 'facebook',
 }
 
-export const forablePlatforms = Object.values(PLATFORMS) as PLATFORMS[]
+export const platformNames = Object.values(PLATFORMS) as PLATFORMS[]
 
 export const PLATFORM_LABELS = Object.freeze({
   [PLATFORMS.GITHUB]: 'GitHub',

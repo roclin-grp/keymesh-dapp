@@ -1,18 +1,17 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import ProvingTextarea from '../ProvingTextarea'
 import FacebookLogin from 'react-facebook-login'
+import { Button } from 'antd'
+import ProvingTextarea from '../ProvingTextarea'
 import { FacebookProvingData } from './FacebookProvingData'
-import { Icon, Button } from 'antd'
+import StatusButton from '../../../components/StatusButton'
 
-import * as styles from './index.css'
+import * as commonClasses from '../index.css'
 
-import {
-  Link,
-} from 'react-router-dom'
 import ENV from '../../../config'
 import { signedClaimToClaimText } from '../../../stores/SocialProofsStore'
+import { PROVING_STEPS } from '../ProvingData'
 
 interface IProps {
   data: FacebookProvingData
@@ -24,50 +23,95 @@ class FacebookProving extends React.Component<IProps> {
     const { data } = this.props
     const {
       username,
-      isProving,
-      claim,
-      loginCallback,
-      platform,
-      checkProofButtonDisabled,
-      checkProofButtonContent,
+      currentStep,
+      buttonDisabled,
+      proofStatusType,
+      proofStatusContent,
     } = data
 
-    if (!isProving) {
-      return <div>
-        <p className={styles.authorizeNotice}>Please login and authorize</p>
-        <FacebookLogin
-          appId={ENV.FACEBOOK_APP_ID}
-          autoLoad={false}
-          fields="name"
-          scope="user_posts"
-          callback={loginCallback}
+    if (currentStep === PROVING_STEPS.CONNECT) {
+      return <>
+        <h3 className={commonClasses.subtitle}>
+          You need to Login to Facebook and authorize.
+        </h3>
+        <StatusButton
+          statusType={proofStatusType}
+          statusContent={proofStatusContent}
+          buttonClassName="ant-btn ant-btn-primary ant-btn-lg"
+          renderButton={(props) => (
+            <FacebookLogin
+              cssClass={props.className}
+              appId={ENV.FACEBOOK_APP_ID}
+              isDisabled={buttonDisabled}
+              autoLoad={false}
+              fields="name"
+              scope="user_posts"
+              onClick={data.startLogin}
+              callback={data.loginCallback}
+            />
+          )}
         />
-        <p className={styles.cancelLinkContainer}><Link className={styles.cancelLink} to="/profile">Cancel</Link></p>
-      </div>
+      </>
     }
 
-    const text = signedClaimToClaimText(claim!)
-    const postURL = 'https://www.facebook.com/'
-    return <div>
-        <div className={styles.iconContainer}>
-          <Icon type={platform} className={styles.icon} />
-        </div>
-      <p>{username}</p>
-      <p>
-        Please post the your proof to Facebook, the content must be exactly as below and make sure that is public.
-      </p>
-      <ProvingTextarea value={text} />
+    if (currentStep === PROVING_STEPS.POST) {
+      return (
+        <>
+          <h3 className={commonClasses.subtitle}>
+            You are now connected as {username}
+          </h3>
+          <p>
+            Post the following text exactly as it appears to cryptographically prove your address
+          </p>
+          <ProvingTextarea value={signedClaimToClaimText(data.claim!)} />
+          <Button size="large" className={commonClasses.postButton} type="primary">
+            <a href="https://www.facebook.com/" target="_blank">Post Proof</a>
+          </Button>
+          <h3 className={commonClasses.subtitle}>
+            Check the proof after you have posted
+          </h3>
+          <StatusButton
+            disabled={buttonDisabled}
+            statusType={proofStatusType}
+            statusContent={proofStatusContent}
+            onClick={data.checkProof.bind(data)}
+          >
+            Check Proof
+          </StatusButton>
+        </>
+      )
+    }
+    const proof = data.proof!
+    const { proofURL } = proof
 
-      <p>
-        <a href={postURL} target="_blank">Post it now</a>
-      </p>
-      <div>
-        <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
-          {checkProofButtonContent}
-        </Button>
-      </div>
-    </div>
+    if (currentStep === PROVING_STEPS.RECORD) {
+      return (
+        <>
+          <h3 className={commonClasses.subtitle}>
+            You are now connected as {username}, and your proof is published
+          </h3>
+          <p>
+            The proof URL is
+            <a target="_blank" href={proofURL}>
+             {` ${proofURL}`}
+            </a>
+          </p>
+          <h3 className={commonClasses.subtitle}>
+            Record the proof URL on the blockchain so every can find it
+          </h3>
+          <StatusButton
+            disabled={buttonDisabled}
+            statusType={proofStatusType}
+            statusContent={proofStatusContent}
+            onClick={data.uploadBindingProof.bind(data)}
+          >
+            Record Proof
+          </StatusButton>
+        </>
+      )
+    }
+
+    return null
   }
 }
 

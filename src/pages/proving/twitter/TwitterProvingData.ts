@@ -7,28 +7,42 @@ import ProvingData from '../ProvingData'
 import { ITweet, TwitterResource } from '../../../resources/twitter'
 import { PLATFORMS } from '../../../stores/SocialProofsStore'
 import ENV from '../../../config'
+import { STATUS_TYPE } from '../../../components/StatusButton'
 
 export class TwitterProvingData extends ProvingData {
   public platform = PLATFORMS.TWITTER
-  protected defaultCheckingErrorContent = 'Please tweet the text exactly as it appears, then check again!'
+  protected findProofHelpText = 'Please tweet the text exactly as it appears'
 
   private readonly twitterResource = new TwitterResource(
     ENV.TWITTER_CONSUMER_KEY,
     ENV.TWITTER_SECRET_KEY,
   )
 
+  public async authorize() {
+    this.setProofStatusType(STATUS_TYPE.LOADING)
+    this.setProofStatusContent(`Connecting...`)
+
+    const resp = await fetch(ENV.TWITTER_OAUTH_API)
+    if (resp.status !== 200) {
+      this.setProofStatusType(STATUS_TYPE.WARN, false)
+      this.setProofStatusContent(`Failed to connect, please retry`)
+      return
+    }
+
+    const url = await resp.text()
+    window.location.href = url
+  }
+
   @action
   protected init() {
     this.steps = [
-      'Fetch user info',
-      'Tweet',
-      'Upload infomations',
+      'Connect To Twitter',
+      'Tweet Proof',
+      'Record Proof',
       'Done',
     ]
 
-    if (window.location.search === '') {
-      this.authorize()
-    } else {
+    if (window.location.search !== '') {
       this.fetchUserInfo()
     }
   }
@@ -41,28 +55,21 @@ export class TwitterProvingData extends ProvingData {
   private async fetchUserInfo() {
     const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
     history.pushState(null, '', window.location.href.split('?')[0])
+
+    this.setProofStatusType(STATUS_TYPE.LOADING)
+    this.setProofStatusContent(`Connecting...`)
+
     const resp = await fetch(url)
     if (resp.status !== 200) {
-      // todo error handler
-      alert('fetch twitter user info error')
+      this.setProofStatusType(STATUS_TYPE.WARN, false)
+      this.setProofStatusContent(`Failed to connect, please retry`)
       return
     }
 
     const body = await resp.json()
+    this.clearProofStatusButton()
     this.updateUsername(body.screen_name)
     this.continueHandler()
-  }
-
-  private async authorize() {
-    const resp = await fetch(ENV.TWITTER_OAUTH_API)
-    if (resp.status !== 200) {
-      // todo error handler
-      alert('fetch twitter oauth api error')
-      return
-    }
-
-    const url = await resp.text()
-    window.location.href = url
   }
 }
 
