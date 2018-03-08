@@ -1,13 +1,14 @@
 import * as CBOR from 'wire-webapp-cbor'
 import { keys as proteusKeys } from 'wire-webapp-proteus'
 
-import { uint8ArrayFromHex, hexFromUint8Array } from './utils/hex'
+import { uint8ArrayFromHex, hexFromUint8Array, base64ToHex } from './utils/hex'
 import { unixToday } from './utils/time'
 import { publicKeyFromHexStr } from './utils/proteus'
 
 import { IPreKey } from './PreKeyBundle'
 
 import ENV from './config'
+import { IPutPrekeys } from './stores/UserStore/PreKeysManager'
 
 export class PreKeysPackage {
   public static deserialize(buf: ArrayBuffer) {
@@ -116,36 +117,32 @@ export class PreKeysPackage {
 }
 
 export async function getPreKeysPackage(
-  userAddress: string,
+  networkID: number,
   publicKey: proteusKeys.PublicKey,
 ): Promise<PreKeysPackage> {
-  const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${userAddress}`
+  const publicKeyHex = publicKey.fingerprint()
+  const uploadPreKeysUrl = `${ENV.GET_PREKEYS_HOST}/${networkID}/${publicKeyHex}`
   const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
 
   const resp = await fetch(uploadPreKeysUrl, fetchOptions)
   if (resp.status === 200) {
-    const downloadedPreKeys = await resp.text()
-    const [preKeysPackageSerializedStr, signature] = downloadedPreKeys.split(
-      ' ',
-    )
-    if (preKeysPackageSerializedStr === '' || signature === '') {
+    const prekeys = await resp.json() as IPutPrekeys
+    if (prekeys.prekeys === '' || prekeys.signature === '') {
       throw new Error('the data is broken')
     }
 
     if (
       !publicKey.verify(
-        uint8ArrayFromHex(signature),
-        preKeysPackageSerializedStr,
+        uint8ArrayFromHex(base64ToHex(prekeys.signature)),
+        prekeys.prekeys,
       )
     ) {
       throw new Error('pre-keys package\'s signature is invalid.')
     }
 
-    if (preKeysPackageSerializedStr !== '') {
-      return PreKeysPackage.deserialize(uint8ArrayFromHex(
-        preKeysPackageSerializedStr,
-      ).buffer as ArrayBuffer)
-    }
+    return PreKeysPackage.deserialize(uint8ArrayFromHex(base64ToHex(
+      prekeys.prekeys,
+    )).buffer as ArrayBuffer)
   }
   throw new Error('status is not 200')
 }

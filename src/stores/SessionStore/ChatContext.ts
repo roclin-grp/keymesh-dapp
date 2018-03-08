@@ -102,7 +102,7 @@ export default class ChatContext {
   }
 
   private async getPreKeyBundle(publicKey: proteusKeys.PublicKey): Promise<PreKeyBundle> {
-    const preKey = await getReceiverAvailablePrekey(this.sessionStore.session.data.contact, publicKey)
+    const preKey = await getReceiverAvailablePrekey(this.userStore.user.networkId, publicKey)
     return PreKeyBundle.create(publicKeyToIdentityKey(publicKey), preKey)
   }
 }
@@ -113,10 +113,10 @@ const NEW_MESSAGE_META: IMessageConfigurableMeta = {
 }
 
 async function getReceiverAvailablePrekey(
-  address: string,
+  networkID: number,
   publicKey: proteusKeys.PublicKey,
 ): Promise<IPreKey> {
-  const preKeyPackage = await getPreKeysPackage(address, publicKey)
+  const preKeyPackage = await getPreKeysPackage(networkID, publicKey)
 
   if (Object.keys(preKeyPackage.preKeyPublicKeys).length === 0) {
     throw new Error('no pre-keys uploaded yet')

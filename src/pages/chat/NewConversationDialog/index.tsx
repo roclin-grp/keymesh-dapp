@@ -158,6 +158,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
         await this.props.sessionsStore.validateReceiver(userAddress)
         return done()
       } catch (err) {
+        console.error(err)
         return done('User not existed!')
       }
     }

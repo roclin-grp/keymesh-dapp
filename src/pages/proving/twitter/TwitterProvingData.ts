@@ -51,7 +51,7 @@ export class TwitterProvingData extends ProvingData {
   }
 
   private async verify(): Promise<boolean> {
-    const url = `${ENV.TWITTER_OAUTH_VERIFY}?ethAddress=${this.usersStore.currentUserStore!.user.userAddress}`
+    const url = `${ENV.TWITTER_OAUTH_VERIFY}?userAddress=${this.usersStore.currentUserStore!.user.userAddress}`
     const resp = await fetch(url)
     if (resp.status !== 200) {
       // todo error handler
