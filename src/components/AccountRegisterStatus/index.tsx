@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { Tooltip, Icon } from 'antd'
 
-import * as classes from './AccountRegisterStatus.css'
+import * as classes from './index.css'
 
 import { ETHEREUM_NETWORK_TX_URL_PREFIX } from '../../stores/MetaMaskStore'
 import { REGISTER_FAIL_CODE } from '../../stores/UsersStore'
@@ -42,7 +42,7 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
 
     const helpIcon = (
       <Tooltip title={HELP_MESSAGES[status]}>
-        <Icon className={classes.helpIcon} type="question-circle-o" />
+        <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
       </Tooltip>
     )
 

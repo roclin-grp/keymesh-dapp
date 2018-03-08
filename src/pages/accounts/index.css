@@ -1,14 +1,3 @@
-.container {
-  width: 70%;
-  margin-top: 4rem;
-}
-
-@media screen and (max-width: 1024px) {
-  .container {
-    width: 95%;
-  }
-}
-
 .userAddress {
   display: inline-flex;
   width: 100%;
@@ -16,34 +5,8 @@
   line-height: 32px;
 }
 
-.registerButton {
-  padding: 0 48px;
-  font-size: large;
-  margin-bottom: 1rem;
-  /* looks more reponsive */
-  transition: color 0s;
-}
-
-.registerButtonWrapper:not(:nth-last-child(3)) {
-  margin-bottom: 63px;
-}
-
-.extraRegisterInfo {
-  line-height: 39px;
-}
-
 .otherAccounts {
-  margin-bottom: 2rem;
-}
-
-.helpIcon {
-  margin-left: 0.5rem;
-}
-
-.importExportButtons {
-  margin-bottom: 4rem;
-  display: flex;
-  flex-wrap: nowrap;
+  margin-top: 1rem;
 }
 
 .exportButton {

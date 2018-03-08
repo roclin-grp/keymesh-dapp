@@ -31,7 +31,7 @@ class FacebookProving extends React.Component<IProps> {
 
     if (currentStep === PROVING_STEPS.CONNECT) {
       return <>
-        <h3 className={commonClasses.subtitle}>
+        <h3>
           You need to Login to Facebook and authorize.
         </h3>
         <StatusButton
@@ -57,7 +57,7 @@ class FacebookProving extends React.Component<IProps> {
     if (currentStep === PROVING_STEPS.POST) {
       return (
         <>
-          <h3 className={commonClasses.subtitle}>
+          <h3>
             You are now connected as {username}
           </h3>
           <p>
@@ -67,7 +67,7 @@ class FacebookProving extends React.Component<IProps> {
           <Button size="large" className={commonClasses.postButton} type="primary">
             <a href="https://www.facebook.com/" target="_blank">Post Proof</a>
           </Button>
-          <h3 className={commonClasses.subtitle}>
+          <h3>
             Check the proof after you have posted
           </h3>
           <StatusButton
@@ -87,7 +87,7 @@ class FacebookProving extends React.Component<IProps> {
     if (currentStep === PROVING_STEPS.RECORD) {
       return (
         <>
-          <h3 className={commonClasses.subtitle}>
+          <h3>
             You are now connected as {username}, and your proof is published
           </h3>
           <p>
@@ -96,8 +96,8 @@ class FacebookProving extends React.Component<IProps> {
              {` ${proofURL}`}
             </a>
           </p>
-          <h3 className={commonClasses.subtitle}>
-            Record the proof URL on the blockchain so every can find it
+          <h3>
+            Record the proof URL on the blockchain so everyone can find it
           </h3>
           <StatusButton
             disabled={buttonDisabled}

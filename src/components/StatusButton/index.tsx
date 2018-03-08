@@ -71,6 +71,7 @@ function renderStatusIcon(statusType: IProps['statusType']) {
 
   return (
     <Icon
+      key="StatusButtonIcon"
       className={classnames(classes.statusIcon, STATUS_ICON_MODIFIERS[statusType])}
       type={STATUS_ICON_TYPES[statusType]}
     />

@@ -20,6 +20,7 @@ import { IStores } from '../../stores'
 import { PLATFORMS, PLATFORM_LABELS } from '../../stores/SocialProofsStore'
 
 import * as styles from './index.css'
+import classnames from 'classnames'
 import { UsersStore } from '../../stores/UsersStore'
 import { Lambda } from 'mobx'
 import { sleep } from '../../utils'
@@ -48,8 +49,8 @@ class Proving extends React.Component<IProps> {
   public render() {
     if (!this.props.isValidPlatform) {
       return (
-        <div className={styles.content}>
-          <h2 className={styles.title}>
+        <div className={classnames('page-container', 'center-align-column-container')}>
+          <h2>
             Invalid platform
           </h2>
           <Link to="/profile">Back to profile</Link>
@@ -60,16 +61,21 @@ class Proving extends React.Component<IProps> {
     const data = this.props.data!
 
     return (
-      <div className={styles.content}>
-        <h2 className={styles.title}>
-          Verify Your Address on {PLATFORM_LABELS[data.platform]}
-        </h2>
-        <div className={styles.stepWrapper}>
-          <Steps size="small" current={data.currentStep}>
-            {data.steps.map((item) => <Step key={item} title={item} />)}
-          </Steps>
-        </div>
-        {this.renderProvingContent()}
+      <div className="page-container">
+        <section className="block">
+          <h2 className="title">
+            Verify Your Address on {PLATFORM_LABELS[data.platform]}
+          </h2>
+          <p className="description">
+            You will prove your address on social media, and publish proof on the blockchain
+          </p>
+          <div className={styles.stepWrapper}>
+            <Steps size="small" current={data.currentStep}>
+              {data.steps.map((item) => <Step key={item} title={item} />)}
+            </Steps>
+          </div>
+          {this.renderProvingContent()}
+        </section>
       </div>
     )
   }
@@ -80,7 +86,7 @@ class Proving extends React.Component<IProps> {
     if (data.isFinished) {
       return (
         <>
-          <h3 className={styles.subtitle}>Congrats! Verification completed!</h3>
+          <h3>Congrats! Verification completed!</h3>
           <Link to="/profile">Please click here if you are not redirected within a few seconds</Link>
         </>
       )

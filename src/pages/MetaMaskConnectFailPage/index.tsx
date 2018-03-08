@@ -10,7 +10,6 @@ import ErrorPage from '../ErrorPage'
 
 // style
 import * as styles from './index.css'
-import classnames from 'classnames'
 
 import metaMaskLockedScreenshot from './meta-mask-screenshot-locked.png'
 
@@ -49,7 +48,7 @@ class MetaMaskConnectFailPage extends React.Component {
     switch (true) {
       case hasNoMetaMask: {
         return (
-          <div className={classnames(styles.container, 'page-content')}>
+          <div className="page-container">
             <Icon type="exclamation-circle-o" className={iconWarningClass} />
             <h1>
               You need to install
@@ -61,11 +60,13 @@ class MetaMaskConnectFailPage extends React.Component {
       }
       case isLocked: {
         return (
-          <div className={classnames(styles.container, 'page-content')}>
-            <Icon type="lock" className={iconWarningClass} />
-            <h1>You need to unlock MetaMask.</h1>
-            <Collapse bordered={false} className={styles.collapse}>
-              <Panel header={<h3>Why is MetaMask locked?</h3>} key="unlock-metamask">
+          <div className="page-container">
+            <h1 className="vertical-align-container">
+              <Icon type="lock" className={iconWarningClass} />
+              You need to unlock MetaMask.
+            </h1>
+            <Collapse defaultActiveKey={['unlock-metamask']} bordered={false}>
+              <Panel className={styles.collapsePanel} header={<h3>Why is MetaMask locked?</h3>} key="unlock-metamask">
                 <div className={styles.collapseContent}>
                   <p>
                     MetaMask locks your account after a certain period of time automatically.

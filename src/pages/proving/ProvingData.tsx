@@ -55,7 +55,7 @@ export default abstract class ProvingData {
         <>
           <span>Cannot find proof</span>
           <Tooltip title={this.findProofHelpText}>
-            <Icon className={classes.helpIcon} type="question-circle-o" />
+            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
           </Tooltip>
         </>,
       )
@@ -169,7 +169,7 @@ export default abstract class ProvingData {
         <>
           <span>Transaction taking too long</span>
           <Tooltip title="Transaction was not mined within 50 blocks.">
-            <Icon className={classes.helpIcon} type="question-circle-o" />
+            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
           </Tooltip>
         </>,
       )
@@ -182,7 +182,7 @@ export default abstract class ProvingData {
         <>
           <span>Failed to connect to Ethereum network</span>
           <Tooltip title="Please check your internet connection.">
-            <Icon className={classes.helpIcon} type="question-circle-o" />
+            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
           </Tooltip>
         </>,
       )
@@ -192,7 +192,7 @@ export default abstract class ProvingData {
       <>
         <span>Oops! Something unexpected happened</span>
         <Tooltip title="Sorry! You can retry later or report bugs to us if any">
-          <Icon className={classes.helpIcon} type="question-circle-o" />
+          <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
         </Tooltip>
       </>,
     )

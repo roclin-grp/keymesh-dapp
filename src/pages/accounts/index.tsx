@@ -1,17 +1,13 @@
 import * as React from 'react'
-import { RouteComponentProps } from 'react-router-dom'
+import { RouteComponentProps, Link } from 'react-router-dom'
 
 // component
 import {
   Divider,
-  Icon,
   Upload,
   message,
   List,
-  Modal,
   Button,
-  Alert,
-  Tooltip,
 } from 'antd'
 import { UploadFile } from 'antd/lib/upload/interface.d'
 import AccountListItem from './AccountListItem'
@@ -25,14 +21,13 @@ import * as classes from './index.css'
 import { inject, observer} from 'mobx-react'
 import { IStores } from '../../stores'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
-import { UsersStore, REGISTER_FAIL_CODE } from '../../stores/UsersStore'
-import { IUser, UserStore, USER_STATUS } from '../../stores/UserStore'
+import { UsersStore } from '../../stores/UsersStore'
+import { IUser, UserStore } from '../../stores/UserStore'
 
 // helper
 import { storeLogger } from '../../utils/loggers'
 import { sleep } from '../../utils'
 import { Lambda } from 'mobx'
-import AccountRegisterStatus, { REGISTER_STATUS } from './AccountRegisterStatus'
 
 @inject(mapStoreToProps)
 @observer
@@ -41,7 +36,6 @@ class Accounts extends React.Component<IProps, IState> {
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
   private disposeWalletAccountReaction: Lambda | undefined
-  private retryCheckStatus: (() => void) | undefined
   private isUnmounted = false
 
   public componentDidMount() {
@@ -60,33 +54,27 @@ class Accounts extends React.Component<IProps, IState> {
 
   public render() {
     const { metaMaskStore, usersStore } = this.injectedProps
-    const {
-      hasRegisterRecordOnLocal,
-      hasRegisterRecordOnChain,
-      hasUser,
-      walletCorrespondingUserStore,
-    } = usersStore
+    const { walletCorrespondingUserStore } = usersStore
 
     return (
-      <div className={classes.container}>
-        <section>
+      <div className="page-container">
+        <section className="block">
           <h2 className="title">
-            Register New Account
+            Manage Accounts
           </h2>
-          <h3>Account selected in MetaMask</h3>
-          {this.renderCurrentWalletAccount(metaMaskStore, walletCorrespondingUserStore)}
-          {this.renderRegisterStatusButton(
-            usersStore, hasRegisterRecordOnLocal, hasRegisterRecordOnChain, walletCorrespondingUserStore,
+          <p className="description">
+            You can sign in to other Accounts or sign up with new Ethereum address
+          </p>
+          {this.renderCurrentWalletAccount(
+            metaMaskStore,
+            walletCorrespondingUserStore,
           )}
-          {this.renderExtraRegisterInfo(usersStore, hasRegisterRecordOnLocal, hasRegisterRecordOnChain)}
+          {this.renderAccountList(
+            metaMaskStore,
+            usersStore,
+          )}
           <Divider />
-        </section>
-        {this.renderSignInToOtherAccountsSection(metaMaskStore, usersStore)}
-        <section>
-          <h3 className="title">
-            {hasUser ? 'Import/Export Account' : 'Import Backup Account'}
-          </h3>
-          <div className={classes.importExportButtons} >
+          <div className="vertical-align-container">
             <Upload
               action="/"
               beforeUpload={this.handleImport}
@@ -94,7 +82,7 @@ class Accounts extends React.Component<IProps, IState> {
               disabled={this.state.isImporting}
             >
               <Button icon="upload">
-                {hasUser ? 'Import Backup Account' : 'Import'}
+                Import Backup Account
               </Button>
             </Upload>
             {this.renderExportButton(usersStore)}
@@ -112,157 +100,31 @@ class Accounts extends React.Component<IProps, IState> {
 
     if (walletCorrespondingUserStore == null) {
       // unregistered, display user address only
-      return <UserAddress className={classes.userAddress} address={currentEthereumAccount} />
-    }
-
-    return (
-      <AccountListItem
-        key={walletCorrespondingUserStore.user.userAddress}
-        userStore={walletCorrespondingUserStore}
-      />
-    )
-  }
-
-  private renderRegisterStatusButton(
-    usersStore: UsersStore,
-    hasRegisterRecordOnLocal: boolean,
-    hasRegisterRecordOnChain: boolean,
-    walletCorrespondingUserStore?: UserStore,
-  ) {
-    const { isCheckingRegisterRecord } = usersStore
-    const canTakeover = !hasRegisterRecordOnLocal && hasRegisterRecordOnChain
-    const handleClick = canTakeover ? this.handleConfirmTakeOver : this.handleRegister
-
-    const { isCreatingTransaction } = this.state
-    const shouldDisableButton = isCheckingRegisterRecord || hasRegisterRecordOnLocal || isCreatingTransaction
-
-    const [statusType, statusContent] = this.getStatusTypeAndContent(
-      isCheckingRegisterRecord,
-      walletCorrespondingUserStore,
-    )
-
-    return (
-      <StatusButton
-        className={classes.registerButtonWrapper}
-        buttonClassName={classes.registerButton}
-        disabled={shouldDisableButton}
-        statusType={statusType}
-        statusContent={statusContent}
-        onClick={handleClick}
-      >
-        Register
-      </StatusButton>
-    )
-  }
-
-  private getStatusTypeAndContent(
-    isCheckingRegisterRecord: boolean,
-    walletCorrespondingUserStore?: UserStore,
-  ): [STATUS_TYPE, React.ReactNode | undefined] {
-
-    if (isCheckingRegisterRecord) {
-      const type = STATUS_TYPE.LOADING
-      const content = (
+      return (
         <>
-          Checking...
-          <Tooltip title="Checking register record on blockchain...">
-            <Icon className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>
-      )
-      return [type, content]
-    }
-
-    if (
-      walletCorrespondingUserStore != null
-      && walletCorrespondingUserStore.user.status === USER_STATUS.OK
-    ) {
-      const type = STATUS_TYPE.SUCCESS
-      const content = 'Registered'
-      return [type, content]
-    }
-
-    const { registerStatus, registerStatusContent } = this.state
-    const statusType = REGISTER_STATUS_ICON_TYPES[registerStatus]
-    let statusContent = registerStatusContent
-
-    if (walletCorrespondingUserStore != null) {
-      const canRetry = (
-        registerStatus === REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL ||
-        registerStatus === REGISTER_STATUS.UNEXCEPTED_ERROR
-      )
-      const retryButton = (
-        <Button
-          type="primary"
-          onClick={this.retryCheckStatus}
-        >
-          Retry
-        </Button>
-      )
-
-      statusContent = (
-        <>
-          <AccountRegisterStatus
-            key={walletCorrespondingUserStore.user.userAddress}
-            userStore={walletCorrespondingUserStore}
-            getRetry={this.getCheckStatusRetry}
-            onStatusChanged={this.handleRegisterStatusChanged}
-            onRegisterCompleted={this.handleRegisterCompleted}
-          />
-          {
-            canRetry
-            ? retryButton
-            : null
-          }
+          <h3>Current Ethereum Address</h3>
+          <UserAddress className={classes.userAddress} address={currentEthereumAccount} />
+          <Button size="large" type="primary">
+            <Link to="/register">
+              Sign Up
+            </Link>
+          </Button>
         </>
       )
     }
 
-    return [statusType, statusContent]
-  }
-
-  private renderExtraRegisterInfo(
-    usersStore: UsersStore,
-    hasRegisterRecordOnLocal: boolean,
-    hasRegisterRecordOnChain: boolean,
-  ) {
-    const { registerStatus } = this.state
-    const { extraRegisterInfo } = classes
-
-    if (usersStore.isCheckingRegisterRecord) {
-      return null
-    }
-
-    if (registerStatus === TRANSACTION_CREATION_STATUS.PENDING) {
-      return (
-        <p className={extraRegisterInfo}>
-          Please confirm the transaction in MetaMask.
-          <Tooltip title="Please click the MetaMask extension icon">
-            <Icon className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </p>
-      )
-    }
-
-    if (hasRegisterRecordOnLocal) {
-      // TODO: help link
-      return <a className={extraRegisterInfo}>How to select a different Ethereum address?</a>
-    }
-
-    if (hasRegisterRecordOnChain) {
-      return (
-        <Alert
-          message="This address is already registered, register a new account will take over it."
-          type="warning"
-          showIcon
+    return (
+      <>
+        <h3>Current Ethereum Address Account</h3>
+        <AccountListItem
+          key={walletCorrespondingUserStore.user.userAddress}
+          userStore={walletCorrespondingUserStore}
         />
-      )
-    }
-
-    return null
+      </>
+    )
   }
 
-  private renderSignInToOtherAccountsSection(
+  private renderAccountList(
     metaMaskStore: MetaMaskStore,
     usersStore: UsersStore,
   ) {
@@ -275,10 +137,9 @@ class Accounts extends React.Component<IProps, IState> {
     }
 
     return (
-      <section>
-        <h2 className="title">
-          Manage Accounts
-        </h2>
+      <>
+        <Divider />
+        <h3>Accounts</h3>
         <List
           className={classes.otherAccounts}
           rowKey={((user: IUser) => user.userAddress)}
@@ -287,8 +148,7 @@ class Accounts extends React.Component<IProps, IState> {
             <AccountListItem userStore={usersStore.getUserStore(user)} />
           )}
         />
-        <Divider />
-      </section>
+      </>
     )
   }
 
@@ -314,112 +174,6 @@ class Accounts extends React.Component<IProps, IState> {
     )
   }
 
-  private getCheckStatusRetry = (retry: () => void) => {
-    this.retryCheckStatus = retry
-  }
-
-  private handleRegisterStatusChanged = (status: REGISTER_STATUS) => {
-    if (this.isUnmounted) {
-      return
-    }
-
-    this.setState({
-      registerStatus: status,
-    })
-  }
-
-  private handleRegisterCompleted = async () => {
-    if (this.isUnmounted) {
-      return
-    }
-
-    const { usersStore } = this.injectedProps
-    const { users } = usersStore
-    if (users.length === 1) {
-      await usersStore.useUser(users[0])
-
-      // redirect and guide user to proving
-      this.props.history.push('/profile')
-      // await render..
-      await sleep(100)
-      message.success('You have successfully registered and logged in!')
-
-      await sleep(4000)
-      message.info('You can now let others know you by proving yourself on social media!')
-    }
-  }
-
-  private handleRegister = () => {
-    this.setState({
-      isCreatingTransaction: true,
-      registerStatus: TRANSACTION_CREATION_STATUS.CHECKING,
-      registerStatusContent: 'Checking...',
-    })
-
-    this.injectedProps.usersStore.register({
-      transactionWillCreate: this.transactionWillCreate,
-      registerDidFail: this.registerDidFail,
-      transactionDidCreate: this.transactionDidCreate,
-    })
-      .catch(this.registerDidFail)
-  }
-
-  private handleConfirmTakeOver = () => {
-    Modal.confirm({
-      title: 'Are you sure take over this address?',
-      content: 'After take over, you can NOT use the account currently binding to this address anymore!',
-      okText: 'Take over it',
-      cancelText: 'Cancel',
-      okType: 'danger',
-      onOk: this.handleRegister,
-    })
-  }
-
-  private transactionWillCreate = () => {
-    if (this.isUnmounted) {
-      return
-    }
-    this.setState({
-      registerStatus: TRANSACTION_CREATION_STATUS.PENDING,
-      registerStatusContent: 'Pending authorization',
-    })
-  }
-
-  private transactionDidCreate = () => {
-    if (this.isUnmounted) {
-      return
-    }
-    this.setState({
-      isCreatingTransaction: false,
-    })
-  }
-
-  private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
-    if (this.isUnmounted) {
-      return
-    }
-    this.setState({
-      registerStatus: TRANSACTION_CREATION_STATUS.FAILED,
-      registerStatusContent: this.getRegisterErrorStr(err, code),
-      isCreatingTransaction: false,
-    })
-  }
-
-  private getRegisterErrorStr(err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) {
-    switch (code) {
-      case REGISTER_FAIL_CODE.OCCUPIED:
-        return `Taken over.`
-      case REGISTER_FAIL_CODE.UNKNOWN:
-      default:
-        if ((err as Error).message.includes('User denied transaction signature')) {
-          return 'Transaction rejected.'
-        }
-        console.log(err, code)
-        storeLogger.error('Unexpected register error:', err as Error)
-        return 'Something went wrong, please retry.'
-    }
-  }
-
   private handleImport = (_: UploadFile, files: UploadFile[]) => {
     if (files.length === 0) {
       return false
@@ -439,7 +193,7 @@ class Accounts extends React.Component<IProps, IState> {
         if (this.injectedProps.usersStore.users.length === 1) {
           await this.injectedProps.usersStore.useUser(user)
 
-          this.injectedProps.history.push('/profile')
+          this.injectedProps.history.push('/getting-started')
           await sleep(50)
           message.success('You have successfully imported account and logged in!')
 
@@ -518,28 +272,6 @@ function mapStoreToProps({
   }
 }
 
-enum TRANSACTION_CREATION_STATUS {
-  DEFAULT = 'default',
-  CHECKING = 'checking',
-  PENDING = 'pending',
-  FAILED = 'failed',
-}
-
-const REGISTER_STATUS_ICON_TYPES = Object.freeze({
-  [TRANSACTION_CREATION_STATUS.CHECKING]: STATUS_TYPE.LOADING,
-  [TRANSACTION_CREATION_STATUS.PENDING]: STATUS_TYPE.LOADING,
-  [TRANSACTION_CREATION_STATUS.FAILED]: STATUS_TYPE.ERROR,
-  [REGISTER_STATUS.PENDING]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.DONE]: STATUS_TYPE.SUCCESS,
-  [REGISTER_STATUS.TIMEOUT]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.TAKEOVERED]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
-})
-
 // typing
 interface IProps extends RouteComponentProps<{}> { }
 
@@ -547,8 +279,6 @@ const defaultState: Readonly<IState> = {
   isCreatingTransaction: false,
   isImporting: false,
   isExporting: false,
-  registerStatus: TRANSACTION_CREATION_STATUS.DEFAULT,
-  registerStatusContent: undefined,
   exportButtonContent: undefined,
 }
 
@@ -561,9 +291,7 @@ interface IState {
   isCreatingTransaction: boolean
   isImporting: boolean
   isExporting: boolean
-  registerStatus: TRANSACTION_CREATION_STATUS | REGISTER_STATUS
-  registerStatusContent?: JSX.Element | string
-  exportButtonContent?: string
+  exportButtonContent?: JSX.Element | string
 }
 
 export default Accounts

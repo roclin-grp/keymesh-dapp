@@ -22,15 +22,20 @@ export class TwitterProvingData extends ProvingData {
     this.setProofStatusType(STATUS_TYPE.LOADING)
     this.setProofStatusContent(`Connecting...`)
 
-    const resp = await fetch(ENV.TWITTER_OAUTH_API)
-    if (resp.status !== 200) {
+    try {
+      const resp = await fetch(ENV.TWITTER_OAUTH_API)
+      if (resp.status !== 200) {
+        this.setProofStatusType(STATUS_TYPE.WARN, false)
+        this.setProofStatusContent(`Failed to connect, please retry`)
+        return
+      }
+      const url = await resp.text()
+      window.location.href = url
+    } catch (err) {
       this.setProofStatusType(STATUS_TYPE.WARN, false)
       this.setProofStatusContent(`Failed to connect, please retry`)
       return
     }
-
-    const url = await resp.text()
-    window.location.href = url
   }
 
   @action

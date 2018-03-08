@@ -13,7 +13,7 @@ export default function Loading({
   message,
 }: IProps) {
   return (
-    <div className={classnames(styles.container, 'page-content')}>
+    <div className={classnames('page-container', 'center-align-column-container')}>
       <Icon type="loading" className={styles.iconLoading} />
       <p>{message}</p>
     </div>

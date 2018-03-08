@@ -3,6 +3,7 @@ import { observable, computed, reaction, action, IReactionDisposer } from 'mobx'
 import CryptoBox from './CryptoBox'
 import { MessageCenter } from './MessageCenter'
 import { PreKeysManager } from './PreKeysManager'
+import GettingStartedQuests from './GettingStartedQuests'
 
 import {
   MetaMaskStore,
@@ -39,6 +40,7 @@ export class UserStore {
   public readonly chatMessagesCenter: MessageCenter
   public readonly sessionsStore: SessionsStore
   public readonly socialProofsStore: SocialProofsStore
+  public readonly gettingStartedQuests: GettingStartedQuests
 
   private readonly usersDB: UsersDB
   private readonly userRef: IUser
@@ -98,6 +100,8 @@ export class UserStore {
       contractStore,
       userCachesStore: this.usersStore.userCachesStore,
     })
+
+    this.gettingStartedQuests = new GettingStartedQuests(this.user)
 
     // update usersStore's user data reference
     this.disposeUpdateUserReaction = reaction(

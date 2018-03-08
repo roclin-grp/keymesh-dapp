@@ -21,7 +21,7 @@ import UserAddress from '../../components/UserAddress'
 // style
 import classnames from 'classnames'
 import * as styles from './index.css'
-import logo from './logo.png'
+import logo from './logo.svg'
 
 // state management
 import {
@@ -33,8 +33,8 @@ import {
 } from '../../stores'
 import {
   MetaMaskStore,
-  ETHEREUM_NETWORK_NAMES,
-  METAMASK_CONNECT_STATUS,
+  // ETHEREUM_NETWORK_NAMES,
+  // METAMASK_CONNECT_STATUS,
 } from '../../stores/MetaMaskStore'
 import {
   ContractStore,
@@ -45,6 +45,7 @@ import {
 import {
   IUser,
 } from '../../stores/UserStore'
+import { iterableQuests } from '../../stores/UserStore/GettingStartedQuests'
 
 // helper
 import copy from 'copy-to-clipboard'
@@ -79,32 +80,33 @@ class Header extends React.Component<IProps, IState> {
   public render() {
     return (
       <header className={styles.header}>
-        <div className={classnames(styles.content, 'container')}>
-          <h1 className={styles.logo}>
+        <div className={classnames('fullscreen-container', 'vertical-align-container')}>
+          <h1 className={classnames(styles.logo, 'vertical-align-container')}>
             <Link
               tabIndex={0}
-              className={styles.logoText}
+              className={styles.logoLink}
               to="/"
             >
               <img
                 src={logo}
-                alt="Keymesh"
+                alt="KeyMesh Logo"
                 className={styles.logoImage}
               />
+              <span className={styles.logoText}>KeyMesh</span>
             </Link>
           </h1>
           <Menu
             inlineIndent={24}
             openTransitionName="slide-up"
             theme="light"
-            className={classnames(styles.menu, 'menu-site')}
+            className={classnames(styles.menu, 'vertical-align-container')}
             selectedKeys={[this.props.location.pathname]}
             mode="horizontal"
           >
-            <Menu.Item key="/discover">
-              <Link to="/discover" className={styles.menuItem}>
+            <Menu.Item key="/broadcast">
+              <Link to="/broadcast" className={styles.menuItem}>
                 <Icon type="bulb" className={styles.menuIcon} />
-                Discover
+                Broadcast
               </Link>
             </Menu.Item>
             {
@@ -118,69 +120,90 @@ class Header extends React.Component<IProps, IState> {
                 : null
             }
           </Menu>
-          {this.renderNetworkStatus()}
+          {this.renderGettingStarted()}
+          {/* {this.renderNetworkStatus()} */}
           {this.renderUserMenu()}
         </div>
       </header>
     )
   }
 
-  private renderNetworkStatus() {
-    const { isPending } = this.injectedProps.metaMaskStore
-    if (isPending) {
+  private renderGettingStarted() {
+    const { currentUserStore } = this.injectedProps.usersStore
+    if (!currentUserStore) {
       return null
     }
 
-    const { connectStatus } = this.injectedProps.metaMaskStore
+    const { totalCompletedCount } = this.injectedProps.usersStore.currentUserStore!.gettingStartedQuests
+    const questsCount = iterableQuests.length
+    if (totalCompletedCount === questsCount) {
+      return null
+    }
 
     return (
-      <>
-        <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[connectStatus]}>
-          <span
-            title="Network status"
-            className={styles.networkIndicatorWrapper}
-          >
-            <span
-              className={classnames(
-                styles.networkIndicator,
-                CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES[connectStatus],
-              )}
-            />
-          </span>
-        </Tooltip>
-        <span
-          className={classnames(styles.networkOptionsButton, 'ant-dropdown-link')}
-        // looks like antd does not support keyboard accessibility well
-        // tabIndex={0}
-        >
-          {this.renderNetworkText()}
-        </span>
-      </>
+      <Link className={styles.gettingStarted} to="/getting-started">
+        <Icon className={styles.gettingStartedIcon} type="bars" />
+        Getting Started ({`${totalCompletedCount}/${questsCount}`})
+      </Link>
     )
   }
 
-  private renderNetworkText() {
-    const {
-      isNotAvailable,
-      isLocked,
-      currentEthereumNetwork,
-    } = this.injectedProps.metaMaskStore
+  // private renderNetworkStatus() {
+  //   const { isPending } = this.injectedProps.metaMaskStore
+  //   if (isPending) {
+  //     return null
+  //   }
 
-    return (
-      <span
-        className={styles.networkText}
-        title="Current Ethereum network"
-      >
-        {isNotAvailable && !isLocked
-          ? 'No network'
-          : (
-            ETHEREUM_NETWORK_NAMES[currentEthereumNetwork!]
-            || `Custom(${currentEthereumNetwork})`
-          )
-        }
-      </span>
-    )
-  }
+  //   const { connectStatus } = this.injectedProps.metaMaskStore
+
+  //   return (
+  //     <>
+  //       <Tooltip title={CONNECT_STATUS_INDICATOR_TEXTS[connectStatus]}>
+  //         <span
+  //           title="Network status"
+  //           className={styles.networkIndicatorWrapper}
+  //         >
+  //           <span
+  //             className={classnames(
+  //               styles.networkIndicator,
+  //               CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES[connectStatus],
+  //             )}
+  //           />
+  //         </span>
+  //       </Tooltip>
+  //       <span
+  //         className={classnames(styles.networkOptionsButton, 'ant-dropdown-link')}
+  //       // looks like antd does not support keyboard accessibility well
+  //       // tabIndex={0}
+  //       >
+  //         {this.renderNetworkText()}
+  //       </span>
+  //     </>
+  //   )
+  // }
+
+  // private renderNetworkText() {
+  //   const {
+  //     isNotAvailable,
+  //     isLocked,
+  //     currentEthereumNetwork,
+  //   } = this.injectedProps.metaMaskStore
+
+  //   return (
+  //     <span
+  //       className={styles.networkText}
+  //       title="Current Ethereum network"
+  //     >
+  //       {isNotAvailable && !isLocked
+  //         ? 'No network'
+  //         : (
+  //           ETHEREUM_NETWORK_NAMES[currentEthereumNetwork!]
+  //           || `Custom(${currentEthereumNetwork})`
+  //         )
+  //       }
+  //     </span>
+  //   )
+  // }
 
   private renderUserMenu() {
     const {
@@ -204,7 +227,7 @@ class Header extends React.Component<IProps, IState> {
 
     if (isActive && !contractsNotAvailable && !isLoadingUsers && usableUsers.length === 0) {
       return (
-        <Link to="/accounts">
+        <Link to="/register">
           <Button
             type="primary"
           >
@@ -368,16 +391,16 @@ class Header extends React.Component<IProps, IState> {
 }
 
 // constant
-const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
-  [METAMASK_CONNECT_STATUS.PENDING]: '',
-  [METAMASK_CONNECT_STATUS.ACTIVE]: styles.networkIndicatorActive,
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable,
-})
+// const CONNECT_STATUS_INDICATOR_MODIFIER_CLASSES = Object.freeze({
+//   [METAMASK_CONNECT_STATUS.PENDING]: '',
+//   [METAMASK_CONNECT_STATUS.ACTIVE]: styles.networkIndicatorActive,
+//   [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: styles.networkIndicatorNotAvailable,
+// })
 
-const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
-  [METAMASK_CONNECT_STATUS.ACTIVE]: 'MetaMask Active',
-  [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'MetaMask Locked',
-})
+// const CONNECT_STATUS_INDICATOR_TEXTS = Object.freeze({
+//   [METAMASK_CONNECT_STATUS.ACTIVE]: 'MetaMask Active',
+//   [METAMASK_CONNECT_STATUS.NOT_AVAILABLE]: 'MetaMask Locked',
+// })
 
 // typing
 interface IProps extends RouteComponentProps<{}> {

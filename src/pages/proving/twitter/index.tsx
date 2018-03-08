@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import { Button } from 'antd'
+import { Button, Divider } from 'antd'
 import ProvingTextarea from '../ProvingTextarea'
 import StatusButton from '../../../components/StatusButton'
 
@@ -30,7 +30,7 @@ class TwitterProving extends React.Component<IProps> {
     if (currentStep === PROVING_STEPS.CONNECT) {
       return (
         <>
-          <h3 className={commonClasses.subtitle}>
+          <h3>
             You will be redirected to Twitter for authentication
           </h3>
           <StatusButton
@@ -50,11 +50,8 @@ class TwitterProving extends React.Component<IProps> {
       const tweetClaimURL = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(twitterClaimText)
       return (
         <>
-          <h3 className={commonClasses.subtitle}>
-            You are now connected as
-            <a href={`https://twitter.com/${username}`} target="_blank">
-              {` @${username}`}
-            </a>
+          <h3>
+            You are now connected as @{username}
           </h3>
           <p>
             Tweet the following text exactly as it appears to cryptographically prove your address
@@ -63,7 +60,8 @@ class TwitterProving extends React.Component<IProps> {
           <Button size="large" className={commonClasses.postButton} type="primary">
             <a href={tweetClaimURL} target="_blank">Tweet Proof</a>
           </Button>
-          <h3 className={commonClasses.subtitle}>
+          <Divider />
+          <h3>
             Check the proof after you have tweeted
           </h3>
           <StatusButton
@@ -84,12 +82,8 @@ class TwitterProving extends React.Component<IProps> {
     if (currentStep === PROVING_STEPS.RECORD) {
       return (
         <>
-          <h3 className={commonClasses.subtitle}>
-            You are now connected as
-            <a href={`https://twitter.com/${username}`} target="_blank">
-              {` @${username}`}
-            </a>
-            , and your proof is published
+          <h3>
+            You are now connected as @{username}, and your proof is published
           </h3>
           <p>
             The proof URL is
@@ -97,8 +91,9 @@ class TwitterProving extends React.Component<IProps> {
              {` ${proofURL}`}
             </a>
           </p>
-          <h3 className={commonClasses.subtitle}>
-            Record the proof URL on the blockchain so every can find it
+          <Divider />
+          <h3>
+            Record the proof URL on the blockchain so everyone can find it
           </h3>
           <StatusButton
             disabled={buttonDisabled}

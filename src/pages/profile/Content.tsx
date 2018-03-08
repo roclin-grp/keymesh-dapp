@@ -40,15 +40,19 @@ class ProfileContent extends React.Component<IProps> {
 
   public render() {
     return (
-      <div className={classnames(classes.container, 'page-content')}>
-        <HashAvatar
-          className={classes.userAvatar}
-          shape="circle"
-          size="large"
-          picSize={64}
-          hash={this.props.proofsStateStore.avatarHash}
-        />
-        {this.renderVerifications()}
+      <div className={'page-container'}>
+        <section className={classnames(classes.profileContainer, 'block')}>
+          <div className={classes.userCard}>
+            <HashAvatar
+              className={classes.userAvatar}
+              shape="circle"
+              size="large"
+              picSize={128}
+              hash={this.props.proofsStateStore.avatarHash}
+            />
+          </div>
+          {this.renderVerifications()}
+        </section>
       </div>
     )
   }

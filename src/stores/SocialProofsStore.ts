@@ -18,6 +18,7 @@ import {
 import { UserCachesStore } from './UserCachesStore'
 import ENV from '../config'
 import { base58ToChecksumAddress } from '../utils/cryptos'
+import { QUESTS } from './UserStore/GettingStartedQuests'
 
 export class SocialProofsStore {
   private userStore: UserStore
@@ -63,9 +64,22 @@ export class SocialProofsStore {
     const { getReceipt } = await this.contractStore.getProcessingTransactionHandler(transactionHash)
 
     try {
-      await getReceipt()
+      await getReceipt(
+        ENV.REQUIRED_CONFIRMATION_NUMBER,
+        ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
+        ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
+      )
       await this.saveSocialProofsToDB(platformName, socialProof)
       uploadingDidComplete()
+
+      if (platformName !== PLATFORMS.TWITTER) {
+        return
+      }
+
+      const { gettingStartedQuests } = this.userStore
+      if (!gettingStartedQuests.questStatues[QUESTS.CONNECT_TWITTER]) {
+        gettingStartedQuests.setQuest(QUESTS.CONNECT_TWITTER, true)
+      }
     } catch (err) {
       uploadingDidFail(err)
     }

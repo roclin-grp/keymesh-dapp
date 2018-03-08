@@ -1,0 +1,63 @@
+.quests {
+  --ninja-icon-height: 6.25rem;
+  margin-top: var(--ninja-icon-height)
+}
+
+.quests,
+.rewardPrompt {
+  position: relative;
+}
+
+.ninjaIcon {
+  position: absolute;
+  top: 0;
+  left: 6rem;
+  height: var(--ninja-icon-height);
+  transform: translateY(-100%);
+}
+
+.givingLovePic {
+  position: absolute;
+  right: 2rem;
+  top: 2rem;
+  height: 3rem;
+}
+
+.checkStatusIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 1.5rem !important;
+  display: block;
+  background: transparent;
+}
+
+.checkStatusIcon :global .anticon {
+  display: block;
+  color: #43D100;
+  line-height: initial;
+}
+
+.checkStatusIcon.unFinished :global .anticon::before {
+  content: '';
+  height: 22px;
+  border: 1px solid #ccc;
+  width: 22px;
+  box-sizing: border-box;
+  margin-top: 1px;
+  margin-left: 1px;
+  border-radius: 4px;
+}
+
+.questItem :global .ant-list-item-meta-title {
+  font-size: 1.125rem;
+  margin-top: 2px;
+}
+
+.questItem :global .ant-list-item-action {
+  margin-left: auto;
+}
+
+.questItem :global .ant-list-item-action .ant-btn {
+  text-transform: uppercase;
+  min-width: 10rem;
+}

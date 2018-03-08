@@ -1,7 +1,3 @@
-.container {
-  padding: 0 0 24px;
-}
-
 .container :global .ant-list-item-action > li {
   padding-right: 0;
 }

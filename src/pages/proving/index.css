@@ -2,40 +2,14 @@
   text-align: center;
 }
 
-.content {
-  margin-top: 4rem;
-  padding-bottom: 2rem;
-  width: 80%;
-}
-
-@media screen and (max-width: 1024px) {
-  .content {
-    width: 95%;
-  }
-}
-
 .stepWrapper {
   margin-bottom: 3rem;
-}
-
-.title {
-  font-size: 1.8rem;
-  margin-bottom: 2rem;
 }
 
 .helpIcon {
   margin-left: 0.5rem;
 }
 
-.subtitle {
-  font-size: 18px;
-  font-weight: bold;
-}
-
 .postButton {
   display: block;
-}
-
-.postButton:not(:last-child) {
-  margin-bottom: 3rem;
 }

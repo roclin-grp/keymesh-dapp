@@ -4,7 +4,7 @@ import { Link, withRouter, RouteComponentProps } from 'react-router-dom'
 // component
 import { List, Button, Popconfirm, Icon } from 'antd'
 import HashAvatar from '../../../components/HashAvatar'
-import AccountRegisterStatus, { REGISTER_STATUS } from '../AccountRegisterStatus'
+import AccountRegisterStatus, { REGISTER_STATUS } from '../../../components/AccountRegisterStatus'
 
 // style
 import classnames from 'classnames'
@@ -122,10 +122,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
   private renderListContent() {
     const { userStore } = this.props
-    const { isUsing, isCurrentWalletCorrespondingUser } = userStore
-    if (isCurrentWalletCorrespondingUser && (isUsing || !userStore.isRegisterCompleted)) {
-      return null
-    }
+    const { isUsing } = userStore
 
     if (isUsing) {
       return 'Current'
