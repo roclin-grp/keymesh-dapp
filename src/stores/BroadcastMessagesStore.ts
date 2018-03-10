@@ -7,6 +7,8 @@ import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
 import { getUserPublicKey } from './UsersStore'
 import ENV from '../config'
+import { QUESTS } from './UserStore/GettingStartedQuests'
+import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
@@ -32,6 +34,7 @@ export class BroadcastMessagesStore {
     this.contractStore = contractStore
   }
 
+  // TODO: refactor
   public async publishBroadcastMessage(
     message: string,
     {
@@ -57,59 +60,66 @@ export class BroadcastMessagesStore {
       timestamp: Math.floor(timestamp / 1000),
     }
     const signedMessageHex = utf8ToHex(JSON.stringify(signedMessage))
-    const contract = this.contractStore.broadcastMessagesContract
     const author = currentUserStore!.user.userAddress
 
     transactionWillCreate()
-    contract.publish(author, signedMessageHex)
-      .on('transactionHash', async (hash) => {
-        transactionDidCreate(hash)
-        runInAction(() => {
-          this.broadcastMessages = [
-            {
-              author,
-              timestamp,
-              message,
-              status: MESSAGE_STATUS.DELIVERING,
-            } as IBroadcastMessage].concat(this.broadcastMessages)
-        })
-        this.broadcastMessagesSignatures.push(signature)
-      })
-      .on('confirmation', async (confirmationNumber, receipt) => {
-        if (confirmationNumber === ENV.REQUIRED_CONFIRMATION_NUMBER) {
-          const isCurrentMessage = (_message: IBroadcastMessage) => {
-            return _message.author === author &&
-              _message.timestamp === timestamp &&
-              _message.message === message
-          }
-          if (!receipt.events) {
-            const _messages = this.broadcastMessages.map((_message) => {
-              if (isCurrentMessage(_message)) {
-                _message.status = MESSAGE_STATUS.FAILED
-              }
-              return _message
-            })
-            runInAction(() => {
-              this.broadcastMessages = _messages
-            })
-            publishDidFail(new Error('Unknown error'))
-            return
-          }
-          const messages = this.broadcastMessages.map((_message) => {
-            if (isCurrentMessage(_message)) {
-              _message.status = MESSAGE_STATUS.DELIVERED
-            }
-            return _message
-          })
-          runInAction(() => {
-            this.broadcastMessages = messages
-          })
-          publishDidComplete()
+    const promiEvent = this.contractStore.broadcastMessagesContract.publish(author, signedMessageHex)
+    const transactionHash = await transactionPromiEventToPromise(promiEvent)
+    transactionDidCreate(transactionHash)
+
+    runInAction(() => {
+      this.broadcastMessages = [
+        {
+          author,
+          timestamp,
+          message,
+          status: MESSAGE_STATUS.DELIVERING,
+        } as IBroadcastMessage].concat(this.broadcastMessages)
+    })
+    this.broadcastMessagesSignatures.push(signature)
+
+    const { getReceipt } = await this.contractStore.getProcessingTransactionHandler(transactionHash)
+
+    const isCurrentMessage = (_message: IBroadcastMessage) => {
+      return _message.author === author &&
+        _message.timestamp === timestamp &&
+        _message.message === message
+    }
+    try {
+      await getReceipt(
+        ENV.REQUIRED_CONFIRMATION_NUMBER,
+        ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
+        ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
+      )
+
+      const messages = this.broadcastMessages.map((_message) => {
+        if (isCurrentMessage(_message)) {
+          _message.status = MESSAGE_STATUS.DELIVERED
         }
+        return _message
       })
-      .on('error', async (error: Error) => {
-        publishDidFail(error)
+      runInAction(() => {
+        this.broadcastMessages = messages
       })
+      publishDidComplete()
+
+      const { gettingStartedQuests } = currentUserStore!
+      if (!gettingStartedQuests.questStatues[QUESTS.FIRST_BROADCAST]) {
+        gettingStartedQuests.setQuest(QUESTS.FIRST_BROADCAST, true)
+      }
+    } catch (err) {
+      const _messages = this.broadcastMessages.map((_message) => {
+        if (isCurrentMessage(_message)) {
+          _message.status = MESSAGE_STATUS.FAILED
+        }
+        return _message
+      })
+      runInAction(() => {
+        this.broadcastMessages = _messages
+      })
+
+      publishDidFail(err)
+    }
   }
 
   public stopFetchBroadcastMessages = () => {

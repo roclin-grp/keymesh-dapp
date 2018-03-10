@@ -10,7 +10,6 @@ import HashAvatar from '../../components/HashAvatar'
 
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
-import { Divider } from 'antd'
 import { sha3 } from '../../utils/cryptos'
 import classnames from 'classnames'
 
@@ -42,11 +41,9 @@ class Broadcast extends React.Component<IProps> {
   }
 
   public render() {
-    return <div className={classnames(styles.broadcast, 'container')}>
+    return <div className={classnames('page-container')}>
       {this.renderPostForm()}
-      <div className={styles.messagesContainer}>
-        {this.renderBroadcastMessages()}
-      </div>
+      {this.renderBroadcastMessages()}
     </div>
   }
 
@@ -57,39 +54,38 @@ class Broadcast extends React.Component<IProps> {
     }
 
     return (
-      <>
-        <div className={styles.postForm}>
-          <HashAvatar
-            className={styles.avatar}
-            shape="circle"
-            hash={this.props.usersStore.currentUserStore!.avatarHash}
-          />
-          <BroadcastForm
-            broadcastMessagesStore={this.props.broadcastMessagesStore}
-          />
-        </div>
-        <Divider/>
-      </>
+      <section className={classnames(styles.postForm, 'block')}>
+        <HashAvatar
+          className={styles.avatar}
+          shape="circle"
+          hash={this.props.usersStore.currentUserStore!.avatarHash}
+        />
+        <BroadcastForm
+          broadcastMessagesStore={this.props.broadcastMessagesStore}
+        />
+      </section>
     )
   }
 
   private renderBroadcastMessages() {
     const messages = this.props.broadcastMessagesStore.broadcastMessages.map((message) => (
-      <div key={sha3(`${message.author}${message.timestamp}${message.message}`)}>
-        <BroadcastMessage
-          userCachesStore={this.props.usersStore.userCachesStore}
-          userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
-          message={message}
-        />
-        <Divider />
-      </div>
+      <BroadcastMessage
+        key={sha3(`${message.author}${message.timestamp}${message.message}`)}
+        userCachesStore={this.props.usersStore.userCachesStore}
+        userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
+        message={message}
+      />
     ))
 
     if (messages.length === 0) {
-      return <p className={styles.noBroadcasts}>No broadcasts</p>
+      return null
     }
 
-    return messages
+    return (
+      <section className={classnames(styles.broadcasts, 'block')}>
+        {messages}
+      </section>
+    )
   }
 }
 

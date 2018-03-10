@@ -69,14 +69,14 @@ export class ChatMessageStore {
       const hasfetchError = (err as Error).message.includes('Failed to fetch')
 
       if (checkTransactionTimeout || hasfetchError) {
-        storeLogger.warn('check message fail:', err)
+        storeLogger.warn('failed to check message:', err)
         // retry
         await sleep(3000)
         this.checkMessageStatus()
         return
       }
 
-      storeLogger.error('message sending fail:', err)
+      storeLogger.error('failed to send message:', err)
       await this.updateMessageStatus(MESSAGE_STATUS.FAILED)
     }
   }

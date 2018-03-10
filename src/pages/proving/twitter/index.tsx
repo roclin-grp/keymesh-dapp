@@ -1,15 +1,15 @@
 import * as React from 'react'
 import { observer } from 'mobx-react'
 
-import { TwitterProvingData } from './TwitterProvingData'
+import { Button, Divider } from 'antd'
 import ProvingTextarea from '../ProvingTextarea'
+import StatusButton from '../../../components/StatusButton'
 
-import {
-  Link,
-} from 'react-router-dom'
-import { Icon, Button } from 'antd'
-import * as styles from './index.css'
+import * as commonClasses from '../index.css'
+
 import { signedClaimToClaimText } from '../../../stores/SocialProofsStore'
+import { PROVING_STEPS } from '../ProvingData'
+import { TwitterProvingData } from './TwitterProvingData'
 
 interface IProps {
   data: TwitterProvingData
@@ -18,52 +18,96 @@ interface IProps {
 @observer
 class TwitterProving extends React.Component<IProps> {
   public render() {
-    const label = 'Twitter'
     const { data } = this.props
     const {
       username,
-      isProving,
-      claim,
-      platform,
-      checkProofButtonContent,
-      checkProofButtonDisabled,
+      currentStep,
+      buttonDisabled,
+      proofStatusType,
+      proofStatusContent,
     } = data
 
-    if (!isProving) {
-      return <div className={styles.container}>
-        <div className={styles.iconContainer}>
-          <Icon type={platform} className={styles.icon} />
-        </div>
-        <div className={styles.inputContainer}>
-          <p>Fetching your {label} username</p>
-        </div>
-
-        <div className={styles.buttonsContainer}>
-          <Link to="/profile">Cancel</Link>
-        </div>
-      </div>
+    if (currentStep === PROVING_STEPS.CONNECT) {
+      return (
+        <>
+          <h3>
+            You will be redirected to Twitter for authentication
+          </h3>
+          <StatusButton
+            disabled={buttonDisabled}
+            statusType={proofStatusType}
+            statusContent={proofStatusContent}
+            onClick={data.authorize.bind(data)}
+          >
+            Connect To Twitter
+          </StatusButton>
+        </>
+      )
     }
 
-    const twitterClaimText = signedClaimToClaimText(claim!)
-    const tweetClaimURL = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(twitterClaimText)
-    return <div>
-      <div className={styles.iconContainer}>
-        <Icon type={platform} className={styles.icon} />
-      </div>
-      <p><a href={'https://twitter.com/' + username} target="_blank">{username}</a></p>
-      <p className={styles.notice}>Please tweet the text below exactly as it appears.</p>
-      <ProvingTextarea value={twitterClaimText}/>
+    if (currentStep === PROVING_STEPS.POST) {
+      const twitterClaimText = signedClaimToClaimText(data.claim!)
+      const tweetClaimURL = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(twitterClaimText)
+      return (
+        <>
+          <h3>
+            You are now connected as @{username}
+          </h3>
+          <p>
+            Tweet the following text exactly as it appears to cryptographically prove your address
+          </p>
+          <ProvingTextarea value={signedClaimToClaimText(data.claim!)} />
+          <Button size="large" className={commonClasses.postButton} type="primary">
+            <a href={tweetClaimURL} target="_blank">Tweet Proof</a>
+          </Button>
+          <Divider />
+          <h3>
+            Check the proof after you have tweeted
+          </h3>
+          <StatusButton
+            disabled={buttonDisabled}
+            statusType={proofStatusType}
+            statusContent={proofStatusContent}
+            onClick={data.checkProof.bind(data)}
+          >
+            Check Proof
+          </StatusButton>
+        </>
+      )
+    }
 
-      <div className={styles.tweetContainer}>
-        <a href={tweetClaimURL} target="_blank">Tweet it now</a>
-      </div>
-      <div>
-        <Link to="/profile"><Button className={styles.cancel}>Cancel</Button></Link>
-        <Button type="primary" onClick={() => data.checkProof()} disabled={checkProofButtonDisabled}>
-          {checkProofButtonContent}
-        </Button>
-      </div>
-    </div>
+    const proof = data.proof!
+    const { proofURL } = proof
+
+    if (currentStep === PROVING_STEPS.RECORD) {
+      return (
+        <>
+          <h3>
+            You are now connected as @{username}, and your proof is published
+          </h3>
+          <p>
+            The proof URL is
+            <a target="_blank" href={proofURL}>
+             {` ${proofURL}`}
+            </a>
+          </p>
+          <Divider />
+          <h3>
+            Record the proof URL on the blockchain so everyone can find it
+          </h3>
+          <StatusButton
+            disabled={buttonDisabled}
+            statusType={proofStatusType}
+            statusContent={proofStatusContent}
+            onClick={data.uploadBindingProof.bind(data)}
+          >
+            Record Proof
+          </StatusButton>
+        </>
+      )
+    }
+
+    return null
   }
 }
 

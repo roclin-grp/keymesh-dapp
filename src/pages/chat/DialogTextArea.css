@@ -2,7 +2,15 @@
   resize: none;
   border-radius: 0;
   border: 0px;
-  border-top-width: 1px;
+  border-top: 1px solid #ebedf0;
+  padding-right: 6rem;
+}
+
+.textArea:hover,
+.textArea:focus {
+  border: 0px;
+  border-top: 1px solid #ebedf0;
+  box-shadow: none;
 }
 
 .textAreaWrapper,

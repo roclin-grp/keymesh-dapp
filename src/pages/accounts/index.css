@@ -1,15 +1,14 @@
-.container {
+.userAddress {
+  display: inline-flex;
   width: 100%;
-  margin-top: 2rem;
+  margin-bottom: 24px;
+  line-height: 32px;
 }
 
-.userListContainer {
-  max-width: 50rem;
+.otherAccounts {
+  margin-top: 1rem;
 }
 
-.draggerInner {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 30vh;
+.exportButton {
+  margin-left: 1rem;
 }

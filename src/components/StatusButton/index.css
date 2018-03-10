@@ -1,0 +1,31 @@
+.foo {
+  color: white;
+}
+
+.container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
+
+.button {
+  margin-right: 1rem;
+}
+
+.statusIcon {
+  font-size: 14px;
+  margin-right: 0.5rem;
+}
+
+.statusIcon.info {
+  color: #1890ff;
+}
+.statusIcon.success {
+  color: #52c41a;
+}
+.statusIcon.warn {
+  color: #faad14;
+}
+.statusIcon.error {
+  color: #f5222d;
+}

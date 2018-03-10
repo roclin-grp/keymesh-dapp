@@ -3,30 +3,47 @@ import { action } from 'mobx'
 import ProvingData from '../ProvingData'
 import { FacebookResource, IPost } from '../../../resources/facebook'
 import { PLATFORMS } from '../../../stores/SocialProofsStore'
+import { STATUS_TYPE } from '../../../components/StatusButton'
 
 export class FacebookProvingData extends ProvingData {
-  public platform = PLATFORMS.FACEBOOK
-  protected defaultCheckingErrorContent = `Please post the your proof to Facebook, `
-    + `the content must be exactly as the screen appears and make sure that is public. `
-    + `Then check again!`
+  public get platform() {
+    return PLATFORMS.FACEBOOK
+  }
+  protected findProofHelpText = 'Make sure your post is public accessible'
 
   private facebookAccessToken: string | null = null
   private facebookUserID: string | null = null
 
+  public startLogin = () => {
+    this.setProofStatusType(STATUS_TYPE.LOADING)
+    this.setProofStatusContent('Connecting...')
+  }
+
   public loginCallback = (response: any) => {
+    if (
+      response.accessToken == null ||
+      response.userID == null ||
+      response.name == null
+    ) {
+      this.setProofStatusType(STATUS_TYPE.WARN, false)
+      this.setProofStatusContent('Failed to connect')
+      return
+    }
+
     this.facebookAccessToken = response.accessToken
     this.facebookUserID = response.userID
     this.updateUsername(response.name)
 
+    this.clearProofStatusButton()
     this.continueHandler()
   }
 
   @action
   protected init() {
     this.steps = [
-      'Authroize',
-      'Publish a public post',
-      'Upload infomations',
+      'Connect To Facebook',
+      'Post Proof',
+      'Record Proof',
       'Done',
     ]
   }

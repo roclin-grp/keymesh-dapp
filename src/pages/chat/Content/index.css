@@ -2,6 +2,7 @@
 .sessionList,
 .sessionListTopBar {
   display: flex;
+  background: white;
 }
 
 .content,
@@ -14,7 +15,7 @@
   margin: 0 auto;
   -ms-flex-positive: 1;
   flex-grow: 1;
-  height: calc(100vh - 63px);
+  height: calc(100vh - var(--nav-bar-height));
   border: 1px solid #ebedf0;
   min-width: 52rem;
   min-height: 32rem;

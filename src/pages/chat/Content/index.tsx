@@ -36,7 +36,7 @@ class ChatContent extends React.Component<IProps> {
     } = this.props.userStore
 
     return (
-      <div className={classnames(styles.content, 'container')}>
+      <div className={classnames(styles.content, 'fullscreen-container')}>
         <div className={styles.sessionList}>
           <div className={styles.sessionListTopBar}>
             <Button

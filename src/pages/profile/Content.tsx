@@ -12,7 +12,7 @@ import classnames from 'classnames'
 
 import { observer } from 'mobx-react'
 import { UserProofsStateStore } from '../../stores/UserProofsStateStore'
-import { PLATFORM_LABELS, forablePlatforms } from '../../stores/SocialProofsStore'
+import { PLATFORM_LABELS, platformNames } from '../../stores/SocialProofsStore'
 
 @observer
 class ProfileContent extends React.Component<IProps> {
@@ -40,15 +40,19 @@ class ProfileContent extends React.Component<IProps> {
 
   public render() {
     return (
-      <div className={classnames(classes.container, 'page-content')}>
-        <HashAvatar
-          className={classes.userAvatar}
-          shape="circle"
-          size="large"
-          picSize={64}
-          hash={this.props.proofsStateStore.avatarHash}
-        />
-        {this.renderVerifications()}
+      <div className={'page-container'}>
+        <section className={classnames(classes.profileContainer, 'block')}>
+          <div className={classes.userCard}>
+            <HashAvatar
+              className={classes.userAvatar}
+              shape="circle"
+              size="large"
+              picSize={128}
+              hash={this.props.proofsStateStore.avatarHash}
+            />
+          </div>
+          {this.renderVerifications()}
+        </section>
       </div>
     )
   }
@@ -81,7 +85,7 @@ class ProfileContent extends React.Component<IProps> {
     } = proofsStateStore
 
     const verificationItems: JSX.Element[] = []
-    for (const platform of forablePlatforms) {
+    for (const platform of platformNames) {
       const verification = verifications[platform]
       if (verification && verification.socialProof) {
         verificationItems.push((
@@ -100,7 +104,7 @@ class ProfileContent extends React.Component<IProps> {
           <li key={platform} className={commonClasses.verificationItem}>
             <Link className={classes.newVerifyItemLink} to={`/proving/${platform}`}>
               <Icon className={commonClasses.platformIcon} type={platform} />
-              Prove your {PLATFORM_LABELS[platform]}
+              Verify Your Address on {PLATFORM_LABELS[platform]}
               <Icon className={commonClasses.checkVerificationIndicatorIcon} type="right" />
             </Link>
           </li>

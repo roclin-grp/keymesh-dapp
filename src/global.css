@@ -1,34 +1,99 @@
-:global .container {
+body {
+  background: #fcfcfc;
+}
+
+:root {
+  --nav-bar-height: 4rem;
+}
+
+:global .main {
+  padding-top: var(--nav-bar-height);
+}
+
+@media screen and (max-width: 760px) {
+  :global .main {
+    align-items: initial;
+  }
+}
+
+:global .page-container {
+  width: 80%;
+  margin-top: 2rem;
+  min-width: 760px;
+}
+
+@media screen and (max-width: 1024px) {
+  :global .page-container {
+    width: 95%;
+  }
+}
+
+:global .fullscreen-container {
   padding: 0 1.25rem;
   width: 100%;
 }
 
-:global .title {
-  font-size: 1.8rem;
-}
-
-:global .center {
-  text-align: center;
+:global .vertical-align-container {
+  display: flex;
+  align-items: center;
 }
 
 :global .main,
-:global .page-content {
+:global .center-align-column-container {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-:global .main {
-  /* height of nav bar */
-  padding-top: 63px;
+:global .block {
+  padding: 2rem;
+  border: 1px solid #f5f5f5;
+  background: white;
+}
+:global .block.prompt {
+  background: #fffbe8;
+}
+
+:global .block {
+  margin-bottom: 2rem;
+}
+
+:global .block:last-of-type {
+  margin-bottom: 4rem;
+}
+
+:global .block h2.title {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: .25rem;
+}
+
+:global .block p.description {
+  margin-bottom: 2rem;
+}
+
+:global .block p:first-of-type:not(.description) {
+  margin-top: 1rem;
+}
+
+:global .ant-btn > a:focus {
+  text-decoration: none;
+}
+
+:global .block h3 {
+  margin-bottom: .25rem;
+}
+
+button {
+  text-transform: uppercase;
 }
 
 :global .twitterTone {
-  color: #1DA1F2;
+  color: #1da1f2;
 }
 
 :global .facebookTone {
-  color: #3B5998;
+  color: #3b5998;
 }
 
 :global .gitHubTone {

@@ -5,6 +5,7 @@ import { SessionStore } from '.'
 import { ContractStore } from '../ContractStore'
 import { getUserPublicKey } from '../UsersStore'
 import { UserStore } from '../UserStore'
+import { QUESTS } from '../UserStore/GettingStartedQuests'
 import { IChatMessage } from '../ChatMessageStore'
 
 import { ISession } from '../../databases/SessionsDB'
@@ -62,6 +63,11 @@ export default class ChatContext {
     if (isClosingSession) {
       // no need to save delete session message, return
       return
+    }
+
+    const { gettingStartedQuests } = this.userStore
+    if (!gettingStartedQuests.questStatues[QUESTS.FIRST_MESSAGE]) {
+      gettingStartedQuests.setQuest(QUESTS.FIRST_MESSAGE, true)
     }
 
     if (this.session.meta.isNewSession) {

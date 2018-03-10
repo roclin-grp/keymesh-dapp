@@ -14,7 +14,7 @@ function ErrorPage({
   errorStack,
 }: IProps) {
   return (
-    <div className={classnames(styles.container, 'page-content')}>
+    <div className={classnames('page-container', 'center-align-column-container')}>
       <Icon type="close-circle-o" className={styles.iconError} />
       <h1>{message}</h1>
       <a target="_blank" href="https://github.com/keymesh/keymesh-dapp/issues/new">Report bugs</a>
