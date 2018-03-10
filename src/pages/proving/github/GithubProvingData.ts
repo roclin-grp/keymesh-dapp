@@ -9,19 +9,17 @@ import {
 } from '../../../stores/SocialProofsStore'
 
 export class GithubProvingData extends ProvingData {
-  protected defaultCheckingErrorContent =
-    `Please paste the text into a public gist called ${GITHUB_GIST_FILENAME}, then check again!`
-
   public get platform() {
     return PLATFORMS.GITHUB
   }
+  protected findProofHelpText = `Make sure your gist is public accessible and contains file ${GITHUB_GIST_FILENAME}`
 
   @action
   protected init() {
     this.steps = [
       'Enter username',
       'Create a gist',
-      'Upload infomations',
+      'Record Proof',
       'Done',
     ]
   }

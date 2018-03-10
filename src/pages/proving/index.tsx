@@ -4,10 +4,7 @@ import { inject, observer } from 'mobx-react'
 import { Steps } from 'antd'
 const Step = Steps.Step
 
-import {
-  Link,
-  RouteComponentProps,
-} from 'react-router-dom'
+import { Link, RouteComponentProps } from 'react-router-dom'
 
 import ProvingData from './ProvingData'
 
@@ -19,30 +16,19 @@ import { GithubProvingData } from './github/GithubProvingData'
 import { TwitterProvingData } from './twitter/TwitterProvingData'
 import { FacebookProvingData } from './facebook/FacebookProvingData'
 
-import {
-  IStores,
-} from '../../stores'
+import { IStores } from '../../stores'
 import { PLATFORMS, PLATFORM_LABELS } from '../../stores/SocialProofsStore'
 
 import * as styles from './index.css'
+import classnames from 'classnames'
 import { UsersStore } from '../../stores/UsersStore'
 import { Lambda } from 'mobx'
 import { sleep } from '../../utils'
 
-interface IParams {
-  platform: PLATFORMS
-}
-interface IProps {
-  isValidPlatform: boolean
-  data: ProvingData | null
-}
-
-type IPropsWithRouter = IProps & RouteComponentProps<IParams>
-
 @inject(mapStoreToProps)
 @observer
-class Proving extends React.Component<IPropsWithRouter> {
-  private disposeProvingCompletedReaction: Lambda | null = null
+class Proving extends React.Component<IProps> {
+  private disposeProvingCompletedReaction: Lambda | undefined
   private unmounted = false
 
   public componentDidMount() {
@@ -55,47 +41,57 @@ class Proving extends React.Component<IPropsWithRouter> {
 
   public componentWillUnmount() {
     this.unmounted = true
-    if (this.disposeProvingCompletedReaction !== null) {
+    if (this.disposeProvingCompletedReaction != null) {
       this.disposeProvingCompletedReaction()
     }
   }
 
   public render() {
     if (!this.props.isValidPlatform) {
-      return <>
-        <p>Invalid platform</p>
-        <Link to="/profile">Back to profile</Link>
-      </>
+      return (
+        <div className={classnames('page-container', 'center-align-column-container')}>
+          <h2>
+            Invalid platform
+          </h2>
+          <Link to="/profile">Back to profile</Link>
+        </div>
+      )
     }
 
-    const state = this.props.data!
+    const data = this.props.data!
 
-    return <div className={styles.content}>
-      <h3 className={styles.provingNotice}>Prove your {PLATFORM_LABELS[state.platform]} identity</h3>
-
-      <Steps size="small" current={state.currentStep}>
-        {state.steps.map((item) => <Step key={item} title={item} />)}
-      </Steps>
-
-      {
-        state.isFinished
-        ? (
-          <div>
-            <p className={styles.congratulations}>Congrats! Verification completed!</p>
-            <Link to="/profile">Please click here if you are not redirected within a few seconds</Link>
+    return (
+      <div className="page-container">
+        <section className="block">
+          <h2 className="title">
+            Verify Your Address on {PLATFORM_LABELS[data.platform]}
+          </h2>
+          <p className="description">
+            You will prove your address on social media, and publish proof on the blockchain
+          </p>
+          <div className={styles.stepWrapper}>
+            <Steps size="small" current={data.currentStep}>
+              {data.steps.map((item) => <Step key={item} title={item} />)}
+            </Steps>
           </div>
-        )
-        : (
-          <div className={styles.provingComponentContainer}>
-            {this.renderProving()}
-          </div>
-        )
-      }
-    </div>
+          {this.renderProvingContent()}
+        </section>
+      </div>
+    )
   }
 
-  private renderProving() {
+  private renderProvingContent() {
     const data = this.props.data!
+
+    if (data.isFinished) {
+      return (
+        <>
+          <h3>Congrats! Verification completed!</h3>
+          <Link to="/profile">Please click here if you are not redirected within a few seconds</Link>
+        </>
+      )
+    }
+
     const { platform } = data
     switch (platform) {
       case PLATFORMS.GITHUB:
@@ -113,9 +109,11 @@ class Proving extends React.Component<IPropsWithRouter> {
     // redirect to /profile in 2 sec after finished
     await sleep(2000)
     // do nothing if already left this page
-    if (!this.unmounted) {
-      this.props.history.replace('/profile')
+    if (this.unmounted) {
+      return
     }
+
+    this.props.history.replace('/profile')
   }
 }
 
@@ -132,13 +130,22 @@ function getSocialProvingState(platform: PLATFORMS, usersStore: UsersStore): Pro
   }
 }
 
-function mapStoreToProps(stores: IStores, ownProps: IPropsWithRouter): IProps {
+function mapStoreToProps(stores: IStores, ownProps: IProps) {
   const platform = ownProps.match.params.platform
   const isValidPlatform = Object.values(PLATFORMS).includes(platform)
   return {
     isValidPlatform,
     data: isValidPlatform ? getSocialProvingState(platform, stores.usersStore) : null,
   }
+}
+
+interface IParams {
+  platform: PLATFORMS
+}
+
+interface IProps extends RouteComponentProps<IParams> {
+  isValidPlatform: boolean
+  data: ProvingData | null
 }
 
 export default Proving

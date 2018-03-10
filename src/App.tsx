@@ -15,6 +15,8 @@ import Accounts from './pages/accounts'
 import Broadcast from './pages/broadcast'
 import Profile from './pages/profile'
 import Proving from './pages/proving'
+import GettingStarted from './pages/getting-started'
+import Register from './pages/register'
 
 import {
   inject,
@@ -51,9 +53,9 @@ class App extends React.Component<IProps> {
       <Router>
         <>
           <Header />
-          <div className="main">
+          <main className="main">
             {this.renderContent()}
-          </div>
+          </main>
         </>
       </Router>
     )
@@ -99,28 +101,35 @@ class App extends React.Component<IProps> {
 
     return (
       <Switch>
-        <Redirect from="/" exact={true} to="/discover" />
-        <Route path="/discover" component={Broadcast} />
+        <Redirect from="/" exact={true} to="/broadcast" />
+        <Route path="/broadcast" component={Broadcast} />
         <Route path="/accounts" component={Accounts} />
+        <Route path="/register" component={Register} />
         <Route path="/profile/:userAddress" component={Profile} />
+        <ConditionalRoute
+          path="/getting-started"
+          component={GettingStarted}
+          predicate={hasUser}
+          redirectTo="/register"
+        />
         <ConditionalRoute
           path="/messages"
           component={Chat}
           predicate={hasUser}
-          redirectTo="/accounts"
+          redirectTo="/register"
         />
         <ConditionalRoute
           path="/profile"
           exact={true}
           component={Profile}
           predicate={hasUser}
-          redirectTo="/accounts"
+          redirectTo="/register"
         />
         <ConditionalRoute
           path="/proving/:platform"
           component={Proving}
           predicate={hasUser}
-          redirectTo="/accounts"
+          redirectTo="/register"
         />
         <Route component={NotFound} />
       </Switch>

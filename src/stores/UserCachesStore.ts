@@ -1,7 +1,7 @@
 import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
-import { IVerifiedStatus, ISocialProof, PLATFORMS, forablePlatforms } from './SocialProofsStore'
+import { IVerifiedStatus, ISocialProof, PLATFORMS, platformNames } from './SocialProofsStore'
 import { sha3 } from '../utils/cryptos'
 
 export class UserCachesStore {
@@ -89,7 +89,7 @@ export class UserCachesStore {
 
 export function getNewVerifications() {
   const verifications = {}
-  for (const platform of forablePlatforms) {
+  for (const platform of platformNames) {
     verifications[platform] = {}
   }
   return verifications as IUserCachesVerifications

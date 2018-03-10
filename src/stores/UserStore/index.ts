@@ -3,6 +3,7 @@ import { observable, computed, reaction, action, IReactionDisposer } from 'mobx'
 import CryptoBox from './CryptoBox'
 import { MessageCenter } from './MessageCenter'
 import { PreKeysManager } from './PreKeysManager'
+import GettingStartedQuests from './GettingStartedQuests'
 
 import {
   MetaMaskStore,
@@ -39,17 +40,24 @@ export class UserStore {
   public readonly chatMessagesCenter: MessageCenter
   public readonly sessionsStore: SessionsStore
   public readonly socialProofsStore: SocialProofsStore
+  public readonly gettingStartedQuests: GettingStartedQuests
 
   private readonly usersDB: UsersDB
   private readonly userRef: IUser
   private readonly disposeUpdateUserReaction: IReactionDisposer
 
   @computed
-  public get isCurrentUser(): boolean {
+  public get isCurrentWalletCorrespondingUser(): boolean {
     return (
-      this.metaMaskStore.currentEthereumNetwork != null &&
-      this.user.networkId === this.metaMaskStore.currentEthereumNetwork
+      this.metaMaskStore.currentEthereumAccount != null &&
+      this.user.userAddress === this.metaMaskStore.currentEthereumAccount
     )
+  }
+
+  @computed
+  public get isUsing(): boolean {
+    const { currentUserStore } = this.usersStore
+    return currentUserStore != null && currentUserStore.user.userAddress === this.user.userAddress
   }
 
   @computed
@@ -92,6 +100,8 @@ export class UserStore {
       contractStore,
       userCachesStore: this.usersStore.userCachesStore,
     })
+
+    this.gettingStartedQuests = new GettingStartedQuests(this.user)
 
     // update usersStore's user data reference
     this.disposeUpdateUserReaction = reaction(
@@ -186,11 +196,6 @@ export class UserStore {
           return
         }
 
-        if (blockCounter >= ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER) {
-          checkingDidFail(null, IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT)
-          return
-        }
-
         window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
       } catch (err) {
         checkingDidFail(err)
@@ -231,6 +236,15 @@ export class UserStore {
   public async updateUser(args: IUpdateUserOptions) {
     await this.usersDB.updateUser(this.user, args)
     this.updateMemoryUser(args)
+  }
+
+  public useUser() {
+    return this.usersStore.useUser(this.user)
+  }
+
+  public deleteUser() {
+    this.disposeStore()
+    return this.usersStore.deleteUser(this.user.networkId, this.user.userAddress)
   }
 
   /**

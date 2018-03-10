@@ -1,0 +1,22 @@
+.container {
+  position: relative;
+  display: inline-flex;
+}
+
+.container:not(:last-child) {
+  margin-bottom: 1rem;
+}
+
+.container textarea {
+  border-color: #ccc;
+}
+
+.copyButton {
+  position: absolute;
+  right: 0.625rem;
+  top: 0.5rem;
+}
+
+.copyButton.copied {
+  color: #52c41a;
+}

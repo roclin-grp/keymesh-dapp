@@ -16,7 +16,7 @@ export default process.env.NODE_ENV === 'production' ? {
   FACEBOOK_APP_ID: '162817767674605',
   DEPLOYED_ADDRESS: 'https://test.keymesh.io',
 } : {
-  REQUIRED_CONFIRMATION_NUMBER: 1,
+  REQUIRED_CONFIRMATION_NUMBER: 0,
   ESTIMATE_AVERAGE_BLOCK_TIME: 5000,
   TRANSACTION_TIME_OUT_BLOCK_NUMBER: 3,
   KVASS_ENDPOINT: 'https://hlskkkzio4.execute-api.ap-northeast-1.amazonaws.com/kvass/',

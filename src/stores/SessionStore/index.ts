@@ -174,10 +174,12 @@ export class SessionStore {
    * new conversation
    * save new created session with first message to db
    */
+  @action
   public async saveSessionWithMessage(
     firstMessage: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
+    this.session.meta.isNewSession = undefined
     await this.sessionsDB.addSession(this.session, firstMessage, {
       ...addMessageOptions,
       shouldAddUnread: false,

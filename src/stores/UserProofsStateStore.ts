@@ -12,7 +12,7 @@ import {
   GITHUB_GIST_FILENAME,
   claimTextToSignedClaim,
   ISignedSocialProof,
-  forablePlatforms,
+  platformNames,
   ISocialProof,
   IVerifiedStatus,
 } from './SocialProofsStore'
@@ -63,7 +63,7 @@ export class UserProofsStateStore {
 
   public getValidProofs = () => {
     const validProofs: ISocialProofWithPlatform[] = []
-    for (const platform of forablePlatforms) {
+    for (const platform of platformNames) {
       const verification = this.verifications[platform]
       if (!verification.verifiedStatus) {
         continue
@@ -77,7 +77,7 @@ export class UserProofsStateStore {
 
   @computed
   public get isFirstLoadingProofs(): boolean {
-    for (const platform of forablePlatforms) {
+    for (const platform of platformNames) {
       const verifiction = this.verifications[platform]
       if (!verifiction || verifiction.lastFetchBlock === 0) {
           return true
@@ -154,7 +154,7 @@ export class UserProofsStateStore {
   }
 
   private async fetchUserAllPlatformProofs() {
-    for (const platform of forablePlatforms) {
+    for (const platform of platformNames) {
       this.fetchUserPlaformProof(platform, this.userAddress)
     }
   }
@@ -237,7 +237,7 @@ export class UserProofsStateStore {
   }
 
   private async verifyAll() {
-    for (const platform of forablePlatforms) {
+    for (const platform of platformNames) {
       const verification = this.verifications[platform]
       if (verification.socialProof && isNeedVerify(verification.verifiedStatus)) {
         this.verify(platform, verification.socialProof.proofURL)

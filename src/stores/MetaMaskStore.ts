@@ -3,6 +3,8 @@ import {
   computed,
   action,
   runInAction,
+  observe,
+  IValueDidChange,
 } from 'mobx'
 
 import Web3 from 'web3'
@@ -66,6 +68,20 @@ export class MetaMaskStore {
 
   constructor(private web3: Web3) {
     this.connect()
+  }
+
+  public listenForWalletAccountChange(
+    cb: (
+      currentAccount: MetaMaskStore['currentEthereumAccount'],
+      prevAccount: MetaMaskStore['currentEthereumAccount'],
+    ) => void,
+  ) {
+    return observe(
+      this,
+      'currentEthereumAccount',
+      ({ oldValue, newValue }: IValueDidChange<MetaMaskStore['currentEthereumAccount']>) =>
+        cb(newValue, oldValue),
+    )
   }
 
   public async getBlockHash(blockNumber: number): Promise<string> {

@@ -59,7 +59,7 @@ class DialogTextArea extends React.Component<IProps, IState> {
             ref={this.getTextArea as () => void}
             autoFocus={this.hasSession}
             spellCheck={false}
-            rows={4}
+            rows={6}
             disabled={disabled}
             value={this.hasSession ? this.props.sessionStore!.draftMessage : this.state.newSessionDraftMessage}
             onChange={this.handleChange}

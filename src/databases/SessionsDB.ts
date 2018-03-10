@@ -97,10 +97,6 @@ export class SessionsDB {
     firstMessage?: IMessage,
     addMessageOptions?: IAddMessageOptions,
   ) {
-    // isNewSession is used to distinguish local new create session,
-    // we don't save it to database
-    session.meta.isNewSession = undefined
-
     const {
       sessions,
     } = this.dexieDB
