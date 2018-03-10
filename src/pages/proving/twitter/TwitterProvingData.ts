@@ -2,7 +2,7 @@ import {
   action,
 } from 'mobx'
 
-import ProvingData from '../ProvingData'
+import ProvingData, { DEFAULT_CHECK_PROOF_BUTTON_CONTENT } from '../ProvingData'
 
 import { ITweet, TwitterResource } from '../../../resources/twitter'
 import { PLATFORMS } from '../../../stores/SocialProofsStore'
@@ -55,6 +55,37 @@ export class TwitterProvingData extends ProvingData {
   protected async getProofURL(claimText: string): Promise<string | null> {
     const tweets = await this.twitterResource.getTweets(this.username)
     return getClaimTweetURL(tweets, claimText)
+  }
+
+  protected async uploadingDidCompleteCallback() {
+    const isValid = await this.verify()
+
+    if (isValid) {
+      super.uploadingDidCompleteCallback()
+      return
+    }
+
+    this.showCheckingError('Something went wrong, please retry.')
+    this.setCheckProofButton(DEFAULT_CHECK_PROOF_BUTTON_CONTENT)
+  }
+
+  private async verify(): Promise<boolean> {
+    const url = `${ENV.TWITTER_OAUTH_VERIFY}?userAddress=${this.usersStore.currentUserStore!.user.userAddress}`
+    const resp = await fetch(url)
+    if (resp.status !== 200) {
+      // todo error handler
+      alert('could not verify the proof')
+      return false
+    }
+
+    const text = await resp.text()
+    if (text !== 'verified') {
+      // todo error handler
+      alert('could not verify the proof')
+      return false
+    }
+
+    return true
   }
 
   private async fetchUserInfo() {

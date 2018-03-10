@@ -2,7 +2,6 @@ import { keys as proteusKeys } from 'wire-webapp-proteus'
 
 import { UserStore, IUser, USER_STATUS, getCryptoBoxIndexedDBName } from '.'
 
-import { hexFromUint8Array } from '../../utils/hex'
 import { getPublicKeyFingerPrint } from '../../utils/proteus'
 import { unixToday } from '../../utils/time'
 import { storeLogger } from '../../utils/loggers'
@@ -11,6 +10,7 @@ import IndexedDBStore from '../../IndexedDBStore'
 import { PreKeysPackage, IPreKeyPublicKeyFingerprints } from '../../PreKeysPackage'
 
 import ENV from '../../config'
+import { uint8ArrayToBase64, hexToBase64 } from '../../utils/hex'
 
 export class PreKeysManager {
   private readonly user: IUser
@@ -37,16 +37,21 @@ export class PreKeysManager {
     lastResortPrekey.key_pair = lastPreKey.key_pair
 
     const preKeysPackage = new PreKeysPackage(preKeysPublicKeyFingerprints, interval, lastPreKey.key_id)
-    const serializedPrekeys = hexFromUint8Array(new Uint8Array(preKeysPackage.serialise()))
-    const preKeysSignature = await this.userStore.cryptoBox.sign(serializedPrekeys)
+    const serializedPrekeys = uint8ArrayToBase64(new Uint8Array(preKeysPackage.serialise()))
+    const preKeysSignature = hexToBase64(await this.userStore.cryptoBox.sign(serializedPrekeys))
 
-    const uploadPreKeysUrl = `${ENV.KVASS_ENDPOINT}${this.user.userAddress}`
+    const identityKeyPair = await this.userStore.cryptoBox.getIdentityKeyPair()
+    const publicKey = identityKeyPair.public_key.fingerprint()
+    const uploadPreKeysUrl = `${ENV.PREKEYS_API}?networkID=${this.user.networkId}&publicKey=${publicKey}`
     const response = await fetch(
       uploadPreKeysUrl,
       {
         method: 'PUT',
         mode: 'cors',
-        body: `${serializedPrekeys} ${preKeysSignature}`,
+        body: JSON.stringify({
+          signature: preKeysSignature,
+          prekeys: serializedPrekeys,
+        } as IPutPrekeys),
       },
     )
 
@@ -108,4 +113,9 @@ function generatePreKeys(
     preKeys.push(preKey)
   }
   return preKeys
+}
+
+export interface IPutPrekeys {
+  signature: string
+  prekeys: string
 }

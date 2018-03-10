@@ -45,7 +45,7 @@ export class SessionsStore {
     // try to get user's public key
     const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
     // try to get user's pre-keys
-    await getPreKeysPackage(receiverAddress, publicKey)
+    await getPreKeysPackage(this.userStore.user.networkId, publicKey)
   }
 
   public async createNewConversation(receiverAddress: string, subject?: string): Promise<ISession> {

@@ -165,7 +165,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private resetUserAddress = () => {
-    const {userAddressInput} = this
+    const { userAddressInput } = this
     if (userAddressInput !== null) {
       userAddressInput.focus()
       this.props.form.resetFields([

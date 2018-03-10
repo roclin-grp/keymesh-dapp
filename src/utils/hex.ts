@@ -37,6 +37,27 @@ export function base58ToHex(base58Str: string): string {
   return `0x${base58Decode(base58Str).toString('hex')}`
 }
 
+export function hexToBase64(hex: string): string {
+  return uint8ArrayToBase64(new Uint8Array(Buffer.from(removeHexPrefix(hex), 'hex')))
+}
+
+export function base64ToHex(base64Str: string): string {
+  return hexFromUint8Array(base64ToUint8Array(base64Str))
+}
+
 export function removeHexPrefix(hex: string): string {
   return hex.startsWith('0x') ? hex.slice(2) : hex
+}
+
+export function uint8ArrayToBase64(uint8ArrayData: Uint8Array): string {
+    return btoa(String.fromCharCode.apply(null, uint8ArrayData))
+}
+
+function base64ToUint8Array(base64Data: string): Uint8Array {
+  const binstr = atob(base64Data)
+  const buf = new Uint8Array(binstr.length)
+  Array.prototype.forEach.call(binstr, (ch: string, i: number) => {
+      buf[i] = ch.charCodeAt(0)
+    })
+  return buf
 }
