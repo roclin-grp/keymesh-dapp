@@ -212,26 +212,24 @@ export enum REGISTER_STATUS {
 
 const REGISTER_STATUS_SUMMARY_TEXT = Object.freeze({
   [REGISTER_STATUS.IDENTITY_UPLOADING]: 'Transacting',
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: 'Uploading data',
-  [REGISTER_STATUS.TIMEOUT]: 'Transaction taking too long',
+  [REGISTER_STATUS.IDENTITY_UPLOADED]: 'Uploading identity',
+  [REGISTER_STATUS.TIMEOUT]: 'Transaction timeout',
   [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: 'Failed to upload data',
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Oops! Something unexpected happened',
-  [REGISTER_STATUS.TAKEOVERED]: 'Taken over',
+  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Unexpected error',
+  [REGISTER_STATUS.TAKEOVERED]: 'Address registered by another device',
   [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction failed',
 })
 
 const HELP_MESSAGES = Object.freeze({
-  [REGISTER_STATUS.IDENTITY_UPLOADING]:
-    'Be patient, Ethereum transaction is processing (normally it would take less than 5 min)',
+  [REGISTER_STATUS.IDENTITY_UPLOADING]: 'Transaction confirms in about 1 minute (Rinkeby)',
   [REGISTER_STATUS.IDENTITY_UPLOADED]: 'Uploading your public keys to cloud server',
 
-  [REGISTER_STATUS.TIMEOUT]: 'Transaction was not mined within 50 blocks.',
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]:
-    'Failed to upload your public keys to cloud server, please check your internet connection',
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Sorry! You can retry later or report bugs to us if any',
+  [REGISTER_STATUS.TIMEOUT]: 'Transaction was not mined within 50 blocks',
+  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: 'Failed to upload your public keys',
+  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Unexpected error',
 
-  [REGISTER_STATUS.TAKEOVERED]: 'Address had been taken over, you can register again to take over it',
-  [REGISTER_STATUS.TRANSACTION_ERROR]: 'Fail to process transaction, please make sure you have enough ETH',
+  [REGISTER_STATUS.TAKEOVERED]: 'Another device had taken over this address',
+  [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction failed. Please make sure you have enough fund',
 })
 
 interface IProps {

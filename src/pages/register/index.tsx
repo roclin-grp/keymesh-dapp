@@ -163,7 +163,7 @@ class Register extends React.Component<IProps, IState> {
       const content = (
         <>
           Checking...
-          <Tooltip title="Checking register record on blockchain...">
+          <Tooltip title="Checking if address is registered">
             <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
           </Tooltip>
         </>
@@ -205,8 +205,8 @@ class Register extends React.Component<IProps, IState> {
       const type = STATUS_TYPE.WARN
       const content = (
         <>
-          Registered
-          <Tooltip title="This address is already registered, register a new account will take over it.">
+          Registered on another device
+          <Tooltip title="You can register anyway, or restore the account backup from your other device">
             <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
           </Tooltip>
         </>
@@ -296,9 +296,10 @@ class Register extends React.Component<IProps, IState> {
 
   private handleConfirmTakeOver = () => {
     Modal.confirm({
-      title: 'Are you sure take over this address?',
-      content: 'After take over, you can NOT use the account currently binding to this address anymore!',
-      okText: 'Take over it',
+      iconType: 'warning',
+      // title: 'Are you sure take over this address?',
+      content: 'If you take over this address, your account on the other device will stop working.',
+      okText: 'Take Over',
       cancelText: 'Cancel',
       okType: 'danger',
       onOk: this.handleRegister,
