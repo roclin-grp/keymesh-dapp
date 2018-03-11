@@ -11,18 +11,17 @@ import {
 } from 'antd'
 import { UploadFile } from 'antd/lib/upload/interface.d'
 import AccountListItem from './AccountListItem'
-import UserAddress from '../../components/UserAddress'
 import StatusButton, { STATUS_TYPE } from '../../components/StatusButton'
 
 // style
 import * as classes from './index.css'
 
 // state management
-import { inject, observer} from 'mobx-react'
+import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { UsersStore } from '../../stores/UsersStore'
-import { IUser, UserStore } from '../../stores/UserStore'
+import { IUser } from '../../stores/UserStore'
 
 // helper
 import { storeLogger } from '../../utils/loggers'
@@ -54,21 +53,10 @@ class Accounts extends React.Component<IProps, IState> {
 
   public render() {
     const { metaMaskStore, usersStore } = this.injectedProps
-    const { walletCorrespondingUserStore } = usersStore
 
     return (
       <div className="page-container">
         <section className="block">
-          <h2 className="title">
-            Manage Accounts
-          </h2>
-          <p className="description">
-            You can sign in to other Accounts or sign up with new Ethereum address
-          </p>
-          {this.renderCurrentWalletAccount(
-            metaMaskStore,
-            walletCorrespondingUserStore,
-          )}
           {this.renderAccountList(
             metaMaskStore,
             usersStore,
@@ -82,45 +70,13 @@ class Accounts extends React.Component<IProps, IState> {
               disabled={this.state.isImporting}
             >
               <Button icon="upload">
-                Import Backup Account
+                Restore Account Backup
               </Button>
             </Upload>
             {this.renderExportButton(usersStore)}
           </div>
         </section>
       </div>
-    )
-  }
-
-  private renderCurrentWalletAccount(
-    metaMaskStore: MetaMaskStore,
-    walletCorrespondingUserStore?: UserStore,
-  ) {
-    const currentEthereumAccount = metaMaskStore.currentEthereumAccount!
-
-    if (walletCorrespondingUserStore == null) {
-      // unregistered, display user address only
-      return (
-        <>
-          <h3>Current Ethereum Address</h3>
-          <UserAddress className={classes.userAddress} address={currentEthereumAccount} />
-          <Button size="large" type="primary">
-            <Link to="/register">
-              Sign Up
-            </Link>
-          </Button>
-        </>
-      )
-    }
-
-    return (
-      <>
-        <h3>Current Ethereum Address Account</h3>
-        <AccountListItem
-          key={walletCorrespondingUserStore.user.userAddress}
-          userStore={walletCorrespondingUserStore}
-        />
-      </>
     )
   }
 
@@ -138,8 +94,7 @@ class Accounts extends React.Component<IProps, IState> {
 
     return (
       <>
-        <Divider />
-        <h3>Accounts</h3>
+        <h2>Registered Accounts</h2>
         <List
           className={classes.otherAccounts}
           rowKey={((user: IUser) => user.userAddress)}
@@ -148,6 +103,12 @@ class Accounts extends React.Component<IProps, IState> {
             <AccountListItem userStore={usersStore.getUserStore(user)} />
           )}
         />
+        <Divider />
+        <Button size="large" type="primary">
+          <Link to="/register">
+            Register New Account
+          </Link>
+        </Button>
       </>
     )
   }
@@ -169,7 +130,7 @@ class Accounts extends React.Component<IProps, IState> {
         statusContent={isExporting ? 'Exporting...' : this.state.exportButtonContent}
         onClick={this.handleExport}
       >
-        Export Current Account
+        Backup Account
       </StatusButton>
     )
   }
@@ -195,13 +156,10 @@ class Accounts extends React.Component<IProps, IState> {
 
           this.injectedProps.history.push('/getting-started')
           await sleep(50)
-          message.success('You have successfully imported account and logged in!')
-
-          await sleep(4000)
-          message.info('You can now let others know you by proving yourself on social media!')
+          message.success('Account backup restored!')
         } else {
           await sleep(50)
-          message.success('Account imported successfully')
+          message.success('Account backup restored!')
         }
       } catch (err) {
         if (this.isUnmounted) {
@@ -209,17 +167,17 @@ class Accounts extends React.Component<IProps, IState> {
         }
 
         if ((err as Error).message === 'Network not match') {
-          message.error('You were trying to import an account not belongs to current network!')
+          message.error('This account backup belongs to another network')
           return
         }
 
         if ((err as Error).message.includes('Key already exists in the object store')) {
-          message.info('You already have this account!')
+          message.info('This account already exists')
           return
         }
 
         storeLogger.error(err)
-        message.error('Something went wrong! Please retry.')
+        message.error('Something went wrong')
       } finally {
         if (!this.isUnmounted) {
           this.setState({
@@ -240,13 +198,13 @@ class Accounts extends React.Component<IProps, IState> {
     try {
       await this.injectedProps.usersStore.currentUserStore!.exportUser()
     } catch (err) {
-      storeLogger.error('Unexpected export user error:', err)
+      storeLogger.error('Unexpected backup error:', err)
       if (this.isUnmounted) {
         return
       }
 
       this.setState({
-        exportButtonContent: 'Export user fail, please retry.',
+        exportButtonContent: 'Backup failed.',
       })
     } finally {
       if (!this.isUnmounted) {

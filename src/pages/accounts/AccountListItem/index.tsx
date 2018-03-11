@@ -60,7 +60,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     const deleteButton = (
       <Popconfirm
-        title="Are you sure delete this account?"
+        title="You will not be able to recover message history"
         onConfirm={this.handleDeleteUser}
         okText="Delete"
         okType="danger"
@@ -68,11 +68,10 @@ class AccountListItem extends React.Component<IProps, IState> {
         <Button
           key={`delete-${user.userAddress}`}
           loading={isDeleting}
-          type="danger"
+          shape="circle"
+          icon="delete"
           disabled={isDeleting}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete'}
-        </Button>
+        />
       </Popconfirm>
     )
 
