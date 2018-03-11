@@ -20,7 +20,7 @@ import { QUESTS, iterableQuests } from '../../stores/UserStore/GettingStartedQue
 class GettingStarted extends React.Component<IProps, IState> {
   public render() {
     // TODO: generate invite link
-    const inviteLink = 'https://beta.keymesh.io/invite?t=EjQoqiP'
+    // const inviteLink = 'https://beta.keymesh.io/invite?t=EjQoqiP'
     const { currentUserStore } = this.props.usersStore
     if (currentUserStore == null) {
       return 'Error: should not render this page'
@@ -50,12 +50,12 @@ class GettingStarted extends React.Component<IProps, IState> {
           <p>
             Complete the Getting Started Quests, and we will credit your account with 1000 tokens.
           </p>
-          <p>
+          {/* <p>
             For each friend you invite, who also complete the quests, we will credit you with an additional 200 tokens.
           </p>
           <p>
             Send your friends this invitation link: <a>{inviteLink}</a>
-          </p>
+          </p> */}
         </section>
       </main>
     )
@@ -136,6 +136,6 @@ interface IQuestData {
 interface IProps {
   usersStore: UsersStore
 }
-interface IState {}
+interface IState { }
 
 export default GettingStarted
