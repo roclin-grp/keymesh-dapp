@@ -1,21 +1,21 @@
 import * as React from 'react'
 
 function UserAddress({
-  address,
+  userAddress,
   maxLength = Infinity,
   overflowPadding = '...',
   className,
 }: IProps) {
-  const isOverflow = address.length > maxLength
+  const isOverflow = userAddress.length > maxLength
   return (
-    <span className={className} title={address}>
-      {`${address.slice(0, maxLength)}${isOverflow ? overflowPadding : ''}`}
+    <span className={className} title={userAddress}>
+      {`${userAddress.slice(0, maxLength)}${isOverflow ? overflowPadding : ''}`}
     </span>
   )
 }
 
 interface IProps {
-  address: string
+  userAddress: string
   maxLength?: number
   className?: string
   overflowPadding?: string

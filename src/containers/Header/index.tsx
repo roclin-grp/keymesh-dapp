@@ -122,9 +122,6 @@ class Header extends React.Component<IProps, IState> {
 
     const { totalCompletedCount } = this.injectedProps.usersStore.currentUserStore!.gettingStartedQuests
     const questsCount = iterableQuests.length
-    if (totalCompletedCount === questsCount) {
-      return null
-    }
 
     return (
       <Link className={styles.gettingStarted} to="/getting-started">
@@ -291,7 +288,7 @@ class Header extends React.Component<IProps, IState> {
           >
             <a className={styles.userAddressLink} onClick={this.handleCopyUserAddress}>
               <UserAddress
-                address={user.userAddress}
+                userAddress={user.userAddress}
                 className={styles.userAddress}
                 maxLength={8}
               />

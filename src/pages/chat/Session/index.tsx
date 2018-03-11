@@ -1,8 +1,8 @@
 import * as React from 'react'
 
 // component
-import HashAvatar from '../../../components/HashAvatar'
-import UserAddress from '../../../components/UserAddress'
+import UserAvatar from '../../../components/UserAvatar'
+import Username from '../../../components/Username'
 import {
   List,
   Badge,
@@ -13,21 +13,16 @@ import * as styles from './index.css'
 import classnames from 'classnames'
 
 // state management
-import {
-  observer,
-} from 'mobx-react'
-import {
-  SessionStore,
-} from '../../../stores/SessionStore'
+import { SessionStore } from '../../../stores/SessionStore'
 
 import { getSessionTimestamp } from '../../../utils/time'
 import { ISession } from '../../../databases/SessionsDB'
 
-@observer
 class Session extends React.Component<IProps> {
   public render() {
     const {
       meta,
+      data,
     } = this.props.sessionStore.session
 
     return (
@@ -40,10 +35,10 @@ class Session extends React.Component<IProps> {
           <List.Item.Meta
             avatar={(
               <Badge count={meta.unreadCount} overflowCount={99}>
-                <HashAvatar
+                <UserAvatar
+                  userAddress={data.contact}
                   size="large"
                   shape="square"
-                  hash="" // FXIME
                 />
               </Badge>
             )}
@@ -59,10 +54,16 @@ class Session extends React.Component<IProps> {
   private renderTitle() {
     const { session } = this.props.sessionStore
     if (session.meta.isNewSession) {
-      return 'New conversation'
+      return <span className={styles.newConversationText}>New conversation</span>
     }
 
-    return <UserAddress address={session.data.contact} maxLength={11} />
+    return (
+      <Username
+        className={styles.username}
+        userAddress={session.data.contact}
+        maxLength={11}
+      />
+    )
   }
 
   private handleClick = () => {

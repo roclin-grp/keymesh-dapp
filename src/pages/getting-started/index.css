@@ -58,6 +58,6 @@
 }
 
 .questItem :global .ant-list-item-action .ant-btn {
-  text-transform: uppercase;
   min-width: 10rem;
+  transition: color 0s;
 }

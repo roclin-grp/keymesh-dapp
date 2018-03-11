@@ -95,13 +95,13 @@ export class SocialProofsStore {
 }
 
 export function signedClaimToClaimText(signedClaim: ISignedClaim): string {
-  return `#keymesh
-
-Verifying myself:
+  return `Verifying myself:
 ${ENV.DEPLOYED_ADDRESS}/profile/${hexToBase58(signedClaim.userAddress)}
 
 Signature:
-${hexToBase58(signedClaim.signature)}`
+${hexToBase58(signedClaim.signature)}
+
+#KeyMesh`
 }
 
 export function claimTextToSignedClaim(claimText: string): ISignedClaim {

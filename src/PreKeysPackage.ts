@@ -124,27 +124,28 @@ export async function getPreKeysPackage(
   const uploadPreKeysUrl = `${ENV.GET_PREKEYS_HOST}/${networkID}/${publicKeyHex}`
   const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
 
-  const resp = await fetch(uploadPreKeysUrl, fetchOptions)
-  if (resp.status === 200) {
-    const prekeys = await resp.json() as IPutPrekeys
-    if (prekeys.prekeys === '' || prekeys.signature === '') {
-      throw new Error('the data is broken')
-    }
-
-    if (
-      !publicKey.verify(
-        uint8ArrayFromHex(base64ToHex(prekeys.signature)),
-        prekeys.prekeys,
-      )
-    ) {
-      throw new Error('pre-keys package\'s signature is invalid.')
-    }
-
-    return PreKeysPackage.deserialize(uint8ArrayFromHex(base64ToHex(
-      prekeys.prekeys,
-    )).buffer as ArrayBuffer)
+  const response = await fetch(uploadPreKeysUrl, fetchOptions)
+  if (response.status !== 200) {
+    throw new Error(`Failed to fetch pre-keys, response's status is not ok`)
   }
-  throw new Error('status is not 200')
+
+  const prekeys = await response.json() as IPutPrekeys
+  if (prekeys.prekeys === '' || prekeys.signature === '') {
+    throw new Error('the data is broken')
+  }
+
+  if (
+    !publicKey.verify(
+      uint8ArrayFromHex(base64ToHex(prekeys.signature)),
+      prekeys.prekeys,
+    )
+  ) {
+    throw new Error('pre-keys package\'s signature is invalid.')
+  }
+
+  return PreKeysPackage.deserialize(uint8ArrayFromHex(base64ToHex(
+    prekeys.prekeys,
+  )).buffer as ArrayBuffer)
 }
 
 export interface IPreKeyPublicKeyFingerprints {

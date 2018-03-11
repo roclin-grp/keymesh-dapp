@@ -93,7 +93,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
                 [styles.userAddressHasUsername]: username != null,
               })}
               maxLength={username ? 8 : 16}
-              address={userAddress}
+              userAddress={userAddress}
             />
           </Link>
           <span title={getBroadcastTime(message.timestamp)}>

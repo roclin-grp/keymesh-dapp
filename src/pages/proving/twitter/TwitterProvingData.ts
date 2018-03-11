@@ -2,12 +2,13 @@ import {
   action,
 } from 'mobx'
 
-import ProvingData, { DEFAULT_CHECK_PROOF_BUTTON_CONTENT } from '../ProvingData'
+import ProvingData from '../ProvingData'
 
 import { ITweet, TwitterResource } from '../../../resources/twitter'
 import { PLATFORMS } from '../../../stores/SocialProofsStore'
 import ENV from '../../../config'
 import { STATUS_TYPE } from '../../../components/StatusButton'
+import { storeLogger } from '../../../utils/loggers'
 
 export class TwitterProvingData extends ProvingData {
   public platform = PLATFORMS.TWITTER
@@ -60,32 +61,34 @@ export class TwitterProvingData extends ProvingData {
   protected async uploadingDidCompleteCallback() {
     const isValid = await this.verify()
 
-    if (isValid) {
-      super.uploadingDidCompleteCallback()
+    if (!isValid) {
+      this.setProofStatusType(STATUS_TYPE.WARN, false)
+      this.setProofStatusContent('Failed to verify the proof')
       return
     }
 
-    this.showCheckingError('Something went wrong, please retry.')
-    this.setCheckProofButton(DEFAULT_CHECK_PROOF_BUTTON_CONTENT)
+    super.uploadingDidCompleteCallback()
   }
 
   private async verify(): Promise<boolean> {
     const url = `${ENV.TWITTER_OAUTH_VERIFY}?userAddress=${this.usersStore.currentUserStore!.user.userAddress}`
-    const resp = await fetch(url)
-    if (resp.status !== 200) {
-      // todo error handler
-      alert('could not verify the proof')
+    try {
+      const response = await fetch(url)
+
+      if (response.status !== 200) {
+        return false
+      }
+
+      const text = await response.text()
+      if (text !== 'verified') {
+        return false
+      }
+
+      return true
+    } catch (err) {
+      storeLogger.error('Failed to verify proof:', err)
       return false
     }
-
-    const text = await resp.text()
-    if (text !== 'verified') {
-      // todo error handler
-      alert('could not verify the proof')
-      return false
-    }
-
-    return true
   }
 
   private async fetchUserInfo() {

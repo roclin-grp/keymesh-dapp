@@ -94,7 +94,7 @@ export class UserStore {
 
     this.preKeysManager = new PreKeysManager(this)
     this.chatMessagesCenter = new MessageCenter(this, contractStore)
-    this.sessionsStore = new SessionsStore(this, contractStore)
+    this.sessionsStore = new SessionsStore(this, usersStore, contractStore)
     this.socialProofsStore = new SocialProofsStore({
       userStore: this,
       contractStore,

@@ -5,6 +5,10 @@
   border-bottom: 1px solid #f5f5f5;
 }
 
+.broadcastMessage:last-of-type {
+  border-bottom: none;
+}
+
 .avatar {
   margin-right: 14px;
 }

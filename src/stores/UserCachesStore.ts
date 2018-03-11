@@ -3,6 +3,8 @@ import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifiedStatus, ISocialProof, PLATFORMS, platformNames } from './SocialProofsStore'
 import { sha3 } from '../utils/cryptos'
+import { isHexZeroValue } from '../utils/hex'
+import ENV from '../config'
 
 export class UserCachesStore {
   private cachedUserAvatarPromises: {
@@ -58,6 +60,9 @@ export class UserCachesStore {
     }
 
     const userIdentity = await this.usersStore.getIdentityByUserAddress(userAddress)
+    if (isHexZeroValue(userIdentity.publicKey)) {
+      throw new Error('cannot find user')
+    }
     const identity = {
       publicKey: userIdentity.publicKey,
       blockNumber: userIdentity.blockNumber,
@@ -93,6 +98,111 @@ export function getNewVerifications() {
     verifications[platform] = {}
   }
   return verifications as IUserCachesVerifications
+}
+
+export async function searchUser(prefix: string): Promise<IProcessedUserInfo[]> {
+  const response = await fetch(`${ENV.SEARCH_USERS_API}?usernamePrefix=${encodeURIComponent(prefix)}`)
+  const rawData = await response.json()
+  return processUserInfo(rawData)
+}
+
+export async function searchUserByAddress(userAddress: string): Promise<IProcessedUserInfo[]> {
+  const response = await fetch(`${ENV.GET_USERS_API}?userAddress=${userAddress}`)
+  const rawData = await response.json()
+  return processUserInfo(rawData)
+}
+
+// TODO: cache processed user info
+function processUserInfo(data: IUserInfo[]): IProcessedUserInfo[] {
+  const userMapping: {[userAddress: string]: IProcessedUserInfo} = {}
+  const result: IProcessedUserInfo[] = []
+  for (const userInfo of data) {
+    const {
+      userAddress,
+      username,
+      platformName,
+      twitterOAuthInfo,
+    } = userInfo
+    let processedUserInfo = userMapping[userInfo.userAddress]
+    if (processedUserInfo == null) {
+      processedUserInfo = {
+        userAddress,
+        verifications: [],
+      }
+      result.push(processedUserInfo)
+    }
+
+    if (processedUserInfo.displayUsername == null) {
+      processedUserInfo.displayUsername = username
+    }
+
+    if (processedUserInfo.description == null) {
+      if (platformName === 'twitter') {
+        const { description } = twitterOAuthInfo!
+        if (description !== '') {
+          processedUserInfo.description = description
+        }
+      }
+
+      if (platformName === 'facebook') {
+        // TODO
+      }
+    }
+
+    processedUserInfo.verifications.push({
+      platformName,
+      username,
+    })
+
+    if (processedUserInfo.avatarImgURL == null) {
+      if (platformName === 'twitter') {
+        const imgUrl = getTwitterProfileImgURL(twitterOAuthInfo!)
+        if (imgUrl != null) {
+          processedUserInfo.avatarImgURL = imgUrl
+        }
+      }
+
+      if (platformName === 'facebook') {
+        // TODO
+      }
+    }
+  }
+
+  return result
+}
+
+export function getTwitterProfileImgURL(twitterOAuthInfo: ITwitterOAuth): string | undefined {
+  const { profile_image_url_https } = twitterOAuthInfo
+  if (profile_image_url_https.includes('default_profile_images')) {
+    return
+  }
+
+  return profile_image_url_https
+}
+
+interface ITwitterOAuth {
+  description: string
+  profile_image_url_https: string
+}
+
+export interface IUserInfo {
+  userAddress: string
+  username: string
+  platformName: string
+  twitterOAuthInfo?: ITwitterOAuth
+  gravatarHash?: string
+}
+
+export interface IProcessedUserInfo {
+  userAddress: string
+  verifications: Array<{
+    platformName: string
+    username: string
+    info?: ITwitterOAuth,
+  }>,
+  displayUsername?: string
+  description?: string
+  avatarImgURL?: string
 }
 
 export interface IUserCachesIdentity {

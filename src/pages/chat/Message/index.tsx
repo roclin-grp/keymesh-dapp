@@ -80,7 +80,7 @@ class Message extends React.Component<IProps> {
       return 'me'
     }
 
-    return <UserAddress address={this.props.contact} maxLength={11} />
+    return <UserAddress userAddress={this.props.contact} maxLength={11} />
   }
 
   private renderStatus() {
@@ -117,6 +117,11 @@ class Message extends React.Component<IProps> {
         ? ENV.REQUIRED_CONFIRMATION_NUMBER
         : confirmationCounter
     )
+
+    if (displayConfirmationCounter === ENV.REQUIRED_CONFIRMATION_NUMBER) {
+      return null
+    }
+
     const confirmationCounterStr = isFailed
       ? null
       : `(${displayConfirmationCounter}/${ENV.REQUIRED_CONFIRMATION_NUMBER})`

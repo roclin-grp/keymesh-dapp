@@ -36,7 +36,7 @@ class SwitchUserOption extends React.Component<IProps, IState> {
           size="small"
           hash={getAvatarHashByUser(user)}
         />
-        <UserAddress address={user.userAddress} maxLength={8} />
+        <UserAddress userAddress={user.userAddress} maxLength={8} />
       </a>
     )
   }

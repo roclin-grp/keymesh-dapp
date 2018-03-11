@@ -11,14 +11,16 @@
 }
 
 .content {
+  --content-min-height: 32rem;
+  --top-bar-height: 3rem;
+  --content-height: calc(100vh - var(--nav-bar-height));
   padding: 0;
   margin: 0 auto;
   -ms-flex-positive: 1;
   flex-grow: 1;
-  height: calc(100vh - var(--nav-bar-height));
-  border: 1px solid #ebedf0;
+  height: var(--content-height);
   min-width: 52rem;
-  min-height: 32rem;
+  min-height: var(--content-min-height);
 }
 
 .sessionList {
@@ -30,16 +32,53 @@
 
 .sessionListTopBar {
   border-bottom: 1px solid #ebedf0;
-  padding: 0.625rem;
+  padding: 0.75rem;
+  padding-bottom: calc(.75rem - 1px);
   flex-shrink: 0;
 }
 
 .newConversationButton {
   margin-left: auto;
+  border: 0;
+  text-transform: none;
+}
+.newConversationButton,
+.newConversationButton:hover, 
+.newConversationButton:active,
+.newConversationButton:focus,
+.newConversationButton[disabled],
+.newConversationButton[disabled]:hover,
+.newConversationButton[disabled]:active,
+.newConversationButton[disabled]:focus
+{
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.newConversationButton,
+.newConversationButton:hover, 
+.newConversationButton:active,
+.newConversationButton:focus
+{
+  color: #698EFF;
+}
+
+.newConversationButton::after {
+  content: none !important;
+}
+
+.newConversationButton[disabled],
+.newConversationButton[disabled]:hover,
+.newConversationButton[disabled]:active,
+.newConversationButton[disabled]:focus
+{
+  color: #d6d6d6;
 }
 
 .sessionListInner {
   overflow: auto;
+  flex-shrink: 0;
 }
 
 .selectedSession::before {
@@ -50,4 +89,16 @@
   left: 0;
   background-color: #1890ff;
   position: absolute;
+}
+
+.emptyInbox {
+  --empty-text-padding: 16px;
+  justify-content: center;
+  height: calc(var(--content-height) - var(--top-bar-height) - 2 * var(--empty-text-padding));
+  min-height: calc(var(--content-min-height) - var(--top-bar-height) - 2 * var(--empty-text-padding));
+  color: #ccc;
+}
+
+.inboxIcon {
+  font-size: 2rem;
 }

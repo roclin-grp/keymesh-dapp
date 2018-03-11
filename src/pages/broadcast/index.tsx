@@ -78,7 +78,11 @@ class Broadcast extends React.Component<IProps> {
     ))
 
     if (messages.length === 0) {
-      return null
+      return (
+        <section className={'block'}>
+          <p className={styles.noBroadcasts}>No broadcasts</p>
+        </section>
+      )
     }
 
     return (
