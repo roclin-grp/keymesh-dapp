@@ -91,7 +91,7 @@ class Header extends React.Component<IProps, IState> {
           >
             <Menu.Item key="/broadcast">
               <Link to="/broadcast" className={styles.menuItem}>
-                <Icon type="bulb" className={styles.menuIcon} />
+                <Icon type="notification" className={styles.menuIcon} />
                 Broadcast
               </Link>
             </Menu.Item>
