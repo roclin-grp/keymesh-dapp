@@ -127,6 +127,7 @@ class Accounts extends React.Component<IProps, IState> {
     )
   }
 
+  // TODO: tranform import button to status button
   private handleImport = (_: UploadFile, files: UploadFile[]) => {
     if (files.length === 0) {
       return false

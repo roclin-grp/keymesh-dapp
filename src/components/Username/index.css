@@ -1,0 +1,12 @@
+.socialIcon {
+  font-size: 16px;
+  margin-right: .25rem;
+}
+
+.platformUserName {
+  display: inline-flex;
+}
+
+.platformUserName:not(:last-child) {
+  margin-right: .5rem;
+}

@@ -84,7 +84,7 @@ class App extends React.Component<IProps> {
     }
     // contracts instantiation
     if (isContractsNotAvailable) {
-      return <Loading message="Loading keymesh contracts..." />
+      return <Loading message="Loading KeyMesh contracts..." />
     }
     // load data
     if (isLoadingUsers) {

@@ -9,10 +9,15 @@
   align-self: baseline;
 }
 
-.summary {
+.summary,
+.username {
   display: block;
   max-width: 11rem;
   text-overflow: ellipsis;
   overflow: hidden;
+  white-space: nowrap;
+}
+
+.newConversationText {
   white-space: nowrap;
 }

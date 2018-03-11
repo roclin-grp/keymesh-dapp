@@ -1,7 +1,7 @@
 import { observable, action, runInAction, computed } from 'mobx'
 
 import { ContractStore } from './ContractStore'
-import { getUserPublicKey } from './UsersStore'
+import { UsersStore } from './UsersStore'
 import { UserStore } from './UserStore'
 import { SessionStore } from './SessionStore'
 
@@ -15,10 +15,13 @@ import {
 import { IMessage, IAddMessageOptions } from '../databases/MessagesDB'
 import { getPreKeysPackage } from '../PreKeysPackage'
 
+import { sleep } from '../../../trustmesh/lib/utils'
+import { publicKeyFromHexStr } from '../utils/proteus'
+
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
   @observable.ref public currentSessionStore: SessionStore | undefined
-  @observable public isLoadingSessionData = false
+  @observable public isLoadingSessions = false
 
   private readonly sessionsDB: SessionsDB
   private readonly cachedSessionStores: {
@@ -32,6 +35,7 @@ export class SessionsStore {
 
   constructor(
     private readonly userStore: UserStore,
+    private readonly usersStore: UsersStore,
     private readonly contractStore: ContractStore,
   ) {
     this.sessionsDB = getDatabases().sessionsDB
@@ -40,15 +44,24 @@ export class SessionsStore {
     }
   }
 
+  public getSession(sessionTag: string): ISession | undefined {
+    return this.sessions.find((session) => session.sessionTag === sessionTag)
+  }
+
+  public getSessionByReceiver(userAddress: string): ISession[] {
+    return this.sessions.filter((session) => session.data.contact === userAddress)
+  }
+
   public async validateReceiver(receiverAddress: string) {
-    // TODO: should cache public keys
-    // try to get user's public key
-    const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
+    const {
+      publicKey: publicKeyHex,
+    } = await this.usersStore.userCachesStore.getIdentityByUserAddress(receiverAddress)
+    const publicKey = publicKeyFromHexStr(publicKeyHex)
     // try to get user's pre-keys
     await getPreKeysPackage(this.userStore.user.networkId, publicKey)
   }
 
-  public async createNewConversation(receiverAddress: string, subject?: string): Promise<ISession> {
+  public createNewConversation(receiverAddress: string, subject?: string): ISession {
     const sessionData: ISessionData = {
       contact: receiverAddress,
       subject,
@@ -57,14 +70,20 @@ export class SessionsStore {
     return newSession
   }
 
+  public async waitForSessions(interval = 50) {
+    while (this.isLoadingSessions) {
+      await sleep(interval)
+    }
+  }
+
+  @action
   public async loadSessions() {
+    this.isLoadingSessions = true
     const sessions = await this.sessionsDB.getSessions(this.userStore.user)
 
     runInAction(() => {
+      this.isLoadingSessions = false
       this.sessions = sessions
-      if (sessions.length > 0) {
-        this.selectSession(sessions[0])
-      }
     })
   }
 
@@ -189,9 +208,6 @@ export class SessionsStore {
 
     if (this.isCurrentSession(session.sessionTag)) {
       this.unselectSession()
-      if (remainSessions.length > 0) {
-        this.selectSession(remainSessions[0])
-      }
     }
   }
 }

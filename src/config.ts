@@ -9,7 +9,7 @@ const TWITTER_OAUTH_CALLBACK_PATH = '/oauth/twitter/callback'
 const TWITTER_OAUTH_VERIFY_PATH = '/oauth/twitter/verify'
 const PREKEYS_PATH = '/prekeys'
 const GET_USERS_PATH = '/users'
-const SEARCH_USERS_PATH = '/users'
+const SEARCH_USERS_PATH = '/users/search'
 
 export default process.env.NODE_ENV === 'production' ? {
   REQUIRED_CONFIRMATION_NUMBER: 3,

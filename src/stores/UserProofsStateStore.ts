@@ -224,7 +224,7 @@ export class UserProofsStateStore {
   private async init() {
     const identity = await this.userCachesStore.getIdentityByUserAddress(this.userAddress)
     const verifications = await this.userCachesStore.getVerifications(this.userAddress)
-    runInAction(async () => {
+    runInAction(() => {
       this.userBlockHash = identity.blockHash
       this.verifications = verifications
     })

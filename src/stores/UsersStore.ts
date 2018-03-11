@@ -257,8 +257,7 @@ export class UsersStore {
     }
   }
 
-  // FIXME: no arrow function
-  public isCurrentUser = (networkId: ETHEREUM_NETWORKS, userAddress: string) => {
+  public isCurrentUser(networkId: ETHEREUM_NETWORKS, userAddress: string) {
     return (
       this.hasUser
       && this.currentUserStore!.user.networkId === networkId
@@ -266,9 +265,8 @@ export class UsersStore {
     )
   }
 
-  // FIXME: no arrow function
   @action
-  public useUser = (user: IUser) => {
+  public useUser(user: IUser) {
     if (this.currentUserStore != null) {
       this.currentUserStore.disposeStore()
     }

@@ -17,12 +17,8 @@ import {
   SessionStore,
 } from '../../../stores/SessionStore'
 
-import {
-  throttle as TypeThrottle,
-  debounce as TypeDebounce,
-} from 'lodash'
-const lodashThrottle: typeof TypeThrottle = require('lodash.throttle')
-const lodashDebounce: typeof TypeDebounce = require('lodash.debounce')
+import throttle from 'lodash.throttle'
+import debounce from 'lodash.debounce'
 
 @observer
 class Messages extends React.Component<IProps, IState> {
@@ -30,7 +26,7 @@ class Messages extends React.Component<IProps, IState> {
     shouldScroll: true,
   }
 
-  private domRef!: HTMLDivElement
+  private domRef: HTMLDivElement | undefined
   private disposeNewMessageListener!: Lambda
 
   public componentDidMount() {
@@ -97,6 +93,10 @@ class Messages extends React.Component<IProps, IState> {
   }
 
   private scrollToBottom = () => {
+    if (this.domRef == null) {
+      return
+    }
+
     scroll(this.domRef, getMaxScrollTop(this.domRef))
 
     if (!this.state.shouldScroll) {
@@ -121,6 +121,9 @@ class Messages extends React.Component<IProps, IState> {
 
   private handleScroll = () => {
     const { domRef } = this
+    if (domRef == null) {
+      return
+    }
 
     const shouldScroll = Math.ceil(domRef.scrollTop) >= getMaxScrollTop(domRef) - THRESHOLD
     if (shouldScroll !== this.state.shouldScroll) {
@@ -135,13 +138,13 @@ class Messages extends React.Component<IProps, IState> {
   }
 
   // tslint:disable-next-line
-  private handleScrollThrottled = lodashThrottle(
+  private handleScrollThrottled = throttle(
     this.handleScroll,
     300,
   )
 
   // tslint:disable-next-line
-  private handleScrollDebounced = lodashDebounce(
+  private handleScrollDebounced = debounce(
     this.handleScroll,
     300,
   )
@@ -152,7 +155,7 @@ class Messages extends React.Component<IProps, IState> {
       store.clearNewUnreadCount()
     }
     store.setShouldAddUnread(false)
-    await store.waitForMessagesLoading()
+    await store.waitForMessagesLoading(50)
     this.scrollToBottom()
   }
 

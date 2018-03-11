@@ -14,6 +14,7 @@ import {
 import {
   UsersStore,
 } from '../../stores/UsersStore'
+import { uiLogger } from '../../utils/loggers'
 
 @inject(({
   usersStore,
@@ -25,9 +26,14 @@ class Chat extends React.Component {
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
 
   public render() {
-    const currentUserStore = this.injectedProps.usersStore.currentUserStore!
+    const { currentUserStore } = this.injectedProps.usersStore
 
-    return <Content userStore={currentUserStore!} />
+    if (currentUserStore == null) {
+      uiLogger.error('Trying to render Chat component without userStore')
+      return null
+    }
+
+    return <Content userStore={currentUserStore} />
   }
 }
 

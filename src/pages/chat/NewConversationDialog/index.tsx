@@ -1,126 +1,251 @@
 import * as React from 'react'
 
 // component
-import {
-  Form,
-  Input,
-  Icon,
-  message,
-  Button,
-} from 'antd'
-const FormItem = Form.Item
-import {
-  FormComponentProps,
-} from 'antd/lib/form'
+import { Link } from 'react-router-dom'
+import { Input, Icon, message, List } from 'antd'
+import UserAvatar from '../../../components/UserAvatar'
+import Username from '../../../components/Username'
 
 // style
-import * as styles from './index.css'
+import * as classes from './index.css'
+import composeClass from 'classnames'
 
 // state management
 import { IUser } from '../../../stores/UserStore'
 import { SessionsStore } from '../../../stores/SessionsStore'
+import { IProcessedUserInfo, searchUserByAddress, searchUser } from '../../../stores/UserCachesStore'
 
 // helper
+import debounce from 'lodash.debounce'
 import { isAddress } from '../../../utils/cryptos'
 import { storeLogger } from '../../../utils/loggers'
 
-// TODO merge this component to Dialog
 class NewConversationDialog extends React.Component<IProps, IState> {
   public readonly state: Readonly<IState> = {
-    isProcessing: false,
+    users: [],
+    inputValue: '',
+    isTyping: false,
   }
 
-  private unmounted = false
   private userAddressInput: Input | null = null
+  private unmounted = false
 
   public componentWillUnmount() {
     this.unmounted = true
   }
 
   public render() {
-    const { getFieldDecorator, getFieldError, getFieldValue } = this.props.form
-    const hasAddress = getFieldValue('userAddress') != null
-    const isInvalidAddress = !hasAddress || getFieldError('userAddress') != null
     return (
-      <div className={styles.dialog}>
-        <Form>
-          <FormItem>
-            {getFieldDecorator('userAddress', {
-              rules: [
-                { required: true, message: 'Please enter receiver address!' },
-                {
-                  validator: this.validUserAddress,
-                },
-              ],
-            })(
-              <Input
-                autoFocus={true}
-                disabled={this.state.isProcessing}
-                spellCheck={false}
-                placeholder="Receiver Address"
-                prefix={<Icon type="user" className={styles.prefixIcon} />}
-                suffix={this.renderResetUserAddress()}
-                ref={(node) => this.userAddressInput = node}
-              />,
-            )}
-          </FormItem>
-        </Form>
-        <Button
-          className={styles.createNewSessionButton}
-          type="primary"
-          size="large"
-          disabled={this.state.isProcessing || isInvalidAddress}
-          onClick={this.handleCreate}
-        >
-          {
-            this.state.isProcessing
-              ? 'Checking...'
-              : 'Create new conversation'
-          }
-        </Button>
+      <div className={classes.dialog}>
+        <Input
+          autoFocus={true}
+          className={classes.searchInputWrapper}
+          spellCheck={false}
+          placeholder="Ethereum address or Twitter handle"
+          prefix={<Icon type="search" className={classes.prefixIcon} />}
+          suffix={this.renderResetUserAddress()}
+          value={this.state.inputValue}
+          onChange={this.handleChanged}
+          onPressEnter={this.handleSelectFirstUser}
+          ref={(node) => this.userAddressInput = node}
+        />
+        {this.renderUsers()}
       </div>
     )
   }
 
   private renderResetUserAddress() {
-    const userAddress = this.props.form.getFieldValue('userAddress')
-    if (userAddress == null || userAddress === '' || this.state.isProcessing) {
+    if (this.state.inputValue === '') {
       return null
     }
 
     return (
-      <a onClick={this.resetUserAddress} className={styles.resetUserAddress}>
+      <a onClick={this.resetUserAddress} className={classes.resetUserAddress}>
         <Icon type="close-circle" onClick={this.resetUserAddress} />
       </a>
     )
   }
 
-  private handleCreate = () => {
-    if (this.state.isProcessing) {
+  private renderUsers() {
+    const { users, searchText, inputValue, isTyping } = this.state
+
+    if (inputValue === '') {
+      return (
+        <>
+          {/* <p className={classes.recommandationText}>Feeling lonely around here? Say hi to us :)</p>
+          {this.renderUser({
+            userAddress: '0x861551981a6Ec84FD70c421fDfA759B148a11Be7',
+            displayUsername: 'KeyMesh',
+            description: 'The KeyMesh Team',
+            verifications: [
+              {
+                platformName: 'twitter',
+                username: 'KeyMesh',
+              },
+              {
+                platformName: 'facebook',
+                username: 'realKeyMesh',
+              },
+            ],
+          })} */}
+        </>
+      )
+    }
+
+    if (searchText != null || isTyping) {
+      return (
+        <div className={composeClass(classes.loading, 'vertical-align-container')}>
+          <Icon className={classes.loadingIcon} type="loading" />
+          Searching...
+        </div>
+      )
+    }
+
+    if (inputValue === this.props.user.userAddress) {
+      return (
+        <p className={classes.helpText}>
+          Can't send message to yourself.
+        </p>
+      )
+    }
+
+    if (isAddress(inputValue) && users.length === 0) {
+      return (
+        <p className={classes.helpText}>
+          Sorry, we can't find anyone matching this address.
+        </p>
+      )
+    }
+
+    if (users.length === 0) {
+      return (
+        <p className={classes.helpText}>
+          Sorry, we can't find anyone matching this name.
+        </p>
+      )
+    }
+
+    return (
+      <List
+        dataSource={users}
+        renderItem={this.renderUser}
+      >
+      </List>
+    )
+  }
+
+  private renderUser = (userInfo: IProcessedUserInfo) => {
+    const { userAddress } = userInfo
+    return (
+      <div
+        key={userAddress}
+        className={classes.userItemContainer}
+        role="button"
+        onClick={() => this.handleSelectUser(userInfo)}
+      >
+        <List.Item>
+          <List.Item.Meta
+            avatar={
+              <Link to={`/profile/${userAddress}`} onClick={(e) => e.stopPropagation()}>
+                <UserAvatar
+                  userAddress={userAddress}
+                  userInfo={userInfo}
+                  className={classes.userItemAvatar}
+                />}
+              </Link>
+            }
+            title={<Username userAddress={userAddress} userInfo={userInfo} showAllUsernames={true} />}
+            description={userInfo.description}
+          />
+        </List.Item>
+      </div>
+    )
+  }
+
+  private handleChanged: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const { value } = event.target
+
+    this.setState(
+      {
+        inputValue: value,
+        isTyping: true,
+      },
+      () => {
+        this.handleSearchDebounced()
+      },
+    )
+  }
+
+  private handleSearch = async () => {
+    this.setState({ isTyping: false })
+
+    const { inputValue } = this.state
+    if (inputValue === '' || inputValue === this.props.user.userAddress) {
+      this.setState({
+        searchText: undefined,
+        users: [],
+      })
       return
     }
 
-    this.props.form.validateFields(async (err: Error, {
-      userAddress,
-    }: IFormData) => {
-      if (err) {
-        this.resetUserAddress()
+    this.setState({
+      searchText: inputValue,
+    })
+
+    if (isAddress(inputValue)) {
+      try {
+        await this.props.sessionsStore.validateReceiver(inputValue)
+
+        this.setResultUsers([{ userAddress: inputValue, verifications: [] }], inputValue)
+
+        const userInfo = await searchUserByAddress(inputValue)
+        if (userInfo.length > 0) {
+          this.setResultUsers(userInfo, inputValue)
+        }
+        return
+      } catch (err) {
+        this.setState({
+          searchText: undefined,
+          users: [],
+        })
         return
       }
+    }
 
-      this.setState({
-        isProcessing: true,
-      })
+    const searchUserInfo = await searchUser(inputValue)
+    this.setResultUsers(searchUserInfo, inputValue)
+  }
+  // tslint:disable-next-line member-ordering
+  private handleSearchDebounced = debounce(this.handleSearch, 300)
 
-      const { sessionsStore } = this.props
-      try {
-        const session = await sessionsStore.createNewConversation(userAddress)
-        sessionsStore.addSession(session)
-        await sessionsStore.selectSession(session)
-      } catch (err) {
-        this.handCreateFail(err)
-      }
+  private setResultUsers(result: IProcessedUserInfo[], inputValue: string) {
+    // make sure we still need this result
+    if (this.state.searchText !== inputValue) {
+      return
+    }
+
+    this.setState({
+      searchText: undefined,
+      users: result,
     })
+  }
+
+  private handleSelectUser = async (userData: IProcessedUserInfo) => {
+    const { tryCreateNewConversation } = this.props
+    try {
+      await tryCreateNewConversation(userData.userAddress, true)
+    } catch (err) {
+      this.handCreateFail(err)
+    }
+  }
+
+  private handleSelectFirstUser = async () => {
+    const { users } = this.state
+    if (users.length === 0) {
+      return
+    }
+
+    this.handleSelectUser(users[0])
   }
 
   private handCreateFail(err: Error) {
@@ -128,64 +253,34 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       return
     }
 
-    this.setState({
-      isProcessing: false,
-    })
-
     // TODO: show error detail
     storeLogger.error(err)
     message.error('Create session fail, please retry')
   }
 
-  private validUserAddress = async (
-    _: object,
-    userAddress: string | undefined,
-    done: (errorMessage?: string) => void,
-  ) => {
-    // antd's issue
-    if (userAddress != null) {
-      if (userAddress === '') {
-        return done()
-      }
-      if (userAddress === this.props.user.userAddress) {
-        return done(`Can't send message to yourself!`)
-      }
-      if (!isAddress(userAddress)) {
-        return done('Invalid address!')
-      }
-      try {
-        // check receiver's public key and pre-keys package
-        await this.props.sessionsStore.validateReceiver(userAddress)
-        return done()
-      } catch (err) {
-        return done('User had not registered with KeyMesh')
-      }
-    }
-    done()
-  }
-
   private resetUserAddress = () => {
+    this.setState({
+      inputValue: '',
+      users: [],
+    })
     const { userAddressInput } = this
-    if (userAddressInput !== null) {
+    if (userAddressInput != null) {
       userAddressInput.focus()
-      this.props.form.resetFields([
-        'userAddress',
-      ])
     }
   }
 }
 
-interface IProps extends FormComponentProps {
+interface IProps {
   user: IUser
   sessionsStore: SessionsStore
+  tryCreateNewConversation: (receiverAddress: string, skipCheck?: boolean) => void
 }
 
 interface IState {
-  isProcessing: boolean
+  inputValue: string
+  searchText?: string
+  users: IProcessedUserInfo[]
+  isTyping: boolean
 }
 
-interface IFormData {
-  userAddress: string
-}
-
-export default Form.create()(NewConversationDialog)
+export default NewConversationDialog

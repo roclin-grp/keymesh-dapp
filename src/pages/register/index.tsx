@@ -98,7 +98,7 @@ class Register extends React.Component<IProps, IState> {
             You will create a new cryptographic identity for secure communication, and publish it on the blockchain
           </p>
           <h3>Your Ethereum Address</h3>
-          <UserAddress className={classes.userAddress} address={currentEthereumAccount} />
+          <UserAddress className={classes.userAddress} userAddress={currentEthereumAccount} />
           {this.renderRegisterStatusButton(
             usersStore, hasRegisterRecordOnLocal, hasRegisterRecordOnChain, walletCorrespondingUserStore,
           )}
@@ -316,10 +316,12 @@ class Register extends React.Component<IProps, IState> {
     })
   }
 
-  private transactionDidCreate = () => {
+  private transactionDidCreate = async () => {
+    await sleep(300)
     if (this.isUnmounted) {
       return
     }
+
     this.setState({
       isCreatingTransaction: false,
     })
@@ -337,16 +339,37 @@ class Register extends React.Component<IProps, IState> {
   }
 
   private getRegisterErrorStr(err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) {
+    const helpIcon = (
+      <Tooltip title={HELP_MESSAGES[code]}>
+        <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
+      </Tooltip>
+    )
+
     switch (code) {
       case REGISTER_FAIL_CODE.OCCUPIED:
-        return `Taken over.`
+        return (
+          <>
+            Taken over
+            {helpIcon}
+          </>
+        )
       case REGISTER_FAIL_CODE.UNKNOWN:
       default:
         if ((err as Error).message.includes('User denied transaction signature')) {
-          return 'Transaction rejected.'
+          return (
+            <>
+              Transaction rejected
+            </>
+          )
         }
+
         storeLogger.error('Unexpected register error:', err as Error)
-        return 'Something went wrong, please retry.'
+        return (
+          <>
+            Oops! Something unexpected happened
+            {helpIcon}
+          </>
+        )
     }
   }
 
@@ -371,11 +394,6 @@ class Register extends React.Component<IProps, IState> {
           await this.injectedProps.usersStore.useUser(user)
 
           this.injectedProps.history.push('/getting-started')
-          await sleep(50)
-          message.success('You have successfully imported account and logged in!')
-
-          await sleep(4000)
-          message.info('You can now let others know you by proving yourself on social media!')
         } else {
           await sleep(50)
           message.success('Account imported successfully')
@@ -444,6 +462,11 @@ const REGISTER_STATUS_ICON_TYPES = Object.freeze({
   [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: STATUS_TYPE.WARN,
   [REGISTER_STATUS.TAKEOVERED]: STATUS_TYPE.WARN,
   [REGISTER_STATUS.TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
+})
+
+const HELP_MESSAGES = Object.freeze({
+  [REGISTER_FAIL_CODE.OCCUPIED]: 'Address had been taken over, you can register again to take over it',
+  [REGISTER_FAIL_CODE.UNKNOWN]: 'Sorry! You can retry later or report bugs to us if any',
 })
 
 // typing

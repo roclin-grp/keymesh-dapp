@@ -97,7 +97,7 @@ export default abstract class ProvingData {
         this.setProofStatusContent('Transacting...')
       },
       uploadingDidComplete: () => {
-        this.setStep(PROVING_STEPS.DONE)
+        this.uploadingDidCompleteCallback()
       },
       uploadingDidFail: this.uploadingDidFail,
     }).catch(this.uploadingDidFail)
@@ -106,6 +106,9 @@ export default abstract class ProvingData {
   public abstract get platform(): PLATFORMS
   protected abstract init(): void
   protected abstract getProofURL(claimText: string): Promise<string | null>
+  protected uploadingDidCompleteCallback() {
+    this.setStep(PROVING_STEPS.DONE)
+  }
 
   @action
   protected setProofStatusType(

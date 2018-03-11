@@ -29,7 +29,6 @@
 }
 
 .registerButton {
-  text-transform: uppercase;
   font-size: large;
   /* looks more reponsive */
   transition: color 0s;
