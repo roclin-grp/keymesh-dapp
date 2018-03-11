@@ -23,7 +23,7 @@ import * as classes from './index.css'
 import composeClass from 'classnames'
 
 // state management
-import { inject, observer} from 'mobx-react'
+import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { UsersStore, REGISTER_FAIL_CODE } from '../../stores/UsersStore'
@@ -110,7 +110,7 @@ class Register extends React.Component<IProps, IState> {
             disabled={this.state.isImporting}
           >
             <Button icon="upload">
-              Import Backup Account
+              Restore Account Backup
             </Button>
           </Upload>
         </section>
@@ -240,8 +240,8 @@ class Register extends React.Component<IProps, IState> {
           />
           {
             canRetry
-            ? retryButton
-            : null
+              ? retryButton
+              : null
           }
         </>
       )

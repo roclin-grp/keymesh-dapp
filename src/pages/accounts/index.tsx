@@ -122,7 +122,7 @@ class Accounts extends React.Component<IProps, IState> {
         statusContent={isExporting ? 'Exporting...' : this.state.exportButtonContent}
         onClick={this.handleExport}
       >
-        Backup Account
+        Backup Current Account
       </StatusButton>
     )
   }

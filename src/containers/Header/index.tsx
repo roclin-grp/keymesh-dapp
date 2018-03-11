@@ -49,10 +49,6 @@ import { iterableQuests } from '../../stores/UserStore/GettingStartedQuests'
 
 // helper
 import copy from 'copy-to-clipboard'
-import {
-  noop,
-} from '../../utils'
-import { storeLogger } from '../../utils/loggers'
 
 @inject(({
   metaMaskStore,
@@ -65,17 +61,7 @@ import { storeLogger } from '../../utils/loggers'
 }))
 @observer
 class Header extends React.Component<IProps, IState> {
-  public readonly state = Object.freeze({
-    isExporting: false,
-  })
-
   private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
-  private isUnmounted = false
-
-  public componentWillUnmount() {
-    this.isUnmounted = true
-  }
 
   public render() {
     return (
@@ -293,18 +279,15 @@ class Header extends React.Component<IProps, IState> {
       user,
     } = this.injectedProps.usersStore.currentUserStore!
 
-    const canExportUser = !this.state.isExporting
-
     return (
       <Menu>
         <Menu.Item
           className={styles.currentUserAddress}
           disabled={true}
         >
-          {`Using `}
           <Tooltip
             placement="topLeft"
-            title="Click to copy"
+            title="Copy account address"
           >
             <a className={styles.userAddressLink} onClick={this.handleCopyUserAddress}>
               <UserAddress
@@ -320,13 +303,7 @@ class Header extends React.Component<IProps, IState> {
             Profile
           </Link>
         </Menu.Item>
-        <Menu.Item
-          disabled={!canExportUser}
-        >
-          <a onClick={canExportUser ? this.handleExport : noop}>
-            Export account
-          </a>
-        </Menu.Item>
+
         <Menu.Divider />
         {usableUsers.length > 1
           ? (
@@ -346,7 +323,13 @@ class Header extends React.Component<IProps, IState> {
         }
         <Menu.Item>
           <Link to="/accounts">
-            Manage accounts
+            My Accounts
+          </Link>
+        </Menu.Item>
+
+        <Menu.Item>
+          <Link to="/register">
+            <Icon type="user-add" /> Register
           </Link>
         </Menu.Item>
       </Menu>
@@ -360,32 +343,12 @@ class Header extends React.Component<IProps, IState> {
     )
   }
 
-  private handleExport = async () => {
-    this.setState({
-      isExporting: true,
-    })
-    try {
-      await this.injectedProps.usersStore.currentUserStore!.exportUser()
-    } catch (err) {
-      storeLogger.error('Unexpected export user error:', err)
-      if (!this.isUnmounted) {
-        message.error('Export user fail, please retry.')
-      }
-    } finally {
-      if (!this.isUnmounted) {
-        this.setState({
-          isExporting: false,
-        })
-      }
-    }
-  }
-
   private handleCopyUserAddress = () => {
     const {
       user,
     } = this.injectedProps.usersStore.currentUserStore!
     if (copy(user.userAddress)) {
-      message.success('User address copied!', 1.3)
+      message.success('Address copied', 2)
     }
   }
 }
@@ -414,7 +377,6 @@ interface IInjectedProps extends IProps {
 }
 
 interface IState {
-  isExporting: boolean
 }
 
 export default withRouter(Header)
