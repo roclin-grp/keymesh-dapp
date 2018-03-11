@@ -52,13 +52,12 @@ class Accounts extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { metaMaskStore, usersStore } = this.injectedProps
+    const { usersStore } = this.injectedProps
 
     return (
       <div className="page-container">
         <section className="block">
           {this.renderAccountList(
-            metaMaskStore,
             usersStore,
           )}
           <Divider />
@@ -81,16 +80,9 @@ class Accounts extends React.Component<IProps, IState> {
   }
 
   private renderAccountList(
-    metaMaskStore: MetaMaskStore,
     usersStore: UsersStore,
   ) {
     const { users } = usersStore
-    const currentEthereumAccount = metaMaskStore.currentEthereumAccount!
-
-    const otherUsers = users.filter((user) => user.userAddress !== currentEthereumAccount)
-    if (otherUsers.length === 0) {
-      return null
-    }
 
     return (
       <>
@@ -98,7 +90,7 @@ class Accounts extends React.Component<IProps, IState> {
         <List
           className={classes.otherAccounts}
           rowKey={((user: IUser) => user.userAddress)}
-          dataSource={otherUsers}
+          dataSource={users}
           renderItem={(user: IUser) => (
             <AccountListItem userStore={usersStore.getUserStore(user)} />
           )}
