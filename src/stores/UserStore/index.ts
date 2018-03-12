@@ -5,24 +5,15 @@ import { MessageCenter } from './MessageCenter'
 import { PreKeysManager } from './PreKeysManager'
 import GettingStartedQuests from './GettingStartedQuests'
 
-import {
-  MetaMaskStore,
-  ETHEREUM_NETWORKS,
-  TRANSACTION_STATUS,
-} from '../MetaMaskStore'
+import { MetaMaskStore, ETHEREUM_NETWORKS } from '../MetaMaskStore'
 import { ContractStore } from '../ContractStore'
-import {
-  UsersStore,
-  REGISTER_FAIL_CODE,
-  getAvatarHashByUser,
-} from '../UsersStore'
+import { UsersStore, getAvatarHashByUser } from '../UsersStore'
 import { SocialProofsStore } from '../SocialProofsStore'
 import { SessionsStore } from '../SessionsStore'
 
 import { getDatabases } from '../../databases'
 import { UsersDB, IUpdateUserOptions } from '../../databases/UsersDB'
 
-import { noop } from '../../utils'
 import { isHexZeroValue } from '../../utils/hex'
 import { getPublicKeyFingerPrint } from '../../utils/proteus'
 import {
@@ -31,7 +22,8 @@ import {
   downloadObjectAsJson,
 } from '../../utils/data'
 
-import ENV from '../../config'
+import { storeLogger } from '../../utils/loggers'
+import { sleep } from '../../utils'
 
 export class UserStore {
   @observable public readonly user: IUser
@@ -42,6 +34,7 @@ export class UserStore {
   public readonly socialProofsStore: SocialProofsStore
   public readonly gettingStartedQuests: GettingStartedQuests
 
+  @observable private _confirmationCounter: number | undefined = undefined
   private readonly usersDB: UsersDB
   private readonly userRef: IUser
   private readonly disposeUpdateUserReaction: IReactionDisposer
@@ -57,7 +50,10 @@ export class UserStore {
   @computed
   public get isUsing(): boolean {
     const { currentUserStore } = this.usersStore
-    return currentUserStore != null && currentUserStore.user.userAddress === this.user.userAddress
+    return (
+      currentUserStore != null &&
+      currentUserStore.user.userAddress === this.user.userAddress
+    )
   }
 
   @computed
@@ -68,7 +64,12 @@ export class UserStore {
   @computed
   public get isRegisterCompleted(): boolean {
     const { status } = this.user
-    return status === USER_STATUS.OK || status === USER_STATUS.FAIL
+    return status === USER_STATUS.OK || status === USER_STATUS.FAILED
+  }
+
+  @computed
+  public get confirmationCounter(): number | undefined {
+    return this._confirmationCounter
   }
 
   @computed
@@ -110,117 +111,91 @@ export class UserStore {
     )
   }
 
-  // TODO: refactor
-  public checkIdentityUploadStatus = async (
-    {
-      checkIdentityUploadStatusWillStart = noop,
-      identityDidUpload = noop,
-      registerDidFail = noop,
-      checkingDidFail = noop,
-    }: ICheckIdentityUploadStatusLifecycle = {},
-  ) => {
+  public async checkIdentityUploadStatus(): Promise<void> {
     const { user } = this
-    if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
-      return identityDidUpload()
+    if (user.status !== USER_STATUS.PENDING) {
+      return
     }
 
-    const {
-      getTransactionReceipt,
-    } = this.metaMaskStore
-    const { identitiesContract } = this.contractStore
-    const {
-      networkId,
-      userAddress,
+    const { identitiesContract, isAvailable } = this.contractStore
+    if (!isAvailable) {
+      // retry
+      await sleep(3000)
+      return this.checkIdentityUploadStatus()
+    }
+
+    const { identityTransactionHash, userAddress } = user
+    const { getReceipt } = this.contractStore.getProcessingTransactionHandler(
       identityTransactionHash,
-    } = user
-    const identityKeyPair = await this.cryptoBox.getIdentityKeyPair()
+    )
 
-    checkIdentityUploadStatusWillStart(identityTransactionHash)
-    const waitForTransactionReceipt = async (blockCounter = 0, confirmationCounter = 0) => {
-      try {
-        const receipt = await getTransactionReceipt(identityTransactionHash)
-        if (receipt) {
-          if (confirmationCounter >= ENV.REQUIRED_CONFIRMATION_NUMBER) {
-            const hasStatus = receipt.status != null
-            const hasTransactionError = hasStatus
-              ? Number(receipt.status) === TRANSACTION_STATUS.FAIL
-              : receipt.gasUsed === receipt.cumulativeGasUsed
-            if (hasTransactionError) {
-              await this.updateUser(
-                {
-                  status: USER_STATUS.FAIL,
-                },
-              )
-              return registerDidFail(REGISTER_FAIL_CODE.TRANSACTION_ERROR)
-            }
+    try {
+      await getReceipt({ onConfirmation: this.handleConfirmation.bind(this) })
 
-            const {
-              blockNumber,
-              publicKey: registeredIdentityFingerprint,
-            } = await identitiesContract.getIdentity(userAddress)
-            if (!registeredIdentityFingerprint || isHexZeroValue(registeredIdentityFingerprint)) {
-              // we have receipt but found no identity,
-              // set confirmationCounter to 0 and retry
-              window.setTimeout(
-                waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1,
-              )
-              return
-            }
+      const { blockNumber, publicKey } = await identitiesContract.getIdentity(
+        userAddress,
+      )
+      if (!publicKey || isHexZeroValue(publicKey)) {
+        throw new Error('Can not get public key')
+      }
 
-            if (registeredIdentityFingerprint === getPublicKeyFingerPrint(identityKeyPair.public_key)) {
-              const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
-              if (isHexZeroValue(blockHash)) {
-                // no blockHash? just retry.
-                const retryTimeOut = 1000
-                window.setTimeout(
-                  waitForTransactionReceipt, retryTimeOut, blockCounter, confirmationCounter,
-                )
-                return
-              }
-              await this.updateUser(
-                {
-                  blockHash,
-                  status: USER_STATUS.IDENTITY_UPLOADED,
-                },
-              )
-              identityDidUpload()
-            } else {
-              this.usersStore.deleteUser(networkId, userAddress)
-              registerDidFail(REGISTER_FAIL_CODE.OCCUPIED)
-            }
-          } else {
-            window.setTimeout(
-              waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1, confirmationCounter + 1,
-            )
-          }
-          return
-        }
+      const identityKeyPair = await this.cryptoBox.getIdentityKeyPair()
+      if (publicKey !== getPublicKeyFingerPrint(identityKeyPair.public_key)) {
+        const { networkId } = user
+        await this.usersStore.deleteUser(networkId, userAddress)
+        throw new Error('Taken over')
+      }
 
-        window.setTimeout(waitForTransactionReceipt, ENV.ESTIMATE_AVERAGE_BLOCK_TIME, blockCounter + 1)
-      } catch (err) {
-        checkingDidFail(err)
+      const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
+
+      if (isHexZeroValue(blockHash)) {
+        throw new Error('Can not get block hash')
+      }
+
+      await this.updateUser({
+        blockHash,
+        status: USER_STATUS.IDENTITY_UPLOADED,
+      })
+    } catch (err) {
+      const errorMessage = (err as Error).message
+      const hasfetchError =
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('Can not get public key') ||
+        errorMessage.includes('Can not get block hash')
+
+      if (hasfetchError) {
+        storeLogger.warn('failed to check identity upload status:', err)
+        // retry
+        await sleep(3000)
+        this.checkIdentityUploadStatus()
         return
       }
-    }
 
-    return waitForTransactionReceipt()
+      if (errorMessage.includes('Transaction process error')) {
+        await this.updateUser({
+          status: USER_STATUS.FAILED,
+        })
+      }
+
+      throw err
+    }
   }
 
   /**
    * forcibly sync in-memory user with database's data
    */
   public async refreshMemoryUser() {
-    const user = await this.usersDB.getUser(this.user.networkId, this.user.userAddress)
+    const user = await this.usersDB.getUser(
+      this.user.networkId,
+      this.user.userAddress,
+    )
     if (user != null) {
       this.updateMemoryUser(user)
     }
   }
 
   public async exportUser() {
-    const {
-      sessionsDB,
-      messagesDB,
-    } = getDatabases()
+    const { sessionsDB, messagesDB } = getDatabases()
     const data: IDumpedDatabases = {}
     const user = this.user
     data.keymesh = [
@@ -244,7 +219,10 @@ export class UserStore {
 
   public deleteUser() {
     this.disposeStore()
-    return this.usersStore.deleteUser(this.user.networkId, this.user.userAddress)
+    return this.usersStore.deleteUser(
+      this.user.networkId,
+      this.user.userAddress,
+    )
   }
 
   /**
@@ -272,6 +250,11 @@ export class UserStore {
   private updateMemoryUser(args: IUpdateUserOptions) {
     Object.assign(this.user, args)
   }
+
+  @action
+  private handleConfirmation(confirmationCount: number) {
+    this._confirmationCounter = confirmationCount
+  }
 }
 
 export function getCryptoBoxIndexedDBName(user: IUser) {
@@ -287,14 +270,7 @@ export enum USER_STATUS {
   PENDING = 0,
   IDENTITY_UPLOADED,
   OK,
-  FAIL,
-}
-
-interface ICheckIdentityUploadStatusLifecycle {
-  checkIdentityUploadStatusWillStart?: (hash: string) => void
-  identityDidUpload?: () => void
-  registerDidFail?: (code: REGISTER_FAIL_CODE) => void
-  checkingDidFail?: (err: Error | null, code?: IDENTITY_UPLOAD_CHECKING_FAIL_CODE) => void
+  FAILED,
 }
 
 export interface IUserPrimaryKeys {

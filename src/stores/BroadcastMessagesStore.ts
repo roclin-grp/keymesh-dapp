@@ -6,9 +6,8 @@ import { utf8ToHex, hexToUtf8, uint8ArrayFromHex } from '../utils/hex'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore, ITransactionLifecycle } from './ContractStore'
 import { getUserPublicKey } from './UsersStore'
-import ENV from '../config'
 import { QUESTS } from './UserStore/GettingStartedQuests'
-import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
+import { transactionPromiEventToPromise } from '../utils/transaction'
 
 export class BroadcastMessagesStore {
   @observable.ref public broadcastMessages: IBroadcastMessage[] = []
@@ -86,11 +85,7 @@ export class BroadcastMessagesStore {
         _message.message === message
     }
     try {
-      await getReceipt(
-        ENV.REQUIRED_CONFIRMATION_NUMBER,
-        ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
-        ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
-      )
+      await getReceipt()
 
       const messages = this.broadcastMessages.map((_message) => {
         if (isCurrentMessage(_message)) {
@@ -129,6 +124,7 @@ export class BroadcastMessagesStore {
     })
   }
 
+  // TODO: refactor
   public startFetchBroadcastMessages = async () => {
     if (this.isFetching) {
       return

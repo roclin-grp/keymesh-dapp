@@ -100,16 +100,45 @@ export function getNewVerifications() {
   return verifications as IUserCachesVerifications
 }
 
-export async function searchUser(prefix: string): Promise<IProcessedUserInfo[]> {
-  const response = await fetch(`${ENV.SEARCH_USERS_API}?usernamePrefix=${encodeURIComponent(prefix)}`)
+export async function searchUser(networkID: ETHEREUM_NETWORKS, prefix: string): Promise<IProcessedUserInfo[]> {
+  const response = await fetch(
+    `${ENV.SEARCH_USERS_API}?networkID=${networkID}&usernamePrefix=${encodeURIComponent(prefix)}`,
+  )
   const rawData = await response.json()
   return processUserInfo(rawData)
 }
 
-export async function searchUserByAddress(userAddress: string): Promise<IProcessedUserInfo[]> {
-  const response = await fetch(`${ENV.GET_USERS_API}?userAddress=${userAddress}`)
+export const cachedUserInfo: ICachedUserInfo = {}
+
+interface ICachedUserInfo {
+  [userAddress: string]: {
+    data: IProcessedUserInfo,
+    lastUpdate: number,
+  },
+}
+
+export async function searchUserByAddress(
+  networkID: ETHEREUM_NETWORKS, userAddress: string,
+): Promise<IProcessedUserInfo | undefined> {
+  const cache = cachedUserInfo[userAddress]
+  if (cache && Date.now() - cache.lastUpdate < 5 * 60 * 1000) {
+    return cache.data
+  }
+
+  const response = await fetch(`${ENV.GET_USERS_API}?networkID=${networkID}&userAddress=${userAddress}`)
   const rawData = await response.json()
-  return processUserInfo(rawData)
+  const infos = processUserInfo(rawData)
+  if (infos.length === 0) {
+    return
+  }
+
+  const info = infos[0]
+  cachedUserInfo[userAddress] = {
+    data: info,
+    lastUpdate: Date.now(),
+  }
+
+  return info
 }
 
 // TODO: cache processed user info

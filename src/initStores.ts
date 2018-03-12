@@ -4,12 +4,12 @@ import {
 } from './stores'
 
 // Used to preserve the stores for hot-reload in development
-let cachedStores: IStores
+let cachedStores: IStores | undefined
 
 /**
  *  Create the application stores. It also handles hot-reloading for development.
  */
-export function initStores(): IStores {
+export function initStores(): IStores | undefined {
   if (cachedStores && process.env.NODE_ENV === 'development') {
     return cachedStores
   }

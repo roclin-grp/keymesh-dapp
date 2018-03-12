@@ -1,7 +1,12 @@
-.iconWarning {
+.warningIcon {
   font-size: 3rem;
   color: #faad14;
   margin-right: 1rem;
+  margin-bottom: 1rem;
+}
+
+.warningText {
+  font-size: 1.5rem;
 }
 
 .collapsePanel {
@@ -10,10 +15,18 @@
 }
 
 .collapseContent {
-  margin-left: 1.5rem;
-  padding-right: 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
-.lockedMetaMaskScreenshot {
-  width: 100%;
+.collapseContent > .screenshot {
+  margin: 0 auto;
+}
+
+.metaMaskLink {
+  margin: 0 .5rem;
+}
+
+.noMetaMask {
+  justify-content: center;
 }

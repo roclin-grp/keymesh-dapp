@@ -1,131 +1,92 @@
 import * as React from 'react'
-import {
-  Link,
-  withRouter,
-  RouteComponentProps,
-} from 'react-router-dom'
+import { Link, withRouter, RouteComponentProps } from 'react-router-dom'
 
 // component
-import {
-  Tooltip,
-  Icon,
-  Dropdown,
-  Menu,
-  message,
-  Button,
-} from 'antd'
+import { Tooltip, Icon, Dropdown, Menu, message, Button } from 'antd'
 import SwitchUserOption from './SwitchUserOption'
 import HashAvatar from '../../components/HashAvatar'
 import UserAddress from '../../components/UserAddress'
 
 // style
-import classnames from 'classnames'
-import * as styles from './index.css'
+import composeClass from 'classnames'
+import * as classes from './index.css'
 import logo from './logo.svg'
 
-// state management
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-import {
-  IStores,
-} from '../../stores'
-import {
-  MetaMaskStore,
-  // ETHEREUM_NETWORK_NAMES,
-  // METAMASK_CONNECT_STATUS,
-} from '../../stores/MetaMaskStore'
-import {
-  ContractStore,
-} from '../../stores/ContractStore'
-import {
-  UsersStore,
-} from '../../stores/UsersStore'
-import {
-  IUser,
-} from '../../stores/UserStore'
+import { observer } from 'mobx-react'
+import { IStores } from '../../stores'
+import { IUser } from '../../stores/UserStore'
 import { iterableQuests } from '../../stores/UserStore/GettingStartedQuests'
 
 // helper
 import copy from 'copy-to-clipboard'
+import { sleep } from '../../utils'
 
-@inject(({
-  metaMaskStore,
-  usersStore,
-  contractStore,
-}: IStores) => ({
-  metaMaskStore,
-  usersStore,
-  contractStore,
-}))
 @observer
-class Header extends React.Component<IProps, IState> {
-  private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
+class Header extends React.Component<IProps> {
   public render() {
+    const { stores } = this.props
     return (
-      <header className={styles.header}>
-        <div className={classnames('fullscreen-container', 'vertical-align-container')}>
-          <h1 className={classnames(styles.logo, 'vertical-align-container')}>
-            <Link
-              tabIndex={0}
-              className={styles.logoLink}
-              to="/"
-            >
-              <img
-                src={logo}
-                alt="KeyMesh Logo"
-                className={styles.logoImage}
-              />
-              <span className={styles.logoText}>KeyMesh</span>
+      <header className={classes.header}>
+        <div
+          className={composeClass(
+            'fullscreen-container',
+            'vertical-align-container',
+          )}
+        >
+          <h1 className={composeClass(classes.logo, 'vertical-align-container')}>
+            <Link tabIndex={0} className={classes.logoLink} to="/">
+              <img src={logo} alt="KeyMesh Logo" className={classes.logoImage} />
+              <span className={classes.logoText}>KeyMesh</span>
             </Link>
           </h1>
           <Menu
             inlineIndent={24}
             openTransitionName="slide-up"
             theme="light"
-            className={classnames(styles.menu, 'vertical-align-container')}
+            className={composeClass(classes.menu, 'vertical-align-container')}
             selectedKeys={[this.props.location.pathname]}
             mode="horizontal"
           >
             <Menu.Item key="/broadcast">
-              <Link to="/broadcast" className={styles.menuItem}>
-                <Icon type="notification" className={styles.menuIcon} />
+              <Link to="/broadcast" className={classes.menuItem}>
+                <Icon type="notification" className={classes.menuIcon} />
                 Broadcast
               </Link>
             </Menu.Item>
-            {
-              this.injectedProps.usersStore.hasUser
-                ? <Menu.Item key="/messages">
-                  <Link to="/messages" className={styles.menuItem}>
-                    <Icon type="message" className={styles.menuIcon} />
-                    Messages
-                  </Link>
-                </Menu.Item>
-                : null
-            }
+            {stores && stores.usersStore.hasUser ? (
+              <Menu.Item key="/messages">
+                <Link to="/messages" className={classes.menuItem}>
+                  <Icon type="message" className={classes.menuIcon} />
+                  Messages
+                </Link>
+              </Menu.Item>
+            ) : null}
           </Menu>
-          {this.renderGettingStarted()}
+          {this.renderGettingStarted(stores)}
           {/* {this.renderNetworkStatus()} */}
-          {this.renderUserMenu()}
+          {this.renderUserMenu(stores)}
         </div>
       </header>
     )
   }
 
-  private renderGettingStarted() {
-    const { currentUserStore } = this.injectedProps.usersStore
+  private renderGettingStarted(stores?: IStores) {
+    if (stores == null) {
+      return
+    }
+
+    const { usersStore } = stores
+    const { currentUserStore } = usersStore
     if (!currentUserStore) {
       return null
     }
 
-    const { totalCompletedCount } = this.injectedProps.usersStore.currentUserStore!.gettingStartedQuests
+    const { totalCompletedCount } = currentUserStore.gettingStartedQuests
     const questsCount = iterableQuests.length
 
     return (
-      <Link className={styles.gettingStarted} to="/getting-started">
-        <Icon className={styles.gettingStartedIcon} type="bars" />
+      <Link className={classes.gettingStarted} to="/getting-started">
+        <Icon className={classes.gettingStartedIcon} type="bars" />
         Getting Started ({`${totalCompletedCount}/${questsCount}`})
       </Link>
     )
@@ -188,79 +149,69 @@ class Header extends React.Component<IProps, IState> {
   //   )
   // }
 
-  private renderUserMenu() {
-    const {
-      isPending,
-      isActive,
-    } = this.injectedProps.metaMaskStore
+  private renderUserMenu(stores?: IStores) {
+    if (stores == null) {
+      return null
+    }
+
+    const { isPending, isActive } = stores.metaMaskStore
+
     if (isPending) {
       return null
     }
 
-    const {
-      usersStore: {
-        usableUsers,
-        isLoadingUsers,
-        hasUser,
-      },
-      contractStore: {
-        isNotAvailable: contractsNotAvailable,
-      },
-    } = this.injectedProps
+    const { usersStore } = stores
+    const { usableUsers, isLoadingUsers, hasUser } = usersStore
 
-    if (isActive && !contractsNotAvailable && !isLoadingUsers && usableUsers.length === 0) {
+    if (
+      isActive &&
+      !isLoadingUsers &&
+      usableUsers.length === 0
+    ) {
       return (
         <Link to="/register">
-          <Button
-            type="primary"
-          >
-            Sign Up
-          </Button>
+          <Button type="primary">Sign Up</Button>
         </Link>
       )
     }
+
     if (!hasUser && usableUsers.length > 0) {
       return (
         <Link to="/accounts">
-          <Button
-            type="primary"
-          >
-            Sign In
-          </Button>
+          <Button type="primary">Sign In</Button>
         </Link>
       )
     }
-    if (!hasUser) {
+
+    const { currentUserStore } = usersStore
+    if (!currentUserStore) {
       return null
     }
 
-    const { user } = this.injectedProps.usersStore.currentUserStore!
+    const { user } = currentUserStore
 
     return (
       <Dropdown
         trigger={['click']}
-        overlay={this.renderUserOptions()}
+        overlay={this.renderUserOptions(usableUsers, user)}
         placement="bottomRight"
       >
         <a
           title={user.userAddress}
-          className={classnames(styles.userOptionsButton, 'ant-dropdown-link')}
-        // looks like antd does not support keyboard accessibility well
-        // tabIndex={0}
+          className={composeClass(classes.userOptionsButton, 'ant-dropdown-link')}
         >
-          {this.renderUserAvatar()}
-          <Icon type="down" className={styles.userAvatarDownIcon} />
+          {this.renderUserAvatar(currentUserStore.avatarHash)}
+          <Icon type="down" className={classes.userAvatarDownIcon} />
         </a>
       </Dropdown>
     )
   }
 
-  private renderUserAvatar() {
-    const { avatarHash } = this.injectedProps.usersStore.currentUserStore!
-
+  // TODO: render UserAvatar
+  private renderUserAvatar(avatarHash: string) {
     return (
       <HashAvatar
-        className={styles.userAvatar}
+        className={classes.userAvatar}
         shape="square"
         size="small"
         hash={avatarHash}
@@ -268,60 +219,44 @@ class Header extends React.Component<IProps, IState> {
     )
   }
 
-  private renderUserOptions() {
-    const {
-      usableUsers,
-    } = this.injectedProps.usersStore
-    const {
-      user,
-    } = this.injectedProps.usersStore.currentUserStore!
-
+  private renderUserOptions(usableUsers: IUser[], currentUser: IUser) {
     return (
       <Menu>
-        <Menu.Item
-          className={styles.currentUserAddress}
-          disabled={true}
-        >
-          <Tooltip
-            placement="topLeft"
-            title="Copy account address"
-          >
-            <a className={styles.userAddressLink} onClick={this.handleCopyUserAddress}>
+        <Menu.Item className={classes.currentUserAddress} disabled={true}>
+          <Tooltip placement="topLeft" title="Copy account address">
+            <a
+              className={classes.userAddressLink}
+              onClick={this.handleCopyUserAddress}
+            >
               <UserAddress
-                userAddress={user.userAddress}
-                className={styles.userAddress}
+                userAddress={currentUser.userAddress}
+                className={classes.userAddress}
                 maxLength={8}
               />
             </a>
           </Tooltip>
         </Menu.Item>
         <Menu.Item>
-          <Link to="/profile">
-            Profile
-          </Link>
+          <Link to="/profile">Profile</Link>
         </Menu.Item>
 
         <Menu.Divider />
-        {usableUsers.length > 1
-          ? (
-            <Menu.SubMenu title={<span>Switch user</span>}>
-              {
-                usableUsers
-                  .filter((_user) => _user.userAddress !== user.userAddress)
-                  .map((_user) => (
-                    <Menu.Item key={_user.userAddress}>
-                      <SwitchUserOption user={_user} onSelect={this.handleSelectUser} />
-                    </Menu.Item>
-                  ))
-              }
-            </Menu.SubMenu>
-          )
-          : null
-        }
+        {usableUsers.length > 1 ? (
+          <Menu.SubMenu title={<span>Switch user</span>}>
+            {usableUsers
+              .filter((_user) => _user.userAddress !== currentUser.userAddress)
+              .map((_user) => (
+                <Menu.Item key={_user.userAddress}>
+                  <SwitchUserOption
+                    user={_user}
+                    onSelect={this.handleSelectUser}
+                  />
+                </Menu.Item>
+              ))}
+          </Menu.SubMenu>
+        ) : null}
         <Menu.Item>
-          <Link to="/accounts">
-            My Accounts
-          </Link>
+          <Link to="/accounts">My Accounts</Link>
         </Menu.Item>
 
         <Menu.Item>
@@ -333,18 +268,14 @@ class Header extends React.Component<IProps, IState> {
     )
   }
 
-  private handleSelectUser = (user: IUser) => {
-    window.setTimeout(
-      () => this.injectedProps.usersStore.useUser(user),
-      300,
-    )
+  private handleSelectUser = async (user: IUser) => {
+    await sleep(300)
+    this.props.stores!.usersStore.useUser(user)
   }
 
   private handleCopyUserAddress = () => {
-    const {
-      user,
-    } = this.injectedProps.usersStore.currentUserStore!
-    if (copy(user.userAddress)) {
+    const { userAddress } = this.props.stores!.usersStore.currentUserStore!.user
+    if (copy(userAddress)) {
       message.success('Address copied', 2)
     }
   }
@@ -365,15 +296,7 @@ class Header extends React.Component<IProps, IState> {
 // typing
 interface IProps extends RouteComponentProps<{}> {
   className?: string
-}
-
-interface IInjectedProps extends IProps {
-  metaMaskStore: MetaMaskStore
-  usersStore: UsersStore
-  contractStore: ContractStore
-}
-
-interface IState {
+  stores?: IStores
 }
 
 export default withRouter(Header)

@@ -47,7 +47,7 @@ export class MessageCenter {
   }
 
   private async fetchNewChatMessages() {
-    if (this.contractStore.isNotAvailable) {
+    if (!this.contractStore.isAvailable) {
       return
     }
 

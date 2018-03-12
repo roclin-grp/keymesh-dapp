@@ -6,8 +6,6 @@ import './global.css'
 import * as React from 'react'
 import { render } from 'react-dom'
 
-import { Provider } from 'mobx-react'
-
 import { initStores } from './initStores'
 import App from './App'
 
@@ -17,16 +15,10 @@ function renderApp() {
   }
 
   const stores = initStores()
-
-  render(
-    <Provider {...stores}>
-      <App />
-    </Provider>,
-    document.getElementById('root'),
-  )
+  render(<App stores={stores} />, document.getElementById('root'))
 }
 
-const {hot} = module as NodeModule & {hot: any}
+const { hot } = module as NodeModule & { hot: any }
 if (hot) {
   hot.accept(renderApp)
 }

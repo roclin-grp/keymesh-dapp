@@ -6,34 +6,29 @@ import securedAccountImg from './secured-account.svg'
 // component
 import {
   Divider,
-  Icon,
-  Upload,
   Modal,
-  message,
-  Button,
-  Tooltip,
   Alert,
 } from 'antd'
-import { UploadFile } from 'antd/lib/upload/interface.d'
 import UserAddress from '../../components/UserAddress'
 import StatusButton, { STATUS_TYPE } from '../../components/StatusButton'
+import AccountRegisterStatus, { REGISTER_STATUS } from '../../components/AccountRegisterStatus'
+import TransactionStatus, { TRANSACTION_STATUS } from '../../components/TransactionStatus'
+import RestoreUserButton from '../../components/RestoreUserButton'
 
 // style
 import * as classes from './index.css'
 import composeClass from 'classnames'
 
 // state management
+import { Lambda } from 'mobx'
 import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
-import { UsersStore, REGISTER_FAIL_CODE } from '../../stores/UsersStore'
+import { UsersStore } from '../../stores/UsersStore'
 import { UserStore, USER_STATUS } from '../../stores/UserStore'
 
 // helper
-import { storeLogger } from '../../utils/loggers'
 import { sleep } from '../../utils'
-import { Lambda } from 'mobx'
-import AccountRegisterStatus, { REGISTER_STATUS } from '../../components/AccountRegisterStatus'
 
 @inject(mapStoreToProps)
 @observer
@@ -45,11 +40,16 @@ class Register extends React.Component<IProps, IState> {
   private retryCheckStatus: (() => void) | undefined
   private isUnmounted = false
 
+  private get isCreatingTransaction() {
+    return this.state.transactionCreationStatus != null
+  }
+
   public componentDidMount() {
     const { metaMaskStore } = this.injectedProps
     // reset state when wallet account have changed
     this.disposeWalletAccountReaction = metaMaskStore.listenForWalletAccountChange(this.resetState)
   }
+
   public componentWillUnmount() {
     this.isUnmounted = true
 
@@ -60,13 +60,8 @@ class Register extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { metaMaskStore, usersStore } = this.injectedProps
-    const {
-      hasRegisterRecordOnLocal,
-      hasRegisterRecordOnChain,
-      walletCorrespondingUserStore,
-    } = usersStore
-    const currentEthereumAccount = metaMaskStore.currentEthereumAccount!
+    const { metaMaskStore } = this.injectedProps
+    const { walletAddress } = metaMaskStore
 
     return (
       <div className="page-container">
@@ -98,40 +93,30 @@ class Register extends React.Component<IProps, IState> {
             You will create a new cryptographic identity for secure communication, and publish it on the blockchain
           </p>
           <h3>Your Ethereum Address</h3>
-          <UserAddress className={classes.userAddress} userAddress={currentEthereumAccount} />
-          {this.renderRegisterStatusButton(
-            usersStore, hasRegisterRecordOnLocal, hasRegisterRecordOnChain, walletCorrespondingUserStore,
-          )}
+          <UserAddress className={classes.userAddress} userAddress={walletAddress} />
+          {this.renderRegisterStatusButton()}
           <Divider />
-          <Upload
-            action="/"
-            beforeUpload={this.handleImport}
-            accept=".json"
-            disabled={this.state.isImporting}
-          >
-            <Button icon="upload">
-              Restore Account Backup
-            </Button>
-          </Upload>
+          <RestoreUserButton />
         </section>
       </div>
     )
   }
 
-  private renderRegisterStatusButton(
-    usersStore: UsersStore,
-    hasRegisterRecordOnLocal: boolean,
-    hasRegisterRecordOnChain: boolean,
-    walletCorrespondingUserStore?: UserStore,
-  ) {
+  private renderRegisterStatusButton() {
+    const { usersStore } = this.injectedProps
+    const {
+      hasRegisterRecordOnLocal,
+      hasRegisterRecordOnChain,
+      walletCorrespondingUserStore,
+    } = usersStore
+
     const { isCheckingRegisterRecord } = usersStore
     const canTakeover = !hasRegisterRecordOnLocal && hasRegisterRecordOnChain
     const handleClick = canTakeover ? this.handleConfirmTakeOver : this.handleRegister
 
-    const { isCreatingTransaction } = this.state
-    const shouldDisableButton = isCheckingRegisterRecord || hasRegisterRecordOnLocal || isCreatingTransaction
+    const shouldDisableButton = isCheckingRegisterRecord || hasRegisterRecordOnLocal || this.isCreatingTransaction
 
-    const [statusType, statusContent] = this.getStatusTypeAndContent(
+    const { type, content, help } = this.getStatusContent(
       hasRegisterRecordOnLocal,
       hasRegisterRecordOnChain,
       isCheckingRegisterRecord,
@@ -142,8 +127,9 @@ class Register extends React.Component<IProps, IState> {
       <StatusButton
         buttonClassName={classes.registerButton}
         disabled={shouldDisableButton}
-        statusType={statusType}
-        statusContent={statusContent}
+        statusType={type}
+        statusContent={content}
+        helpContent={help}
         onClick={handleClick}
       >
         Sign Up With MetaMask
@@ -151,24 +137,21 @@ class Register extends React.Component<IProps, IState> {
     )
   }
 
-  private getStatusTypeAndContent(
+  private getStatusContent(
     hasRegisterRecordOnLocal: boolean,
     hasRegisterRecordOnChain: boolean,
     isCheckingRegisterRecord: boolean,
     walletCorrespondingUserStore?: UserStore,
-  ): [STATUS_TYPE, React.ReactNode | undefined] {
-
+  ): {
+    type?: STATUS_TYPE,
+    content?: React.ReactNode,
+    help?: React.ReactNode,
+  } {
     if (isCheckingRegisterRecord) {
       const type = STATUS_TYPE.LOADING
-      const content = (
-        <>
-          Checking...
-          <Tooltip title="Checking if address is registered">
-            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>
-      )
-      return [type, content]
+      const content = 'Checking...'
+      const help = 'Checking if address is registered'
+      return { type, content, help }
     }
 
     if (
@@ -176,13 +159,14 @@ class Register extends React.Component<IProps, IState> {
       && walletCorrespondingUserStore.user.status === USER_STATUS.OK
     ) {
       const type = STATUS_TYPE.SUCCESS
-      let content: JSX.Element | string = 'Registered'
+
+      let content: React.ReactNode = 'Registered'
       if (!walletCorrespondingUserStore.isUsing) {
         content = (
           <>
             {content}
             <a
-              className={classes.signInButton}
+              className={classes.statusButtonAction}
               onClick={() => walletCorrespondingUserStore.useUser()}
             >
               Sign In
@@ -190,46 +174,59 @@ class Register extends React.Component<IProps, IState> {
           </>
         )
       }
-      return [type, content]
+
+      const help = 'You can still register new account using other Ethereum address'
+
+      return { type, content, help }
+    }
+    const { state } = this
+    const { transactionCreationStatus } = state
+
+    if (transactionCreationStatus != null) {
+      const status = getTransactionStatus(transactionCreationStatus)
+      const { metaMaskStore } = this.injectedProps
+      const { networkID } = metaMaskStore
+      return {
+        type: TRANSACTION_CREATION_ICON_TYPES[transactionCreationStatus],
+        content: (
+          <TransactionStatus
+            status={status}
+            networkId={networkID}
+          />
+        ),
+      }
     }
 
-    const { registerStatus, registerStatusContent } = this.state
-    const statusType = REGISTER_STATUS_ICON_TYPES[registerStatus]
-    let statusContent = registerStatusContent
-
     if (
-      statusContent == null &&
       !hasRegisterRecordOnLocal &&
       hasRegisterRecordOnChain
     ) {
       const type = STATUS_TYPE.WARN
-      const content = (
-        <>
-          Registered on another device
-          <Tooltip title="You can register anyway, or restore the account backup from your other device">
-            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>
-      )
+      const content = 'Registered on another device'
+      const help = 'You can register anyway, or restore the account backup from your other device'
 
-      return [type, content]
+      return { type, content, help }
     }
+
+    const { registerStatus } = state
+    const statusType = registerStatus == null ? undefined : REGISTER_STATUS_ICON_TYPES[registerStatus]
 
     if (walletCorrespondingUserStore != null) {
       const canRetry = (
-        registerStatus === REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL ||
-        registerStatus === REGISTER_STATUS.UNEXCEPTED_ERROR
+        registerStatus === REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED ||
+        registerStatus === REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR
       )
       const retryButton = (
-        <Button
-          type="primary"
+        <a
+          role="button"
+          className={classes.statusButtonAction}
           onClick={this.retryCheckStatus}
         >
           Retry
-        </Button>
+        </a>
       )
 
-      statusContent = (
+      const content = (
         <>
           <AccountRegisterStatus
             key={walletCorrespondingUserStore.user.userAddress}
@@ -245,9 +242,11 @@ class Register extends React.Component<IProps, IState> {
           }
         </>
       )
+
+      return { type: statusType, content }
     }
 
-    return [statusType, statusContent]
+    return { type: statusType }
   }
 
   private getCheckStatusRetry = (retry: () => void) => {
@@ -279,25 +278,20 @@ class Register extends React.Component<IProps, IState> {
     }
   }
 
-  private handleRegister = () => {
-    this.setState({
-      isCreatingTransaction: true,
-      registerStatus: TRANSACTION_CREATION_STATUS.CHECKING,
-      registerStatusContent: 'Checking...',
-    })
+  private handleRegister = async () => {
+    this.setState({ transactionCreationStatus: TRANSACTION_CREATION_STATUS.PENDING })
 
-    this.injectedProps.usersStore.register({
-      transactionWillCreate: this.transactionWillCreate,
-      registerDidFail: this.registerDidFail,
-      transactionDidCreate: this.transactionDidCreate,
-    })
-      .catch(this.registerDidFail)
+    try {
+      await this.injectedProps.usersStore.register()
+      this.handleTransactionCreated()
+    } catch (err) {
+      this.handleTransactionFailed(err)
+    }
   }
 
   private handleConfirmTakeOver = () => {
     Modal.confirm({
       iconType: 'warning',
-      // title: 'Are you sure take over this address?',
       content: 'If you take over this address, your account on the other device will stop working.',
       okText: 'Take Over',
       cancelText: 'Cancel',
@@ -306,125 +300,32 @@ class Register extends React.Component<IProps, IState> {
     })
   }
 
-  private transactionWillCreate = () => {
-    if (this.isUnmounted) {
-      return
-    }
-    this.setState({
-      registerStatus: TRANSACTION_CREATION_STATUS.PENDING,
-      registerStatusContent: 'Pending authorization',
-    })
-  }
-
-  private transactionDidCreate = async () => {
+  private handleTransactionCreated = async () => {
     await sleep(300)
     if (this.isUnmounted) {
       return
     }
 
     this.setState({
-      isCreatingTransaction: false,
+      transactionCreationStatus: undefined,
     })
   }
 
-  private registerDidFail = (err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) => {
+  private handleTransactionFailed = (err: Error) => {
     if (this.isUnmounted) {
       return
     }
+
+    if (err.message.includes('User denied transaction signature')) {
+      this.setState({
+        transactionCreationStatus: TRANSACTION_CREATION_STATUS.REJECTED,
+      })
+      return
+    }
+
     this.setState({
-      registerStatus: TRANSACTION_CREATION_STATUS.FAILED,
-      registerStatusContent: this.getRegisterErrorStr(err, code),
-      isCreatingTransaction: false,
+      transactionCreationStatus: TRANSACTION_CREATION_STATUS.FAILED,
     })
-  }
-
-  private getRegisterErrorStr(err: Error | null, code = REGISTER_FAIL_CODE.UNKNOWN) {
-    const helpIcon = (
-      <Tooltip title={HELP_MESSAGES[code]}>
-        <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-      </Tooltip>
-    )
-
-    switch (code) {
-      case REGISTER_FAIL_CODE.OCCUPIED:
-        return (
-          <>
-            Taken over
-            {helpIcon}
-          </>
-        )
-      case REGISTER_FAIL_CODE.UNKNOWN:
-      default:
-        if ((err as Error).message.includes('User denied transaction signature')) {
-          return (
-            <>
-              Transaction rejected
-            </>
-          )
-        }
-
-        storeLogger.error('Unexpected register error:', err as Error)
-        return (
-          <>
-            Oops! Something unexpected happened
-            {helpIcon}
-          </>
-        )
-    }
-  }
-
-  // TODO: tranform import button to status button
-  private handleImport = (_: UploadFile, files: UploadFile[]) => {
-    if (files.length === 0) {
-      return false
-    }
-    this.setState({
-      isImporting: true,
-    })
-    const file: File = files[0] as any
-    const reader = new FileReader()
-    reader.onload = async (oFREvent) => {
-      try {
-        const user = await this.injectedProps.usersStore.importUser((oFREvent.target as any).result)
-        if (this.isUnmounted) {
-          return
-        }
-
-        if (this.injectedProps.usersStore.users.length === 1) {
-          await this.injectedProps.usersStore.useUser(user)
-
-          this.injectedProps.history.push('/getting-started')
-        } else {
-          await sleep(50)
-          message.success('Account imported successfully')
-        }
-      } catch (err) {
-        if (this.isUnmounted) {
-          return
-        }
-
-        if ((err as Error).message === 'Network not match') {
-          message.error('You were trying to import an account not belongs to current network!')
-          return
-        }
-
-        if ((err as Error).message.includes('Key already exists in the object store')) {
-          message.info('You already have this account!')
-          return
-        }
-
-        storeLogger.error(err)
-        message.error('Something went wrong! Please retry.')
-      } finally {
-        if (!this.isUnmounted) {
-          this.setState({
-            isImporting: false,
-          })
-        }
-      }
-    }
-    reader.readAsText(file)
-    return false
   }
 
   private resetState = () => {
@@ -443,41 +344,47 @@ function mapStoreToProps({
 }
 
 enum TRANSACTION_CREATION_STATUS {
-  DEFAULT = 'default',
-  CHECKING = 'checking',
-  PENDING = 'pending',
-  FAILED = 'failed',
+  PENDING,
+  REJECTED,
+  FAILED,
 }
 
-const REGISTER_STATUS_ICON_TYPES = Object.freeze({
-  [TRANSACTION_CREATION_STATUS.CHECKING]: STATUS_TYPE.LOADING,
+function getTransactionStatus(creationStatus: TRANSACTION_CREATION_STATUS): TRANSACTION_STATUS {
+  switch (creationStatus) {
+    case TRANSACTION_CREATION_STATUS.PENDING:
+      return TRANSACTION_STATUS.PENDING
+    case TRANSACTION_CREATION_STATUS.REJECTED:
+      return TRANSACTION_STATUS.REJECTED
+    case TRANSACTION_CREATION_STATUS.FAILED:
+    default:
+      return TRANSACTION_STATUS.UNEXCEPTED_ERROR
+  }
+}
+
+const TRANSACTION_CREATION_ICON_TYPES = Object.freeze({
   [TRANSACTION_CREATION_STATUS.PENDING]: STATUS_TYPE.LOADING,
-  [TRANSACTION_CREATION_STATUS.FAILED]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.PENDING]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.DONE]: STATUS_TYPE.SUCCESS,
-  [REGISTER_STATUS.TIMEOUT]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.TAKEOVERED]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
+  [TRANSACTION_CREATION_STATUS.REJECTED]: STATUS_TYPE.WARN,
+  [TRANSACTION_CREATION_STATUS.FAILED]: STATUS_TYPE.ERROR,
 })
 
-const HELP_MESSAGES = Object.freeze({
-  [REGISTER_FAIL_CODE.OCCUPIED]: 'Address had been taken over, you can register again to take over it',
-  [REGISTER_FAIL_CODE.UNKNOWN]: 'Sorry! You can retry later or report bugs to us if any',
+const REGISTER_STATUS_ICON_TYPES = Object.freeze({
+  [REGISTER_STATUS.IDENTITY_UPLOADING]: STATUS_TYPE.LOADING,
+  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: STATUS_TYPE.LOADING,
+  [REGISTER_STATUS.SUCCESS]: STATUS_TYPE.SUCCESS,
+  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.TAKEOVERED]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
 })
 
 // typing
 interface IProps extends RouteComponentProps<{}> { }
 
 const defaultState: Readonly<IState> = {
-  isCreatingTransaction: false,
-  isImporting: false,
-  registerStatus: TRANSACTION_CREATION_STATUS.DEFAULT,
-  registerStatusContent: undefined,
-  exportButtonContent: undefined,
+  transactionCreationStatus: undefined,
+  transactionHash: undefined,
+  registerStatus: undefined,
 }
 
 interface IInjectedProps {
@@ -486,11 +393,9 @@ interface IInjectedProps {
 }
 
 interface IState {
-  isCreatingTransaction: boolean
-  isImporting: boolean
-  registerStatus: TRANSACTION_CREATION_STATUS | REGISTER_STATUS
-  registerStatusContent?: JSX.Element | string
-  exportButtonContent?: string
+  transactionCreationStatus?: TRANSACTION_CREATION_STATUS
+  transactionHash?: string
+  registerStatus?: REGISTER_STATUS
 }
 
 export default Register

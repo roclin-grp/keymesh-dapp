@@ -94,3 +94,24 @@ button {
 :global .gitHubTone {
   color: #333;
 }
+
+:global .ant-collapse-header {
+  padding: 1rem 2rem !important;
+  display: flex;
+}
+
+:global .ant-collapse > .ant-collapse-item > .ant-collapse-header .arrow {
+  display: flex;
+  margin-right: 1rem;
+  position: initial;
+  line-height: initial;
+  align-items: center;
+}
+
+:global .ant-collapse > .ant-collapse-item > .ant-collapse-header h3 {
+  margin-bottom: 0;
+}
+
+:global .ant-collapse-content {
+  padding: 0 3.75rem;
+}

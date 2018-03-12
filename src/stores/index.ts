@@ -18,12 +18,11 @@ import {
 
 useStrict(true)
 
-export function createStores(): IStores {
+export function createStores(): IStores | undefined {
   const web3 = getMetaMaskWeb3()
 
-  // FIXME handle this error more nicely. Right now want better code structure.
   if (web3 == null) {
-    throw new Error('MetaMask not installed')
+    return
   }
 
   const metaMaskStore = new MetaMaskStore(web3)

@@ -4,19 +4,23 @@ import { Link, withRouter, RouteComponentProps } from 'react-router-dom'
 // component
 import { List, Button, Popconfirm, Icon } from 'antd'
 import HashAvatar from '../../../components/HashAvatar'
-import AccountRegisterStatus, { REGISTER_STATUS } from '../../../components/AccountRegisterStatus'
+import AccountRegisterStatus, {
+  REGISTER_STATUS,
+} from '../../../components/AccountRegisterStatus'
 
 // style
 import classnames from 'classnames'
 import * as classes from './index.css'
 
 // state management
+import { observer } from 'mobx-react'
 import { UserStore } from '../../../stores/UserStore'
 
+@observer
 class AccountListItem extends React.Component<IProps, IState> {
   public readonly state: Readonly<IState> = {
     isDeleting: false,
-    status: REGISTER_STATUS.PENDING,
+    status: REGISTER_STATUS.SUCCESS,
   }
 
   private retryCheckStatus: (() => void) | undefined
@@ -29,29 +33,22 @@ class AccountListItem extends React.Component<IProps, IState> {
     const { avatarHash, user, isUsing } = this.props.userStore
 
     return (
-      <List.Item
-        className={classes.container}
-        actions={this.renderActions()}
-      >
+      <List.Item className={classes.container} actions={this.renderActions()}>
         <List.Item.Meta
-          avatar={<HashAvatar
-            shape="circle"
-            hash={avatarHash}
-          />}
+          avatar={<HashAvatar shape="circle" hash={avatarHash} />}
           title={
             <Link to={`/profile${isUsing ? '' : `/${user.userAddress}`}`}>
               {user.userAddress}
-            </Link>}
+            </Link>
+          }
         />
-        <div className={classes.listContent}>
-          {this.renderListContent()}
-        </div>
+        <div className={classes.listContent}>{this.renderListContent()}</div>
       </List.Item>
     )
   }
 
   private renderActions() {
-    const { user, isUsing, isCurrentWalletCorrespondingUser, isRegisterCompleted } = this.props.userStore
+    const { user, isUsing, isRegisterCompleted } = this.props.userStore
     const { status, isDeleting } = this.state
 
     if (!isRegisterCompleted) {
@@ -76,11 +73,9 @@ class AccountListItem extends React.Component<IProps, IState> {
     )
 
     switch (status) {
-      case REGISTER_STATUS.DONE:
+      case REGISTER_STATUS.SUCCESS:
         if (isUsing) {
-          return [
-            deleteButton,
-          ]
+          return [deleteButton]
         }
 
         return [
@@ -93,14 +88,8 @@ class AccountListItem extends React.Component<IProps, IState> {
           </Button>,
           deleteButton,
         ]
-      case REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL:
-      case REGISTER_STATUS.UNEXCEPTED_ERROR:
-        if (isCurrentWalletCorrespondingUser) {
-          return [
-            deleteButton,
-          ]
-        }
-
+      case REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED:
+      case REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR:
         return [
           <Button
             key={`retry-${user.userAddress}`}
@@ -111,11 +100,9 @@ class AccountListItem extends React.Component<IProps, IState> {
           </Button>,
           deleteButton,
         ]
-      case REGISTER_STATUS.TRANSACTION_ERROR:
+      case REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR:
       default:
-        return [
-          deleteButton,
-        ]
+        return [deleteButton]
     }
   }
 
@@ -128,12 +115,21 @@ class AccountListItem extends React.Component<IProps, IState> {
     }
 
     const { status } = this.state
+
+    const iconType = REGISTER_STATUS_ICON_TYPES[status]
+    const icon = iconType == null ? null : (
+      <Icon
+        className={classnames(
+          classes.statusIcon,
+          REGISTER_STATUS_ICON_MODIFIERS[status],
+        )}
+        type={iconType}
+      />
+    )
+
     return (
       <>
-        <Icon
-          className={classnames(classes.statusIcon, REGISTER_STATUS_ICON_MODIFIERS[status])}
-          type={REGISTER_STATUS_ICON_TYPES[status]}
-        />
+        {icon}
         <AccountRegisterStatus
           userStore={userStore}
           onStatusChanged={this.handleStatusChanged}
@@ -179,22 +175,21 @@ class AccountListItem extends React.Component<IProps, IState> {
 }
 
 const REGISTER_STATUS_ICON_TYPES = Object.freeze({
-  [REGISTER_STATUS.PENDING]: 'loading',
   [REGISTER_STATUS.IDENTITY_UPLOADING]: 'loading',
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: 'loading',
-  [REGISTER_STATUS.TIMEOUT]: 'exclamation-circle',
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'exclamation-circle',
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: 'exclamation-circle',
+  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: 'loading',
+  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: 'exclamation-circle',
+  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: 'exclamation-circle',
+  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: 'exclamation-circle',
   [REGISTER_STATUS.TAKEOVERED]: 'exclamation-circle',
-  [REGISTER_STATUS.TRANSACTION_ERROR]: 'close-circle',
+  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: 'close-circle',
 })
 
 const REGISTER_STATUS_ICON_MODIFIERS = Object.freeze({
-  [REGISTER_STATUS.TIMEOUT]: classes.warn,
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: classes.warn,
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: classes.warn,
+  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: classes.warn,
+  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: classes.warn,
+  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: classes.warn,
   [REGISTER_STATUS.TAKEOVERED]: classes.warn,
-  [REGISTER_STATUS.TRANSACTION_ERROR]: classes.error,
+  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: classes.error,
 })
 
 // typing

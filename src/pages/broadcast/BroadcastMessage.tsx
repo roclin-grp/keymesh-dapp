@@ -30,6 +30,7 @@ interface IProps {
   message: IBroadcastMessage
   userCachesStore: UserCachesStore
   userProofsStateStore: UserProofsStateStore
+  status: MESSAGE_STATUS
 }
 
 @observer
@@ -153,7 +154,7 @@ export default class BroadcastMessage extends React.Component<IProps> {
   }
 
   private renderMessageStatus() {
-    const messageStatus = this.props.message.status!
+    const messageStatus = this.props.status
     if (messageStatus === MESSAGE_STATUS.DELIVERED) {
       return null
     }

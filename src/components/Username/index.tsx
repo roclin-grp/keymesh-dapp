@@ -2,14 +2,22 @@ import * as React from 'react'
 
 import UserAddress from '../UserAddress'
 
-import { observer } from 'mobx-react'
+import { observer, inject } from 'mobx-react'
 
 import UsernameData, { getUserName } from './data'
 import { IProcessedUserInfo } from '../../stores/UserCachesStore'
+import { IStores } from '../../stores'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
+@inject((({
+  metaMaskStore,
+}: IStores): IInjectedProps => ({
+  metaMaskStore,
+})))
 @observer
 class Username extends React.Component<IProps> {
-  private readonly data = new UsernameData()
+  private readonly injectedProps = this.props as Readonly<IProps & IInjectedProps>
+  private readonly data = new UsernameData(this.injectedProps.metaMaskStore)
 
   public async componentWillMount() {
     const { userInfo, displayUsername, showAllUsernames } = this.props
@@ -57,6 +65,10 @@ interface IProps {
   className?: string
   maxLength?: number
   overflowPadding?: string
+}
+
+interface IInjectedProps {
+  metaMaskStore: MetaMaskStore
 }
 
 export default Username

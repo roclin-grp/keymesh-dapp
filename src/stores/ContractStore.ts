@@ -1,74 +1,103 @@
-import {
-  reaction,
-  runInAction,
-  observable,
-  computed,
-} from 'mobx'
+import { reaction, observable, computed, action } from 'mobx'
 
-import {
-  getContracts,
-  ITrustMeshContracts,
-  getProcessingTransactionHandlers,
-  IProcessingTransactionHandlers,
-} from '@keymesh/trustmesh'
-
-import {
-  MetaMaskStore,
-} from './MetaMaskStore'
 import Web3 from 'web3'
+import { getContracts, ITrustMeshContracts } from '@keymesh/trustmesh'
+
+import { MetaMaskStore } from './MetaMaskStore'
+
+import {
+  IProcessingTransactionHandlers,
+  getProcessingTransactionHandlers,
+} from '../utils/transaction'
+import { storeLogger } from '../utils/loggers'
 
 export class ContractStore {
-  /**
-   * All TrustMesh contracts
-   */
-  @observable.ref public trustmesh?: ITrustMeshContracts
+  @observable.ref private contracts?: ITrustMeshContracts
+  @observable private _isLoading = true
+
+  @computed
+  public get isLoadingContracts() {
+    return this._isLoading
+  }
+
+  @computed
+  public get allContracts() {
+    const { contracts } = this
+    if (contracts == null) {
+      throw new Error('Accessing contract while contracts is not available')
+    }
+
+    return contracts
+  }
 
   @computed
   public get identitiesContract() {
-    return this.trustmesh!.identities
+    return this.allContracts.identities
   }
 
   @computed
   public get messagesContract() {
-    return this.trustmesh!.messages
+    return this.allContracts.messages
   }
 
   @computed
   public get broadcastMessagesContract() {
-    return this.trustmesh!.broadcastMessages
+    return this.allContracts.broadcastMessages
   }
 
   @computed
   public get socialProofsContract() {
-    return this.trustmesh!.socialProofs
+    return this.allContracts.socialProofs
   }
 
   @computed
-  public get isNotAvailable(): boolean {
-    return !this.trustmesh
+  public get isAvailable(): boolean {
+    return this.contracts != null
   }
 
-  constructor(
-    private web3: Web3,
-    private metaMaskStore: MetaMaskStore,
-  ) {
-    this.configureTrustMesh()
-
+  constructor(private web3: Web3, private metaMaskStore: MetaMaskStore) {
     reaction(
       () => this.metaMaskStore.currentEthereumNetwork,
       () => this.configureTrustMesh(),
     )
   }
 
-  public getProcessingTransactionHandler(hash: string): IProcessingTransactionHandlers {
+  public getProcessingTransactionHandler(
+    hash: string,
+  ): IProcessingTransactionHandlers {
     return getProcessingTransactionHandlers(this.web3, hash)
   }
 
   private async configureTrustMesh() {
-    const contracts = await getContracts(this.web3)
-    runInAction(() => {
-      this.trustmesh = contracts
-    })
+    const { metaMaskStore } = this
+    if (metaMaskStore.currentEthereumNetwork == null) {
+      this.setContracts(undefined)
+      return
+    }
+
+    if (metaMaskStore.isWrongNetwork) {
+      return
+    }
+
+    try {
+      this.setIsLoading(true)
+      const contracts = await getContracts(this.web3)
+      this.setContracts(contracts)
+    } catch (err) {
+      storeLogger.error('Failed to get trustmesh contracts:', err)
+      this.setContracts(undefined)
+    }
+  }
+
+  @action
+  private setIsLoading(value: boolean) {
+    this._isLoading = value
+  }
+
+  @action
+  private setContracts(contracts?: ITrustMeshContracts) {
+    this.contracts = contracts
+    this.setIsLoading(false)
   }
 }
 

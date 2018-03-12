@@ -4,14 +4,12 @@ import { RouteComponentProps, Link } from 'react-router-dom'
 // component
 import {
   Divider,
-  Upload,
-  message,
   List,
   Button,
 } from 'antd'
-import { UploadFile } from 'antd/lib/upload/interface.d'
 import AccountListItem from './AccountListItem'
 import StatusButton, { STATUS_TYPE } from '../../components/StatusButton'
+import RestoreUserButton from '../../components/RestoreUserButton'
 
 // style
 import * as classes from './index.css'
@@ -25,7 +23,6 @@ import { IUser } from '../../stores/UserStore'
 
 // helper
 import { storeLogger } from '../../utils/loggers'
-import { sleep } from '../../utils'
 import { Lambda } from 'mobx'
 
 @inject(mapStoreToProps)
@@ -62,17 +59,8 @@ class Accounts extends React.Component<IProps, IState> {
           )}
           <Divider />
           <div className="vertical-align-container">
-            <Upload
-              action="/"
-              beforeUpload={this.handleImport}
-              accept=".json"
-              disabled={this.state.isImporting}
-            >
-              <Button icon="upload">
-                Restore Account Backup
-              </Button>
-            </Upload>
-            {this.renderExportButton(usersStore)}
+            <RestoreUserButton />
+            {this.renderBackupButton(usersStore)}
           </div>
         </section>
       </div>
@@ -105,91 +93,50 @@ class Accounts extends React.Component<IProps, IState> {
     )
   }
 
-  private renderExportButton(usersStore: UsersStore) {
+  private renderBackupButton(usersStore: UsersStore) {
     const { currentUserStore } = usersStore
     if (currentUserStore == null) {
       return null
     }
 
-    const { isExporting } = this.state
+    const { backupStatus } = this.state
+
+    const isExporting = backupStatus === BACKUP_USER_STATUS.PROCESSING
+    const statusType = backupStatus ? ICON_TYPES[backupStatus] : undefined
+    const statusContent = backupStatus ? STATUS_CONTENT[backupStatus] : undefined
+    const helpContent = backupStatus ? HELP_MESSAGES[backupStatus] : undefined
 
     return (
       <StatusButton
         className={classes.exportButton}
         buttonProps={{ type: undefined, size: 'default', icon: 'download' }}
         disabled={isExporting}
-        statusType={isExporting ? STATUS_TYPE.LOADING : undefined}
-        statusContent={isExporting ? 'Exporting...' : this.state.exportButtonContent}
-        onClick={this.handleExport}
+        statusType={statusType}
+        statusContent={statusContent}
+        helpContent={helpContent}
+        onClick={this.handleBackup}
       >
         Backup Current Account
       </StatusButton>
     )
   }
 
-  // TODO: tranform import button to status button
-  private handleImport = (_: UploadFile, files: UploadFile[]) => {
-    if (files.length === 0) {
-      return false
-    }
+  private handleBackup = async () => {
     this.setState({
-      isImporting: true,
+      backupStatus: BACKUP_USER_STATUS.PROCESSING,
     })
-    const file: File = files[0] as any
-    const reader = new FileReader()
-    reader.onload = async (oFREvent) => {
-      try {
-        const user = await this.injectedProps.usersStore.importUser((oFREvent.target as any).result)
-        if (this.isUnmounted) {
-          return
-        }
 
-        if (this.injectedProps.usersStore.users.length === 1) {
-          await this.injectedProps.usersStore.useUser(user)
+    const { currentUserStore } = this.injectedProps.usersStore
 
-          this.injectedProps.history.push('/getting-started')
-          await sleep(50)
-          message.success('Account backup restored!')
-        } else {
-          await sleep(50)
-          message.success('Account backup restored!')
-        }
-      } catch (err) {
-        if (this.isUnmounted) {
-          return
-        }
-
-        if ((err as Error).message === 'Network not match') {
-          message.error('This account backup belongs to another network')
-          return
-        }
-
-        if ((err as Error).message.includes('Key already exists in the object store')) {
-          message.info('This account already exists')
-          return
-        }
-
-        storeLogger.error(err)
-        message.error('Something went wrong')
-      } finally {
-        if (!this.isUnmounted) {
-          this.setState({
-            isImporting: false,
-          })
-        }
-      }
+    if (currentUserStore == null) {
+      return
     }
-    reader.readAsText(file)
-    return false
-  }
-
-  private handleExport = async () => {
-    this.setState({
-      isExporting: true,
-    })
 
     try {
-      await this.injectedProps.usersStore.currentUserStore!.exportUser()
+      await currentUserStore.exportUser()
+      this.setState({
+        backupStatus: undefined,
+      })
     } catch (err) {
       storeLogger.error('Unexpected backup error:', err)
       if (this.isUnmounted) {
@@ -197,14 +144,8 @@ class Accounts extends React.Component<IProps, IState> {
       }
 
       this.setState({
-        exportButtonContent: 'Backup failed.',
+        backupStatus: BACKUP_USER_STATUS.FAILED,
       })
-    } finally {
-      if (!this.isUnmounted) {
-        this.setState({
-          isExporting: false,
-        })
-      }
     }
   }
 
@@ -223,14 +164,29 @@ function mapStoreToProps({
   }
 }
 
-// typing
+export enum BACKUP_USER_STATUS {
+  PROCESSING,
+  FAILED,
+}
+
+const ICON_TYPES = Object.freeze({
+  [BACKUP_USER_STATUS.PROCESSING]: STATUS_TYPE.LOADING,
+  [BACKUP_USER_STATUS.FAILED]: STATUS_TYPE.ERROR,
+})
+
+const STATUS_CONTENT = Object.freeze({
+  [BACKUP_USER_STATUS.PROCESSING]: 'Processing...',
+  [BACKUP_USER_STATUS.FAILED]: 'Backup failed',
+})
+
+const HELP_MESSAGES = Object.freeze({
+  [BACKUP_USER_STATUS.FAILED]: 'Sorry! you can retry later',
+})
+
 interface IProps extends RouteComponentProps<{}> { }
 
 const defaultState: Readonly<IState> = {
-  isCreatingTransaction: false,
-  isImporting: false,
-  isExporting: false,
-  exportButtonContent: undefined,
+  backupStatus: undefined,
 }
 
 interface IInjectedProps {
@@ -239,10 +195,7 @@ interface IInjectedProps {
 }
 
 interface IState {
-  isCreatingTransaction: boolean
-  isImporting: boolean
-  isExporting: boolean
-  exportButtonContent?: JSX.Element | string
+  backupStatus?: BACKUP_USER_STATUS
 }
 
 export default Accounts

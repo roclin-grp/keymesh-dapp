@@ -3,8 +3,10 @@ import * as React from 'react'
 import {
   Button,
   Icon,
+  Tooltip,
 } from 'antd'
 import { ButtonProps } from 'antd/lib/button'
+import { RenderFunction } from 'antd/lib/tooltip'
 
 // style
 import classnames from 'classnames'
@@ -51,6 +53,7 @@ function renderStatus({
   statusClassName,
   statusType,
   statusContent,
+  helpContent,
 }: IStatusProps) {
   if (statusType == null && statusContent == null) {
     return null
@@ -60,6 +63,7 @@ function renderStatus({
     <div className={statusClassName}>
       {renderStatusIcon(statusType)}
       {statusContent}
+      {renderHelp(helpContent)}
     </div>
   )
 }
@@ -75,6 +79,18 @@ function renderStatusIcon(statusType: IProps['statusType']) {
       className={classnames(classes.statusIcon, STATUS_ICON_MODIFIERS[statusType])}
       type={STATUS_ICON_TYPES[statusType]}
     />
+  )
+}
+
+function renderHelp(helpText: IProps['helpContent']) {
+  if (helpText == null) {
+    return null
+  }
+
+  return (
+    <Tooltip title={helpText}>
+      <Icon className={classes.helpIcon} type="question-circle-o" />
+    </Tooltip>
   )
 }
 
@@ -105,6 +121,7 @@ interface IStatusProps {
   statusClassName?: string
   statusType?: STATUS_TYPE
   statusContent?: React.ReactNode
+  helpContent?: React.ReactNode | RenderFunction
 }
 
 interface IProps extends IStatusProps {

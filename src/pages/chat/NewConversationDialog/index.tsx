@@ -192,28 +192,28 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       searchText: inputValue,
     })
 
+    const { networkId } = this.props.user
     if (isAddress(inputValue)) {
       try {
         await this.props.sessionsStore.validateReceiver(inputValue)
 
         this.setResultUsers([{ userAddress: inputValue, verifications: [] }], inputValue)
 
-        const userInfo = await searchUserByAddress(inputValue)
-        if (userInfo.length > 0) {
-          this.setResultUsers(userInfo, inputValue)
+        const userInfo = await searchUserByAddress(networkId, inputValue)
+        if (userInfo == null) {
+          return
         }
-        return
+        this.setResultUsers([userInfo], inputValue)
       } catch (err) {
-        this.setState({
-          searchText: undefined,
-          users: [],
-        })
+        this.setResultUsers([], inputValue)
         return
       }
     }
 
-    const searchUserInfo = await searchUser(inputValue)
-    this.setResultUsers(searchUserInfo, inputValue)
+    const searchUserInfos = await searchUser(networkId, inputValue)
+    const { userAddress } = this.props.user
+    const excludedSelfUserInfos = searchUserInfos.filter((info) => info.userAddress !== userAddress)
+    this.setResultUsers(excludedSelfUserInfos, inputValue)
   }
   // tslint:disable-next-line member-ordering
   private handleSearchDebounced = debounce(this.handleSearch, 300)

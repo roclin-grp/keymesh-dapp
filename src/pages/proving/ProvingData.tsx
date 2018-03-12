@@ -13,7 +13,6 @@ import {
   Lambda,
 } from 'mobx'
 
-import { UsersStore } from '../../stores/UsersStore'
 import {
   PLATFORMS,
   ISignedClaim,
@@ -22,6 +21,7 @@ import {
 } from '../../stores/SocialProofsStore'
 
 import { storeLogger } from '../../utils/loggers'
+import { UserStore } from '../../stores/UserStore'
 
 export default abstract class ProvingData {
   @observable public claim: ISignedClaim | undefined
@@ -35,7 +35,7 @@ export default abstract class ProvingData {
 
   protected abstract findProofHelpText: string
 
-  constructor(protected usersStore: UsersStore) {
+  constructor(protected readonly userStore: UserStore) {
     this.init()
   }
 
@@ -70,7 +70,7 @@ export default abstract class ProvingData {
 
   @action
   public async continueHandler() {
-    const signedClaim = await this.generateSignedClaim(this.usersStore.currentUserStore!.user.userAddress)
+    const signedClaim = await this.generateSignedClaim(this.userStore.user.userAddress)
     this.setClaim(signedClaim)
     this.setStep(PROVING_STEPS.POST)
   }
@@ -88,7 +88,7 @@ export default abstract class ProvingData {
   }
 
   public async uploadBindingProof(): Promise<void> {
-    this.usersStore.currentUserStore!.socialProofsStore.uploadProof(this.platform, this.proof!, {
+    this.userStore.socialProofsStore.uploadProof(this.platform, this.proof!, {
       transactionWillCreate: () => {
         this.setProofStatusType(STATUS_TYPE.LOADING)
         this.setProofStatusContent('Pending authorization')
@@ -154,7 +154,7 @@ export default abstract class ProvingData {
   }
 
   private async generateSignedClaim(userAddress: string): Promise<ISignedClaim> {
-    const signature = await this.usersStore.currentUserStore!.cryptoBox.sign(userAddress)
+    const signature = await this.userStore.cryptoBox.sign(userAddress)
     return {
       userAddress,
       signature,
