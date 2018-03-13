@@ -1,85 +1,82 @@
 import * as React from 'react'
 
-import {
-  RouteComponentProps,
-  Redirect,
-} from 'react-router-dom'
-
-import ProfileContent from './Content'
+import { RouteComponentProps } from 'react-router-dom'
+import ProfileCard from './ProfileCard'
+import NotFound from '../NotFound'
+import LoadingPage from '../LoadingPage'
 
 import { inject, observer } from 'mobx-react'
 import { IStores } from '../../stores'
-import { UserProofsStatesStore } from '../../stores/UserProofsStatesStore'
 
-import { isAddress, base58ToChecksumAddress } from '../../utils/cryptos'
+import ProfileData from './data'
+import { IProcessedUserInfo } from '../../stores/UserCachesStore'
+import { UserProofsStatesStore } from '../../stores/UserProofsStatesStore'
 
 @inject(mapStoreToProps)
 @observer
-class Profile extends React.Component<IProps & RouteComponentProps<IParams>> {
+class Profile extends React.Component<IProps> {
+  private readonly injectedProps = this.props as Readonly<IProps & IInjectedProps>
+
+  public componentWillUnmount() {
+    this.injectedProps.data.disposeData()
+    this.injectedProps.userProofsStatesStore.clearCachedStores()
+  }
+
   public render() {
-    if (!this.props.isValidAddress) {
-      return <p>Not Found</p>
-    }
-    if (this.props.shouldRedirect) {
-      return <Redirect to={`/profile/${this.props.userAddress}`} />
+    const { data, isSelf } = this.injectedProps
+    const { isLoading } = data
+    if (isLoading) {
+      return <LoadingPage message={isSelf ? 'Loading data...' : 'Finding user...'} />
     }
 
-    const {
-      userProofsStatesStore,
-      userAddress,
-      isSelf,
-    } = this.props
+    const { userInfos } = data
+    if (userInfos.length === 0) {
+      return <NotFound message="User not found" />
+    }
 
     return (
-      <ProfileContent
-        proofsStateStore={userProofsStatesStore.getUserProofsStateStore(userAddress)}
-        userAddress={userAddress}
-        isSelf={isSelf}
-      />
+      <div className={'page-container'}>
+        {this.renderUserCards(userInfos, isSelf)}
+      </div>
     )
+  }
+
+  private renderUserCards(userInfos: IProcessedUserInfo[], isSelf: boolean) {
+    const cards: JSX.Element[] = []
+
+    const { userProofsStatesStore } = this.injectedProps
+    let isFrist = true
+    for (const userInfo of userInfos) {
+      const proofsStateStore = userProofsStatesStore.getUserProofsStateStore(userInfo.userAddress)
+      cards.push((
+        <ProfileCard
+          key={`${userInfo.userAddress}${userInfo.displayUsername}`}
+          isFirstCard={isFrist}
+          userInfo={userInfo}
+          isSelf={isSelf}
+          proofsStateStore={proofsStateStore}
+        />
+      ))
+
+      if (isFrist) {
+        isFrist = false
+      }
+    }
+
+    return cards
   }
 }
 
-function mapStoreToProps(stores: IStores, ownProps: IProps & RouteComponentProps<IParams>): IProps {
+function mapStoreToProps(stores: IStores, ownProps: IProps & RouteComponentProps<IParams>): IInjectedProps {
   const {
     usersStore,
     metaMaskStore,
   } = stores
-  const possibleBase58EncodedUserAddress = ownProps.match.params.userAddress
-
-  const hasAddress = possibleBase58EncodedUserAddress != null
-  const userAddress = (
-    hasAddress
-    ? getDecodedUserAddress(possibleBase58EncodedUserAddress!)
-    : usersStore.currentUserStore!.user.userAddress
-  )
-
-  const isValidAddress = isAddress(userAddress)
-  const shouldRedirect = hasAddress && userAddress !== possibleBase58EncodedUserAddress
-  const isSelf = isValidAddress && usersStore.isCurrentUser(
-    metaMaskStore.currentEthereumNetwork!,
-    userAddress,
-  )
-
+  const { userAddress, twitterUsername } = ownProps.match.params
   return {
+    data: new ProfileData(usersStore, metaMaskStore, twitterUsername, userAddress),
+    isSelf: userAddress == null && twitterUsername == null,
     userProofsStatesStore: usersStore.userProofsStatesStore,
-    userAddress,
-    shouldRedirect,
-    isValidAddress,
-    isSelf,
-  }
-}
-
-function getDecodedUserAddress(possibleBase58EncodedUserAddress: string): string {
-  if (isAddress(possibleBase58EncodedUserAddress)) {
-    return possibleBase58EncodedUserAddress
-  }
-
-  try {
-    return base58ToChecksumAddress(possibleBase58EncodedUserAddress)
-  } catch (_) {
-    // decode fail
-    return possibleBase58EncodedUserAddress
   }
 }
 
@@ -88,12 +85,13 @@ interface IParams {
   twitterUsername?: string
 }
 
-interface IProps {
-  userProofsStatesStore: UserProofsStatesStore
-  userAddress: string
-  shouldRedirect: boolean
-  isValidAddress: boolean
+interface IProps extends RouteComponentProps<IParams> {
+}
+
+interface IInjectedProps {
+  data: ProfileData
   isSelf: boolean
+  userProofsStatesStore: UserProofsStatesStore
 }
 
 export default Profile

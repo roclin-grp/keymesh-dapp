@@ -47,6 +47,7 @@ class GithubProving extends React.Component<IProps> {
     const {
       proofStatusType,
       proofStatusContent,
+      proofStatusHelpContent,
       buttonDisabled,
     } = data
 
@@ -73,6 +74,7 @@ class GithubProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.checkProof.bind(data)}
           >
             Check Proof
@@ -104,6 +106,7 @@ class GithubProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.uploadBindingProof.bind(data)}
           >
             Record Proof

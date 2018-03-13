@@ -15,7 +15,7 @@ import {
 import { IMessage, IAddMessageOptions } from '../databases/MessagesDB'
 import { getPreKeysPackage } from '../PreKeysPackage'
 
-import { sleep } from '../../../trustmesh/lib/utils'
+import { sleep } from '../utils'
 import { publicKeyFromHexStr } from '../utils/proteus'
 
 export class SessionsStore {

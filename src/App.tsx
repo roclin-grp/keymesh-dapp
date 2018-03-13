@@ -19,6 +19,7 @@ import Profile from './pages/profile'
 import Proving from './pages/proving'
 import GettingStarted from './pages/getting-started'
 import Register from './pages/register'
+import NotFound from './pages/NotFound'
 
 import { Provider, observer } from 'mobx-react'
 import { IStores } from './stores'
@@ -88,23 +89,26 @@ class App extends React.Component<IProps> {
     return (
       <Switch>
         <Redirect from="/" exact={true} to="/broadcast" />
-        <Route path="/broadcast" component={Broadcast} />
-        <Route path="/register" component={Register} />
-        <Route path="/profile/:userAddress" component={Profile} />
+        <Route path="/broadcast" exact={true} component={Broadcast} />
+        <Route path="/register" exact={true} component={Register} />
+        <Route path="/profile/:userAddress" exact={true} component={Profile} />
         <ConditionalRoute
           path="/accounts"
+          exact={true}
           component={Accounts}
           predicate={hasUser}
           redirectTo="/register"
         />
         <ConditionalRoute
           path="/getting-started"
+          exact={true}
           component={GettingStarted}
           predicate={hasUser}
           redirectTo="/register"
         />
         <ConditionalRoute
           path="/messages"
+          exact={true}
           component={Chat}
           predicate={hasUser}
           redirectTo="/register"
@@ -118,11 +122,12 @@ class App extends React.Component<IProps> {
         />
         <ConditionalRoute
           path="/proving/:platform"
+          exact={true}
           component={Proving}
           predicate={hasUser}
           redirectTo="/register"
         />
-        <Route path="/:twitterUsername" component={Profile} />
+        <Route exact={true} path="/:twitterUsername" component={Profile} />
         <Route component={NotFound} />
       </Switch>
     )
@@ -131,10 +136,6 @@ class App extends React.Component<IProps> {
 
 interface IProps {
   stores?: IStores
-}
-
-function NotFound() {
-  return <pre>Not found</pre>
 }
 
 const ConditionalRoute = ({

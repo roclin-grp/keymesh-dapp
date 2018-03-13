@@ -1,6 +1,6 @@
 import { observable, action } from 'mobx'
 import { UsersStore } from '../../stores/UsersStore'
-import { searchUserByAddress } from '../../stores/UserCachesStore'
+import { getUserInfoByAddress } from '../../stores/UserCachesStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
 const Identicon = require('identicon.js')
@@ -32,7 +32,7 @@ class UserAvatarData {
 
   public async fetchUserInfoAvatar(userAddress: string) {
     // TODO: use cache
-    const userInfo = await searchUserByAddress(this.metaMaskStore.networkID, userAddress)
+    const userInfo = await getUserInfoByAddress(this.metaMaskStore.networkID, userAddress)
     if (userInfo == null) {
       return
     }

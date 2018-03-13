@@ -25,6 +25,7 @@ class TwitterProving extends React.Component<IProps> {
       buttonDisabled,
       proofStatusType,
       proofStatusContent,
+      proofStatusHelpContent,
     } = data
 
     if (currentStep === PROVING_STEPS.CONNECT) {
@@ -37,6 +38,7 @@ class TwitterProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.authorize.bind(data)}
           >
             Connect To Twitter
@@ -46,7 +48,7 @@ class TwitterProving extends React.Component<IProps> {
     }
 
     if (currentStep === PROVING_STEPS.POST) {
-      const twitterClaimText = signedClaimToClaimText(data.claim!)
+      const twitterClaimText = signedClaimToClaimText(data.claim!, data.username)
       const tweetClaimURL = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(twitterClaimText)
       return (
         <>
@@ -56,7 +58,7 @@ class TwitterProving extends React.Component<IProps> {
           <p>
             Tweet the following text exactly as it appears to cryptographically prove your address
           </p>
-          <ProvingTextarea value={signedClaimToClaimText(data.claim!)} />
+          <ProvingTextarea value={twitterClaimText} />
           <Button size="large" className={commonClasses.postButton} type="primary">
             <a href={tweetClaimURL} target="_blank">Tweet Proof</a>
           </Button>
@@ -68,6 +70,7 @@ class TwitterProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.checkProof.bind(data)}
           >
             Check Proof
@@ -99,6 +102,7 @@ class TwitterProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.uploadBindingProof.bind(data)}
           >
             Record Proof

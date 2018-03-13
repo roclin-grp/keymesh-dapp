@@ -7,6 +7,7 @@ const Step = Steps.Step
 import { Link, RouteComponentProps } from 'react-router-dom'
 
 import ProvingData from './ProvingData'
+import NotFound from '../NotFound'
 
 import TwitterProving from './twitter'
 // import GithubProving from './github'
@@ -20,7 +21,6 @@ import { IStores } from '../../stores'
 import { PLATFORMS, PLATFORM_LABELS } from '../../stores/SocialProofsStore'
 
 import * as styles from './index.css'
-import classnames from 'classnames'
 import { Lambda } from 'mobx'
 import { sleep } from '../../utils'
 import { UserStore } from '../../stores/UserStore'
@@ -48,14 +48,7 @@ class Proving extends React.Component<IProps> {
 
   public render() {
     if (!this.props.isValidPlatform) {
-      return (
-        <div className={classnames('page-container', 'center-align-column-container')}>
-          <h2>
-            Invalid platform
-          </h2>
-          <Link to="/profile">Back to profile</Link>
-        </div>
-      )
+      return <NotFound />
     }
 
     const data = this.props.data!
@@ -132,7 +125,7 @@ function getSocialProvingState(platform: PLATFORMS, userStore: UserStore): Provi
 
 function mapStoreToProps(stores: IStores, ownProps: IProps) {
   const platform = ownProps.match.params.platform
-  const isValidPlatform = Object.values(PLATFORMS).includes(platform)
+  const isValidPlatform = platform === PLATFORMS.TWITTER
   const { usersStore: { currentUserStore } } = stores
   if (currentUserStore == null) {
     throw new Error('trying to render proving page without user')

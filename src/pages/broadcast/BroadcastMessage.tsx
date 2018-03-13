@@ -1,104 +1,65 @@
 import * as React from 'react'
-import {
-  Link,
-} from 'react-router-dom'
 
-import { observable, runInAction } from 'mobx'
+import { Link } from 'react-router-dom'
+import { Icon } from 'antd'
+import UserAvatar from '../../components/UserAvatar'
+import Username from '../../components/Username'
+
 import { observer } from 'mobx-react'
-
-import {
-  Icon,
-} from 'antd'
-import HashAvatar from '../../components/HashAvatar'
-import UserAddress from '../../components/UserAddress'
 import {
   IBroadcastMessage,
   MESSAGE_STATUS,
 } from '../../stores/BroadcastMessagesStore'
 import { UserCachesStore } from '../../stores/UserCachesStore'
 import { UserProofsStateStore } from '../../stores/UserProofsStateStore'
+import { PALTFORM_MODIFIER_CLASSES } from '../../stores/SocialProofsStore'
 
 import * as styles from './BroadcastMessage.css'
-import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 import classnames from 'classnames'
 
-import {
-  PALTFORM_MODIFIER_CLASSES,
-} from '../../stores/SocialProofsStore'
-
-interface IProps {
-  message: IBroadcastMessage
-  userCachesStore: UserCachesStore
-  userProofsStateStore: UserProofsStateStore
-  status: MESSAGE_STATUS
-}
+import { sleep } from '../../utils'
+import { getBroadcastEstimateTime, getBroadcastTime } from '../../utils/time'
 
 @observer
-export default class BroadcastMessage extends React.Component<IProps> {
-  // FIXME: no @observable inside React component
-  @observable
-  private avatarHash: string = ''
-  @observable
-  private timeText: string = ''
-  private updateTimeTimeout!: number
+export default class BroadcastMessage extends React.Component<IProps, IState> {
+  public state = defaultState
 
+  private isUnmounted = false
   public async componentDidMount() {
-    const {
-      userCachesStore: {
-        getAvatarHashByUserAddress,
-      },
-      userProofsStateStore,
-      message: {
-        author,
-      },
-    } = this.props
-    const avatarHash = await getAvatarHashByUserAddress(author!)
     this.updateTimeText()
-    runInAction(() => {
-      this.avatarHash = avatarHash
-    })
 
-    if (!userProofsStateStore.isFetchingUserProofs) {
-      // fetch proving per 15 mins
-      userProofsStateStore.startFetchUserProofs(15 * 60 * 1000)
-    }
+    // fetch proving per 15 mins
+    this.props.userProofsStateStore.startFetchUserProofs(15 * 60 * 1000)
   }
 
   public componentWillUnmount() {
-    const {
-      userProofsStateStore,
-    } = this.props
-    window.clearTimeout(this.updateTimeTimeout)
-    userProofsStateStore.stopFetchUserProofs()
+    this.isUnmounted = true
+    this.props.userProofsStateStore.stopFetchUserProofs()
   }
 
   public render() {
     const { message } = this.props
     const userAddress = message.author!
-    const username = this.getUsername()
 
     return <div className={styles.broadcastMessage}>
-      <HashAvatar
+      <UserAvatar
+        userAddress={userAddress}
         className={styles.avatar}
         shape="circle"
         size="large"
-        hash={this.avatarHash}
       />
       <div className={styles.body}>
         <div className={styles.infoWrapper}>
           <Link to={`/profile/${userAddress}`}>
-            {this.renderUsername(username)}
-            {this.renderPlatformIcons()}
-            <UserAddress
-              className={classnames(styles.userAddress, {
-                [styles.userAddressHasUsername]: username != null,
-              })}
-              maxLength={username ? 8 : 16}
+            <Username
+              className={classnames(styles.username)}
               userAddress={userAddress}
+              maxLength={16}
             />
+            {this.renderPlatformIcons()}
           </Link>
           <span title={getBroadcastTime(message.timestamp)}>
-            {` ${this.timeText}`}
+            {` ${this.state.timeText}`}
           </span>
         </div>
         <p className={styles.content}>{message.message}</p>
@@ -107,31 +68,15 @@ export default class BroadcastMessage extends React.Component<IProps> {
     </div>
   }
 
-  private updateTimeText() {
-    runInAction(() => {
-      this.timeText = getBroadcastEstimateTime(this.props.message.timestamp)
-    })
+  private async updateTimeText() {
+    while (!this.isUnmounted) {
+      const timeText = getBroadcastEstimateTime(this.props.message.timestamp)
+      this.setState({
+        timeText,
+      })
 
-    this.updateTimeTimeout = window.setTimeout(() => this.updateTimeText(), 60 * 1000)
-  }
-
-  private getUsername(): string | null {
-    const { getValidProofs } = this.props.userProofsStateStore
-
-    const validProofs = getValidProofs()
-    if (validProofs.length === 0) {
-      return null
+      await sleep(60 * 1000)
     }
-
-    return validProofs[0].socialProofs.username
-  }
-
-  private renderUsername(username: string | null) {
-    if (username == null) {
-      return null
-    }
-
-    return <span className={styles.username}>{username}</span>
   }
 
   private renderPlatformIcons() {
@@ -164,6 +109,21 @@ export default class BroadcastMessage extends React.Component<IProps> {
       </p>
     )
   }
+}
+
+interface IProps {
+  message: IBroadcastMessage
+  userCachesStore: UserCachesStore
+  userProofsStateStore: UserProofsStateStore
+  status: MESSAGE_STATUS
+}
+
+interface IState {
+  timeText: string
+}
+
+const defaultState: Readonly<IState> = {
+  timeText: '',
 }
 
 const MESSAGE_MODIFIER_CLASSES = Object.freeze({

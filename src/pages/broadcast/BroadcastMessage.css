@@ -58,15 +58,6 @@
   font-weight: bold;
 }
 
-.userAddress:not(.userAddressHasUsername) {
-  color: #333;
-  font-weight: bold;
-}
-
-.userAddressHasUsername {
-  color: #ccc;
-}
-
 .infoWrapper {
   margin-bottom: 0.25rem;
 }

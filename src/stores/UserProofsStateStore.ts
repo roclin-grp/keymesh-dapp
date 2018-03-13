@@ -64,6 +64,11 @@ export class UserProofsStateStore {
   public getValidProofs = () => {
     const validProofs: ISocialProofWithPlatform[] = []
     for (const platform of platformNames) {
+      // TODO: remove this to enable other platform
+      if (platform !== PLATFORMS.TWITTER) {
+        continue
+      }
+
       const verification = this.verifications[platform]
       if (!verification.verifiedStatus) {
         continue
@@ -78,9 +83,14 @@ export class UserProofsStateStore {
   @computed
   public get isFirstLoadingProofs(): boolean {
     for (const platform of platformNames) {
+      // TODO: remove this to enable other platform
+      if (platform !== PLATFORMS.TWITTER) {
+        continue
+      }
+
       const verifiction = this.verifications[platform]
       if (!verifiction || verifiction.lastFetchBlock === 0) {
-          return true
+        return true
       }
     }
     return false
@@ -155,6 +165,11 @@ export class UserProofsStateStore {
 
   private async fetchUserAllPlatformProofs() {
     for (const platform of platformNames) {
+      // TODO: remove this to enable other platform
+      if (platform !== PLATFORMS.TWITTER) {
+        continue
+      }
+
       this.fetchUserPlaformProof(platform, this.userAddress)
     }
   }
@@ -238,6 +253,11 @@ export class UserProofsStateStore {
 
   private async verifyAll() {
     for (const platform of platformNames) {
+      // TODO: remove this to enable other platform
+      if (platform !== PLATFORMS.TWITTER) {
+        continue
+      }
+
       const verification = this.verifications[platform]
       if (verification.socialProof && isNeedVerify(verification.verifiedStatus)) {
         this.verify(platform, verification.socialProof.proofURL)

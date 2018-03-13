@@ -33,6 +33,7 @@ export function getMetaMaskWeb3(): Web3 | null {
 }
 
 export class MetaMaskStore {
+  // TODO: currentEthereumNetwork and currentEthereumAccount should be private
   @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
 
@@ -52,7 +53,7 @@ export class MetaMaskStore {
   public get walletAddress() {
     const { currentEthereumAccount } = this
     if (currentEthereumAccount == null) {
-      throw new Error('Trying to access networkID while MetaMask is locked or not connected')
+      throw new Error('Trying to access walletAddress while MetaMask is locked or not connected')
     }
 
     return currentEthereumAccount
