@@ -8,22 +8,22 @@ import { Link, RouteComponentProps } from 'react-router-dom'
 
 import ProvingData from './ProvingData'
 
-import GithubProving from './github'
 import TwitterProving from './twitter'
-import FacebookProving from './facebook'
+// import GithubProving from './github'
+// import FacebookProving from './facebook'
 
-import { GithubProvingData } from './github/GithubProvingData'
 import { TwitterProvingData } from './twitter/TwitterProvingData'
-import { FacebookProvingData } from './facebook/FacebookProvingData'
+// import { GithubProvingData } from './github/GithubProvingData'
+// import { FacebookProvingData } from './facebook/FacebookProvingData'
 
 import { IStores } from '../../stores'
 import { PLATFORMS, PLATFORM_LABELS } from '../../stores/SocialProofsStore'
 
 import * as styles from './index.css'
 import classnames from 'classnames'
-import { UsersStore } from '../../stores/UsersStore'
 import { Lambda } from 'mobx'
 import { sleep } from '../../utils'
+import { UserStore } from '../../stores/UserStore'
 
 @inject(mapStoreToProps)
 @observer
@@ -94,12 +94,12 @@ class Proving extends React.Component<IProps> {
 
     const { platform } = data
     switch (platform) {
-      case PLATFORMS.GITHUB:
-        return <GithubProving data={data as GithubProvingData} />
       case PLATFORMS.TWITTER:
         return <TwitterProving data={data as TwitterProvingData} />
-      case PLATFORMS.FACEBOOK:
-        return <FacebookProving data={data as FacebookProvingData} />
+      // case PLATFORMS.GITHUB:
+      //   return <GithubProving data={data as GithubProvingData} />
+      // case PLATFORMS.FACEBOOK:
+      //   return <FacebookProving data={data as FacebookProvingData} />
       default:
         return null
     }
@@ -117,14 +117,14 @@ class Proving extends React.Component<IProps> {
   }
 }
 
-function getSocialProvingState(platform: PLATFORMS, usersStore: UsersStore): ProvingData {
+function getSocialProvingState(platform: PLATFORMS, userStore: UserStore): ProvingData {
   switch (platform) {
-    case PLATFORMS.GITHUB:
-      return new GithubProvingData(usersStore)
     case PLATFORMS.TWITTER:
-      return new TwitterProvingData(usersStore)
-    case PLATFORMS.FACEBOOK:
-      return new FacebookProvingData(usersStore)
+      return new TwitterProvingData(userStore)
+    // case PLATFORMS.GITHUB:
+    //   return new GithubProvingData(userStore)
+    // case PLATFORMS.FACEBOOK:
+    //   return new FacebookProvingData(userStore)
     default:
       throw new Error('unknown platform')
   }
@@ -133,9 +133,14 @@ function getSocialProvingState(platform: PLATFORMS, usersStore: UsersStore): Pro
 function mapStoreToProps(stores: IStores, ownProps: IProps) {
   const platform = ownProps.match.params.platform
   const isValidPlatform = Object.values(PLATFORMS).includes(platform)
+  const { usersStore: { currentUserStore } } = stores
+  if (currentUserStore == null) {
+    throw new Error('trying to render proving page without user')
+  }
+
   return {
     isValidPlatform,
-    data: isValidPlatform ? getSocialProvingState(platform, stores.usersStore) : null,
+    data: isValidPlatform ? getSocialProvingState(platform, currentUserStore) : null,
   }
 }
 

@@ -8,17 +8,23 @@ import { UsersStore } from '../../stores/UsersStore'
 
 import UserAvatarData, { getSrcFromKeyMeshAvatarHash } from './data'
 import { IProcessedUserInfo } from '../../stores/UserCachesStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
 @inject(({
   usersStore,
+  metaMaskStore,
 }: IStores): IInjectedProps => ({
   usersStore,
+  metaMaskStore,
 }))
 @observer
 class UserAvatar extends React.Component<IProps> {
   private readonly injectedProps = this.props as Readonly<IProps & IInjectedProps>
 
-  private readonly data = new UserAvatarData(this.injectedProps.usersStore)
+  private readonly data = new UserAvatarData(
+    this.injectedProps.usersStore,
+    this.injectedProps.metaMaskStore,
+  )
 
   public async componentWillMount() {
     const { userInfo, keyMeshAvatarHash } = this.props
@@ -76,6 +82,7 @@ interface IProps {
 
 interface IInjectedProps {
   usersStore: UsersStore
+  metaMaskStore: MetaMaskStore
 }
 
 const SIZE_PX = Object.freeze({

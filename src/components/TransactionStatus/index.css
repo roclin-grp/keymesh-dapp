@@ -1,0 +1,8 @@
+.helpIcon {
+  margin-left: 0.5rem;
+}
+
+.transactionLink,
+.transactionLink:hover {
+  color: rgba(0, 0, 0, 0.65);
+}

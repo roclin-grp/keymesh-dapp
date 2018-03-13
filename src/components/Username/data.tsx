@@ -7,11 +7,14 @@ import * as classes from './index.css'
 
 import { observable, action } from 'mobx'
 import { searchUserByAddress, IProcessedUserInfo } from '../../stores/UserCachesStore'
-import { PLATFORMS } from '../../stores/SocialProofsStore'
+import { PALTFORM_MODIFIER_CLASSES } from '../../stores/SocialProofsStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
 class UsernameData {
   @observable
   public username!: string | JSX.Element
+
+  constructor(private readonly metaMaskStore: MetaMaskStore) {}
 
   @action
   public setUsername(name: string | JSX.Element) {
@@ -20,12 +23,12 @@ class UsernameData {
 
   public async fetchUserInfoUsername(userAddress: string, showAllUsernames?: boolean) {
     // TODO: use cache
-    const userInfos = await searchUserByAddress(userAddress)
-    if (userInfos.length === 0) {
+    const userInfo = await searchUserByAddress(this.metaMaskStore.networkID, userAddress)
+    if (userInfo == null) {
       return
     }
 
-    const username = getUserName(userInfos[0], showAllUsernames)
+    const username = getUserName(userInfo, showAllUsernames)
 
     this.setUsername(username)
   }
@@ -61,11 +64,5 @@ export function getUserName(
   }
   return <span>{userNameComponent}</span>
 }
-
-export const PALTFORM_MODIFIER_CLASSES = Object.freeze({
-  [PLATFORMS.TWITTER]: 'twitterTone',
-  [PLATFORMS.FACEBOOK]: 'facebookTone',
-  [PLATFORMS.GITHUB]: 'gitHubTone',
-})
 
 export default UsernameData

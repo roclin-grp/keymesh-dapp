@@ -5,7 +5,8 @@ import {
   Tooltip,
   Icon,
 } from 'antd'
-import UserAddress from '../../../components/UserAddress'
+import Username from '../../../components/Username'
+import { Link } from 'react-router-dom'
 
 // style
 import classnames from 'classnames'
@@ -28,7 +29,7 @@ import {
 } from '../../../stores/MetaMaskStore'
 
 import { getMessageTimeStamp } from '../../../utils/time'
-import { IMessage, MESSAGE_STATUS, MESSAGE_TYPE } from '../../../databases/MessagesDB'
+import { IMessage, MESSAGE_STATUS } from '../../../databases/MessagesDB'
 
 import ENV from '../../../config'
 
@@ -47,23 +48,24 @@ class Message extends React.Component<IProps> {
     } = this.props
     const timestampStr = getMessageTimeStamp(data.timestamp)
 
-    if (data.messageType === MESSAGE_TYPE.CLOSE_SESSION) {
-      return (
-        <li>
-          Session had been closed at {timestampStr}
-        </li>
-      )
-    }
+    // if (data.messageType === MESSAGE_TYPE.CLOSE_SESSION) {
+    //   return (
+    //     <li>
+    //       Session had been closed at {timestampStr}
+    //     </li>
+    //   )
+    // }
 
     return (
       <li className={classnames(styles.message, {[styles.messageSelf]: meta.isFromYourself})}>
         <div className={styles.metaInfo}>
-          <span
+          <Link
             title={`${contact}`}
             className={styles.sender}
+            to={`/profile/${contact}`}
           >
             {this.renderSender()}
-          </span>
+          </Link>
           <span className={styles.time}>{timestampStr}</span>
         </div>
         <div className={styles.content}>
@@ -80,7 +82,7 @@ class Message extends React.Component<IProps> {
       return 'me'
     }
 
-    return <UserAddress userAddress={this.props.contact} maxLength={11} />
+    return <Username userAddress={this.props.contact} maxLength={11} />
   }
 
   private renderStatus() {

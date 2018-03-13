@@ -29,3 +29,7 @@
 .statusIcon.error {
   color: #f5222d;
 }
+
+.helpIcon {
+  margin-left: 0.5rem;
+}

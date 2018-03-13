@@ -1,6 +1,7 @@
 import { observable, action } from 'mobx'
 import { UsersStore } from '../../stores/UsersStore'
 import { searchUserByAddress } from '../../stores/UserCachesStore'
+import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
 const Identicon = require('identicon.js')
 
@@ -8,7 +9,7 @@ class UserAvatarData {
   @observable
   public avatarSrc: string | undefined
 
-  constructor(private readonly usersStore: UsersStore) {
+  constructor(private readonly usersStore: UsersStore, private readonly metaMaskStore: MetaMaskStore) {
   }
 
   @action
@@ -31,12 +32,12 @@ class UserAvatarData {
 
   public async fetchUserInfoAvatar(userAddress: string) {
     // TODO: use cache
-    const userInfos = await searchUserByAddress(userAddress)
-    if (userInfos.length === 0) {
+    const userInfo = await searchUserByAddress(this.metaMaskStore.networkID, userAddress)
+    if (userInfo == null) {
       return
     }
 
-    const { avatarImgURL } = userInfos[0]
+    const { avatarImgURL } = userInfo
 
     if (avatarImgURL == null) {
       return

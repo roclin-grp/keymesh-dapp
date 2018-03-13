@@ -85,6 +85,7 @@ function getDecodedUserAddress(possibleBase58EncodedUserAddress: string): string
 
 interface IParams {
   userAddress?: string
+  twitterUsername?: string
 }
 
 interface IProps {

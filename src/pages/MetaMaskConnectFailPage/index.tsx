@@ -1,99 +1,109 @@
 import * as React from 'react'
 
 // component
-import {
-  Icon,
-  Collapse,
-} from 'antd'
+import { Icon, Collapse } from 'antd'
 const Panel = Collapse.Panel
-import ErrorPage from '../ErrorPage'
 
 // style
-import * as styles from './index.css'
+import * as classes from './index.css'
+import composeClass from 'classnames'
 
 import metaMaskLockedScreenshot from './meta-mask-screenshot-locked.png'
+import howToSelectNetwork from './how-to-select-network.png'
 
-// state management
-import {
-  inject,
-  observer,
-} from 'mobx-react'
-import {
-  IStores,
-} from '../../stores'
-import {
-  MetaMaskStore,
-} from '../../stores/MetaMaskStore'
-import {
-  UsersStore,
-} from '../../stores/UsersStore'
-
-@inject(({
-  metaMaskStore,
-  usersStore,
-}: IStores) => ({
-  metaMaskStore,
-  usersStore,
-}))
-@observer
-class MetaMaskConnectFailPage extends React.Component {
-  private readonly injectedProps = this.props as Readonly<IInjectedProps>
-
-  public render() {
-    const {
-      hasNoMetaMask,
-      isLocked,
-    } = this.injectedProps.metaMaskStore
-    const iconWarningClass = styles.iconWarning
-    switch (true) {
-      case hasNoMetaMask: {
-        return (
-          <div className="page-container">
-            <Icon type="exclamation-circle-o" className={iconWarningClass} />
-            <h1>
-              You need to install
-              <a target="_blank" href="https://metamask.io/">MetaMask</a>
-              before using this app.
-            </h1>
-          </div>
-        )
-      }
-      case isLocked: {
-        return (
-          <div className="page-container">
-            <h1 className="vertical-align-container">
-              <Icon type="lock" className={iconWarningClass} />
-              You need to unlock MetaMask.
-            </h1>
-            <Collapse defaultActiveKey={['unlock-metamask']} bordered={false}>
-              <Panel className={styles.collapsePanel} header={<h3>Why is MetaMask locked?</h3>} key="unlock-metamask">
-                <div className={styles.collapseContent}>
-                  <p>
-                    MetaMask locks your account after a certain period of time automatically.
-                    To unlock simply click on the MetaMask extension and type in your password.
-                  </p>
-                  <img
-                    src={metaMaskLockedScreenshot}
-                    alt="Screenshot of locked MetaMask interface"
-                    className={styles.lockedMetaMaskScreenshot}
-                  />
-                </div>
-              </Panel>
-            </Collapse>
-          </div>
-        )
-      }
-      default:
-        return (
-          <ErrorPage message="Can't connect to MetaMask!"/>
-        )
+function MetaMaskConnectFailPage(props: IProps) {
+  const { status } = props
+  switch (status) {
+    case CONNECT_STATUS.NO_METAMASK: {
+      return (
+        <div className={composeClass('center-align-column-container', 'page-container', 'block')}>
+          <Icon type="warning" className={classes.warningIcon} />
+          <h2 className={classes.warningText}>
+            You need to install
+            <a className={classes.metaMaskLink} target="_blank" href="https://metamask.io/">
+              MetaMask
+            </a>
+            before using this app.
+          </h2>
+        </div>
+      )
     }
+    case CONNECT_STATUS.LOCKED: {
+      return (
+        <div className={'page-container'}>
+          <div className={composeClass('center-align-column-container', 'block')}>
+            <Icon type="lock" className={classes.warningIcon} />
+            <h2 className={classes.warningText}>
+              Please unlock MetaMask.
+            </h2>
+          </div>
+          <Collapse bordered={false}>
+            <Panel
+              className={classes.collapsePanel}
+              header={<h3>Why is MetaMask locked?</h3>}
+              key="unlock-metamask"
+            >
+              <div className={classes.collapseContent}>
+                <p>
+                  MetaMask locks your account after a certain period of time
+                  automatically. To unlock simply click on the MetaMask
+                  extension and type in your password.
+                </p>
+                <img
+                  src={metaMaskLockedScreenshot}
+                  alt="Screenshot of locked MetaMask interface"
+                  className={classes.screenshot}
+                />
+              </div>
+            </Panel>
+          </Collapse>
+        </div>
+      )
+    }
+    case CONNECT_STATUS.WRONG_NETWORK: {
+      return (
+        <div className={'page-container'}>
+          <div className={composeClass('center-align-column-container', 'block')}>
+            <Icon type="api" className={classes.warningIcon} />
+            <h2 className={classes.warningText}>
+              Plase switch to Rinkeby Test Network
+            </h2>
+            <p>You are on the wrong network. The KeyMesh BETA runs on the Rinkeby Test Network</p>
+          </div>
+          <Collapse bordered={false}>
+            <Panel
+              className={classes.collapsePanel}
+              header={<h3>How to select network?</h3>}
+              key="select-network"
+            >
+              <div className={classes.collapseContent}>
+                <p>
+                  To switch network simply click on the MetaMask extension.
+                </p>
+                <img
+                  src={howToSelectNetwork}
+                  alt="Screenshot of how to select network on MetaMask"
+                  className={classes.screenshot}
+                />
+              </div>
+            </Panel>
+          </Collapse>
+        </div>
+      )
+    }
+    default:
+      return null
   }
 }
 
-interface IInjectedProps {
-  metaMaskStore: MetaMaskStore
-  usersStore: UsersStore
+export enum CONNECT_STATUS {
+  NO_METAMASK,
+  LOCKED,
+  WRONG_NETWORK,
+}
+
+interface IProps {
+  status?: CONNECT_STATUS
 }
 
 export default MetaMaskConnectFailPage

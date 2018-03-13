@@ -1,5 +1,3 @@
-import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
-
 import {
   UserStore,
 } from './UserStore'
@@ -19,6 +17,7 @@ import { UserCachesStore } from './UserCachesStore'
 import ENV from '../config'
 import { base58ToChecksumAddress } from '../utils/cryptos'
 import { QUESTS } from './UserStore/GettingStartedQuests'
+import { transactionPromiEventToPromise } from '../utils/transaction'
 
 export class SocialProofsStore {
   private userStore: UserStore
@@ -64,11 +63,7 @@ export class SocialProofsStore {
     const { getReceipt } = await this.contractStore.getProcessingTransactionHandler(transactionHash)
 
     try {
-      await getReceipt(
-        ENV.REQUIRED_CONFIRMATION_NUMBER,
-        ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
-        ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
-      )
+      await getReceipt()
       await this.saveSocialProofsToDB(platformName, socialProof)
       uploadingDidComplete()
 
@@ -99,9 +94,7 @@ export function signedClaimToClaimText(signedClaim: ISignedClaim): string {
 ${ENV.DEPLOYED_ADDRESS}/profile/${hexToBase58(signedClaim.userAddress)}
 
 Signature:
-${hexToBase58(signedClaim.signature)}
-
-#KeyMesh`
+${hexToBase58(signedClaim.signature)}`
 }
 
 export function claimTextToSignedClaim(claimText: string): ISignedClaim {

@@ -25,8 +25,7 @@ export default process.env.NODE_ENV === 'production' ? {
   GET_USERS_API: BETA_OAUTH_API_PREFIX + GET_USERS_PATH,
   SEARCH_USERS_API: BETA_OAUTH_API_PREFIX + SEARCH_USERS_PATH,
 
-  // todo migrate to cloudfront
-  GET_PREKEYS_HOST: 'https://s3-us-west-1.amazonaws.com/keymesh-prekeys',
+  GET_PREKEYS_HOST: 'https://dnfwripxp1wh9.cloudfront.net',
   FACEBOOK_APP_ID: '162817767674605',
   DEPLOYED_ADDRESS: 'https://beta.keymesh.io',
 } : {
@@ -43,7 +42,7 @@ export default process.env.NODE_ENV === 'production' ? {
   GET_USERS_API: DEV_OAUTH_API_PREFIX + GET_USERS_PATH,
   SEARCH_USERS_API: DEV_OAUTH_API_PREFIX + SEARCH_USERS_PATH,
 
-  GET_PREKEYS_HOST: 'https://s3-ap-northeast-1.amazonaws.com/bob-keymesh-prekeys',
+  GET_PREKEYS_HOST: 'https://d3daqpj99mvt84.cloudfront.net',
   FACEBOOK_APP_ID: '402106420236062',
   DEPLOYED_ADDRESS: 'http://localhost:1234',
 }

@@ -10,8 +10,6 @@ import { ISession } from '../databases/SessionsDB'
 import { storeLogger } from '../utils/loggers'
 import { sleep } from '../utils'
 
-import ENV from '../config'
-
 export class ChatMessageStore {
   @observable private _messageStatus: MESSAGE_STATUS
   @observable private _confirmationCounter: number = 0
@@ -56,12 +54,7 @@ export class ChatMessageStore {
     )
 
     try {
-      await getReceipt(
-        ENV.REQUIRED_CONFIRMATION_NUMBER,
-        ENV.ESTIMATE_AVERAGE_BLOCK_TIME,
-        ENV.TRANSACTION_TIME_OUT_BLOCK_NUMBER,
-        this.handleConfirmation.bind(this),
-      )
+      await getReceipt({ onConfirmation: this.handleConfirmation.bind(this) })
 
       await this.updateMessageStatus(MESSAGE_STATUS.DELIVERED)
     } catch (err) {

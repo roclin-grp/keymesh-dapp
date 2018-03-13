@@ -22,36 +22,45 @@ import { storeLogger } from '../../../utils/loggers'
 import Loading from '../Loading'
 
 @observer
-class ChatContent extends React.Component<IProps> {
+class ChatContent extends React.Component<IProps, IState> {
+  public readonly state = defaultState
+
+  private isUnmounted = false
   public componentWillUnmount() {
+    this.isUnmounted = true
     // clear sessions and message caches
     this.props.userStore.sessionsStore.disposeStore()
   }
 
   public async componentWillMount() {
     const search = this.props.location.search
-    const { to, id, createNew }: IQuery = queryString.parse(search)
+    const { to, createNew }: IQuery = queryString.parse(search)
     if (createNew) {
       return
     }
 
     if (to != null) {
+      // try to create conversation through url
       try {
+        this.setState({
+          isTryingToCreateConversation: true,
+        })
         await this.tryCreateNewConversation(to)
         return
       } catch (err) {
-        this.setNewConversationQuery()
+        this.setNewConversationQuery(true)
         storeLogger.error(
           `Failed to create new session with ${to}:`,
           err,
         )
         return
+      } finally {
+        if (!this.isUnmounted) {
+          this.setState({
+            isTryingToCreateConversation: false,
+          })
+        }
       }
-    }
-
-    if (id != null && id !== '') {
-      this.trySelectSession(id)
-      return
     }
 
     const { sessionsStore } = this.props.userStore
@@ -68,15 +77,16 @@ class ChatContent extends React.Component<IProps> {
       return
     }
 
-    this.setNewConversationQuery()
+    this.setNewConversationQuery(true)
   }
 
   public render() {
     const { user, sessionsStore } = this.props.userStore
     const { currentSessionStore, isLoadingSessions } = sessionsStore
 
-    if (isLoadingSessions) {
-      return <Loading message="Loading sessions.." />
+    const { isTryingToCreateConversation } = this.state
+    if (isLoadingSessions || isTryingToCreateConversation) {
+      return <Loading message="Loading data..." />
     }
 
     return (
@@ -153,19 +163,19 @@ class ChatContent extends React.Component<IProps> {
     this.handleSelectSession(session)
   }
 
-  private async trySelectSession(id: string) {
-    const { sessionsStore } = this.props.userStore
-    sessionsStore.unselectSession()
-    await sessionsStore.waitForSessions()
-    const session = sessionsStore.getSession(id)
+  // private async trySelectSession(id: string) {
+  //   const { sessionsStore } = this.props.userStore
+  //   sessionsStore.unselectSession()
+  //   await sessionsStore.waitForSessions()
+  //   const session = sessionsStore.getSession(id)
 
-    if (session == null) {
-      this.setNewConversationQuery()
-      return
-    }
+  //   if (session == null) {
+  //     this.setNewConversationQuery()
+  //     return
+  //   }
 
-    this.handleSelectSession(session)
-  }
+  //   this.handleSelectSession(session)
+  // }
 
   private validReceiverUserAddress = async (
     userAddress: string,
@@ -193,36 +203,24 @@ class ChatContent extends React.Component<IProps> {
 
   private handleSelectSession = async (session: ISession) => {
     const { sessionsStore } = this.props.userStore
-
-    const search = this.props.location.search
-    const { id }: IQuery = queryString.parse(search)
-    const { sessionTag } = session
-    if (id !== sessionTag) {
-      this.setQueryID(sessionTag)
-    }
-
     if (sessionsStore.isCurrentSession(session.sessionTag)) {
       return
     }
+
+    this.setNewConversationQuery(undefined)
 
     sessionsStore.selectSession(session)
   }
 
   private handleNewConversationClick = () => {
-    this.setNewConversationQuery()
+    this.setNewConversationQuery(true)
 
     this.props.userStore.sessionsStore.unselectSession()
   }
 
-  private setQueryID = (id: string) => {
+  private setNewConversationQuery = (value: boolean | undefined) => {
     this.props.history.replace({
-      search: queryString.stringify({ id }),
-    })
-  }
-
-  private setNewConversationQuery = () => {
-    this.props.history.replace({
-      search: queryString.stringify({ createNew: true }),
+      search: queryString.stringify({ createNew: value }),
     })
   }
 }
@@ -231,9 +229,16 @@ interface IProps extends RouteComponentProps<{}> {
   userStore: UserStore
 }
 
+interface IState {
+  isTryingToCreateConversation: boolean
+}
+
+const defaultState: Readonly<IState> = {
+  isTryingToCreateConversation: false,
+}
+
 interface IQuery {
   to?: string
-  id?: string
   createNew?: boolean
 }
 

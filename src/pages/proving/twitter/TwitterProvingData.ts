@@ -9,6 +9,7 @@ import { PLATFORMS } from '../../../stores/SocialProofsStore'
 import ENV from '../../../config'
 import { STATUS_TYPE } from '../../../components/StatusButton'
 import { storeLogger } from '../../../utils/loggers'
+import { cachedUserInfo } from '../../../stores/UserCachesStore'
 
 export class TwitterProvingData extends ProvingData {
   public platform = PLATFORMS.TWITTER
@@ -24,7 +25,7 @@ export class TwitterProvingData extends ProvingData {
     this.setProofStatusContent(`Connecting...`)
 
     try {
-      const resp = await fetch(ENV.TWITTER_OAUTH_API)
+      const resp = await fetch(`${ENV.TWITTER_OAUTH_API}?networkID=${this.userStore.user.networkId}`)
       if (resp.status !== 200) {
         this.setProofStatusType(STATUS_TYPE.WARN, false)
         this.setProofStatusContent(`Failed to connect, please retry`)
@@ -67,13 +68,18 @@ export class TwitterProvingData extends ProvingData {
       return
     }
 
+    const { userAddress } = this.userStore.user
+    delete cachedUserInfo[userAddress]
     super.uploadingDidCompleteCallback()
   }
 
   private async verify(): Promise<boolean> {
-    const url = `${ENV.TWITTER_OAUTH_VERIFY}?userAddress=${this.usersStore.currentUserStore!.user.userAddress}`
+    const { userAddress, networkId } = this.userStore.user
+    const url = `${ENV.TWITTER_OAUTH_VERIFY}` +
+      `?userAddress=${userAddress}&networkID=${networkId}&username=${this.username}&proofURL=${this.proof!.proofURL}`
+    const fetchOptions: RequestInit = { method: 'GET', mode: 'cors' }
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, fetchOptions)
 
       if (response.status !== 200) {
         return false
@@ -92,7 +98,7 @@ export class TwitterProvingData extends ProvingData {
   }
 
   private async fetchUserInfo() {
-    const url = ENV.TWITTER_OAUTH_CALLBACK + window.location.search
+    const url = `${ENV.TWITTER_OAUTH_CALLBACK}${window.location.search}&networkID=${this.userStore.user.networkId}`
     history.pushState(null, '', window.location.href.split('?')[0])
 
     this.setProofStatusType(STATUS_TYPE.LOADING)

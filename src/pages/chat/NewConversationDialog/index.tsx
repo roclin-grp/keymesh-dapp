@@ -28,10 +28,10 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private userAddressInput: Input | null = null
-  private unmounted = false
+  private isUnmounted = false
 
   public componentWillUnmount() {
-    this.unmounted = true
+    this.isUnmounted = true
   }
 
   public render() {
@@ -135,10 +135,10 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private renderUser = (userInfo: IProcessedUserInfo) => {
-    const { userAddress } = userInfo
+    const { userAddress, displayUsername } = userInfo
     return (
       <div
-        key={userAddress}
+        key={`${userAddress}${displayUsername}`}
         className={classes.userItemContainer}
         role="button"
         onClick={() => this.handleSelectUser(userInfo)}
@@ -192,35 +192,46 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       searchText: inputValue,
     })
 
+    const { networkId } = this.props.user
     if (isAddress(inputValue)) {
       try {
         await this.props.sessionsStore.validateReceiver(inputValue)
 
-        this.setResultUsers([{ userAddress: inputValue, verifications: [] }], inputValue)
+        // show userAddress while fetching userInfo
+        const userAddressOnlyUserInfo: IProcessedUserInfo = { userAddress: inputValue, verifications: [] }
+        this.setResultUsers(
+          [userAddressOnlyUserInfo],
+          inputValue,
+        )
 
-        const userInfo = await searchUserByAddress(inputValue)
-        if (userInfo.length > 0) {
-          this.setResultUsers(userInfo, inputValue)
+        const userInfo = await searchUserByAddress(networkId, inputValue)
+        if (userInfo == null) {
+          return
         }
+
+        this.setResultUsers([userInfo], inputValue)
         return
       } catch (err) {
-        this.setState({
-          searchText: undefined,
-          users: [],
-        })
+        this.setResultUsers([], inputValue)
         return
       }
     }
 
-    const searchUserInfo = await searchUser(inputValue)
-    this.setResultUsers(searchUserInfo, inputValue)
+    const searchUserInfos = await searchUser(networkId, inputValue)
+    const { userAddress } = this.props.user
+    const excludedSelfUserInfos = searchUserInfos.filter((info) => info.userAddress !== userAddress)
+    this.setResultUsers(excludedSelfUserInfos, inputValue)
   }
   // tslint:disable-next-line member-ordering
   private handleSearchDebounced = debounce(this.handleSearch, 300)
 
-  private setResultUsers(result: IProcessedUserInfo[], inputValue: string) {
+  private setResultUsers(result: IProcessedUserInfo[], searchText: string) {
+    if (this.isUnmounted) {
+      return
+    }
     // make sure we still need this result
-    if (this.state.searchText !== inputValue) {
+    const { inputValue } = this.state
+    if (searchText !== inputValue) {
       return
     }
 
@@ -249,7 +260,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 
   private handCreateFail(err: Error) {
-    if (this.unmounted) {
+    if (this.isUnmounted) {
       return
     }
 

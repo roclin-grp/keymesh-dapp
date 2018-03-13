@@ -74,6 +74,7 @@ class Broadcast extends React.Component<IProps> {
         userCachesStore={this.props.usersStore.userCachesStore}
         userProofsStateStore={this.props.usersStore.userProofsStatesStore.getUserProofsStateStore(message.author!)}
         message={message}
+        status={message.status!}
       />
     ))
 

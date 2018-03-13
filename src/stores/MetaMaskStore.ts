@@ -2,7 +2,6 @@ import {
   observable,
   computed,
   action,
-  runInAction,
   observe,
   IValueDidChange,
 } from 'mobx'
@@ -34,12 +33,30 @@ export function getMetaMaskWeb3(): Web3 | null {
 }
 
 export class MetaMaskStore {
-  // FIXME: would it be better to just collapse
-  @observable public connectStatus: METAMASK_CONNECT_STATUS = METAMASK_CONNECT_STATUS.PENDING
-  @observable public connectFailCode?: METAMASK_CONNECT_FAIL_CODE
-
   @observable public currentEthereumNetwork: ETHEREUM_NETWORKS | undefined
   @observable public currentEthereumAccount: string | undefined
+
+  @observable private connectStatus: METAMASK_CONNECT_STATUS = METAMASK_CONNECT_STATUS.PENDING
+
+  @computed
+  public get networkID() {
+    const { currentEthereumNetwork } = this
+    if (currentEthereumNetwork == null) {
+      throw new Error('Trying to access networkID while MetaMask is not connected')
+    }
+
+    return currentEthereumNetwork
+  }
+
+  @computed
+  public get walletAddress() {
+    const { currentEthereumAccount } = this
+    if (currentEthereumAccount == null) {
+      throw new Error('Trying to access networkID while MetaMask is locked or not connected')
+    }
+
+    return currentEthereumAccount
+  }
 
   @computed
   public get isPending() {
@@ -48,26 +65,43 @@ export class MetaMaskStore {
 
   @computed
   public get isActive() {
-    return this.connectStatus === METAMASK_CONNECT_STATUS.ACTIVE
-  }
-
-  @computed
-  public get isNotAvailable() {
-    return this.connectStatus === METAMASK_CONNECT_STATUS.NOT_AVAILABLE
-  }
-
-  @computed
-  public get hasNoMetaMask() {
-    return this.connectFailCode === METAMASK_CONNECT_FAIL_CODE.NO_METAMASK
+    return !this.isWrongNetwork && this.connectStatus === METAMASK_CONNECT_STATUS.ACTIVE
   }
 
   @computed
   public get isLocked() {
-    return this.connectFailCode === METAMASK_CONNECT_FAIL_CODE.LOCKED
+    return this.connectStatus === METAMASK_CONNECT_STATUS.LOCKED
+  }
+
+  @computed
+  public get isWrongNetwork() {
+    if (process.env.NODE_ENV === 'development') {
+      return (
+        this.currentEthereumNetwork !== ETHEREUM_NETWORKS.RINKEBY &&
+        // allow custom network
+        Object.values(ETHEREUM_NETWORKS).includes(this.currentEthereumNetwork)
+      )
+    }
+
+    return this.currentEthereumNetwork !== ETHEREUM_NETWORKS.RINKEBY
   }
 
   constructor(private web3: Web3) {
-    this.connect()
+    this.startStatusPoll()
+  }
+
+  public listenForNetworkChange(
+    cb: (
+      currentValue: MetaMaskStore['currentEthereumNetwork'],
+      prevValue: MetaMaskStore['currentEthereumNetwork'],
+    ) => void,
+  ) {
+    return observe(
+      this,
+      'currentEthereumNetwork',
+      ({ oldValue, newValue }: IValueDidChange<MetaMaskStore['currentEthereumNetwork']>) =>
+        cb(newValue, oldValue),
+    )
   }
 
   public listenForWalletAccountChange(
@@ -93,15 +127,6 @@ export class MetaMaskStore {
     return block.hash
   }
 
-  public getTransactionReceipt = (transactionHash: string) => {
-    return this.web3.eth.getTransactionReceipt(transactionHash)
-  }
-
-  @action
-  private async connect() {
-    this.startStatusPoll()
-  }
-
   /**
    * Update MetaMask status at regular intervals
    */
@@ -111,53 +136,38 @@ export class MetaMaskStore {
 
     while (true) {
       // Check the network once every 3 seconds
-      if (i % 10 === 0) {
+      i = (i + 1) % 10
+      if (i === 0) {
         networkID = await this.getMetaMaskNetID()
       }
 
       const account = await this.getMetaMaskAccount()
       await this.updateStatus(networkID, account)
 
-      i++
       await sleep(300)
     }
   }
 
   @action
   private async updateStatus(networkID: ETHEREUM_NETWORKS, account: string | null) {
-    if (this.currentEthereumAccount === account && this.currentEthereumNetwork === networkID) {
+    const isSameNetwork = this.currentEthereumNetwork === networkID
+    if (this.currentEthereumAccount === account && isSameNetwork) {
       // nothing changed
       return
     }
 
-    runInAction(() => {
-      delete this.connectFailCode
+    if (!isSameNetwork) {
+      this.currentEthereumNetwork = networkID
+    }
 
-      if (account && networkID) {
-        // metamask is available and unlocked
-        this.currentEthereumAccount = account
-        this.currentEthereumNetwork = networkID
-        this.web3.eth.defaultAccount = account
-        this.connectStatus = METAMASK_CONNECT_STATUS.ACTIVE
-        return
-      }
-
-      if (!account && networkID) {
-        this.currentEthereumAccount = undefined
-        this.currentEthereumNetwork = networkID
-        this.connectFailCode = METAMASK_CONNECT_FAIL_CODE.LOCKED
-        this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
-        return
-      }
-
-      // FIXME: when does this occur?
-      this.connectStatus = METAMASK_CONNECT_STATUS.NOT_AVAILABLE
-
-      // don't set to undefined before setting a new value
-      // will cause oldValue === undefined
+    if (account) {
+      this.connectStatus = METAMASK_CONNECT_STATUS.ACTIVE
+      this.currentEthereumAccount = account
+      this.web3.eth.defaultAccount = account
+    } else {
+      this.connectStatus = METAMASK_CONNECT_STATUS.LOCKED
       this.currentEthereumAccount = undefined
-      this.currentEthereumNetwork = undefined
-    })
+    }
   }
 
   private async getMetaMaskAccount(): Promise<string | null> {
@@ -169,19 +179,12 @@ export class MetaMaskStore {
     const networkID: ETHEREUM_NETWORKS = await this.web3.eth.net.getId()
     return networkID
   }
-
 }
 
 export enum METAMASK_CONNECT_STATUS {
-  PENDING = 0,
+  PENDING,
   ACTIVE,
-  NOT_AVAILABLE,
-}
-
-export enum METAMASK_CONNECT_FAIL_CODE {
-  NO_METAMASK = 0,
   LOCKED,
-  UNKNOWN,
 }
 
 export enum ETHEREUM_NETWORKS {
@@ -208,8 +211,3 @@ export const ETHEREUM_NETWORK_TX_URL_PREFIX = Object.freeze({
   [ETHEREUM_NETWORKS.RINKEBY]: 'https://rinkeby.etherscan.io/tx/',
   [ETHEREUM_NETWORKS.KOVAN]: 'https://kovan.etherscan.io/tx/',
 })
-
-export enum TRANSACTION_STATUS {
-  FAIL = 0,
-  SUCCESS,
-}

@@ -1,20 +1,18 @@
 import * as React from 'react'
 
 import { Tooltip, Icon } from 'antd'
+import TransactionStatus, { TRANSACTION_STATUS } from '../TransactionStatus'
 
 import * as classes from './index.css'
 
-import { ETHEREUM_NETWORK_TX_URL_PREFIX } from '../../stores/MetaMaskStore'
-import { REGISTER_FAIL_CODE } from '../../stores/UsersStore'
-import { UserStore, USER_STATUS, IDENTITY_UPLOAD_CHECKING_FAIL_CODE } from '../../stores/UserStore'
+import { observer } from 'mobx-react'
+import { UserStore, USER_STATUS } from '../../stores/UserStore'
 
 import { storeLogger } from '../../utils/loggers'
+import { sleep } from '../../utils'
 
+@observer
 class AccountRegisterStatus extends React.Component<IProps, IState> {
-  public readonly state: Readonly<IState> = {
-    status: REGISTER_STATUS.PENDING,
-  }
-
   private isUnmounted = false
   public componentWillUnmount() {
     this.isUnmounted = true
@@ -22,9 +20,14 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
 
   public componentWillMount() {
     const { userStore } = this.props
-    const { isRegisterCompleted, user } = userStore
-    if (!isRegisterCompleted) {
-      this.handleCheckRegisterStatus()
+    const { user } = userStore
+    if (user.status === USER_STATUS.PENDING) {
+      this.checkIdentityUploadStatus()
+      return
+    }
+
+    if (user.status === USER_STATUS.IDENTITY_UPLOADED) {
+      this.uploadPreKeys()
       return
     }
 
@@ -33,56 +36,45 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
   }
 
   public componentDidMount() {
-    this.props.getRetry(this.handleCheckRegisterStatus)
+    this.props.getRetry(this.checkIdentityUploadStatus)
   }
 
   public render() {
-    const { user } = this.props.userStore
+    const { user, confirmationCounter } = this.props.userStore
     const { status } = this.state
-
-    const helpIcon = (
-      <Tooltip title={HELP_MESSAGES[status]}>
-        <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-      </Tooltip>
-    )
+    if (status == null) {
+      return null
+    }
 
     switch (status) {
       case REGISTER_STATUS.IDENTITY_UPLOADING:
-      case REGISTER_STATUS.TRANSACTION_ERROR: {
-        let content = <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
-        const explorerUrl = ETHEREUM_NETWORK_TX_URL_PREFIX[user.networkId]
-        if (explorerUrl != null) {
-          content = (
-            <a
-              className={classes.transactionLink}
-              target="_blank"
-              href={`${explorerUrl}${user.identityTransactionHash}`}
-            >
-              {content}
-            </a>
-          )
-        }
-
+      case REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT:
+      case REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR:
+      case REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR: {
+        const transactionStatus = getTransactionStatusByRegisterStatus(status)
+        const { networkId, identityTransactionHash } = user
+        return (
+          <TransactionStatus
+            networkId={networkId}
+            transactionHash={identityTransactionHash}
+            status={transactionStatus!}
+            confirmationNumber={confirmationCounter}
+          />
+        )
+      }
+      case REGISTER_STATUS.PRE_KEYS_UPLOADING:
+      case REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED:
+      case REGISTER_STATUS.TAKEOVERED: {
         return (
           <>
-            {content}
-            {helpIcon}
+            {SUMMARY_TEXT[status]}
+            <Tooltip title={HELP_MESSAGES[status]}>
+              <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
+            </Tooltip>
           </>
         )
       }
-      case REGISTER_STATUS.IDENTITY_UPLOADED:
-      case REGISTER_STATUS.TIMEOUT:
-      case REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL:
-      case REGISTER_STATUS.UNEXCEPTED_ERROR:
-      case REGISTER_STATUS.TAKEOVERED:
-        return (
-          <>
-            <span>{REGISTER_STATUS_SUMMARY_TEXT[status]}</span>
-            {helpIcon}
-          </>
-        )
-      case REGISTER_STATUS.PENDING:
-      case REGISTER_STATUS.DONE:
+      case REGISTER_STATUS.SUCCESS:
       default:
         return null
     }
@@ -91,45 +83,71 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
   private setRegisterStatus(status: REGISTER_STATUS) {
     this.setState(
       { status },
-      () => { this.props.onStatusChanged(this.state.status) },
+      () => { this.props.onStatusChanged(this.state.status!) },
     )
   }
 
-  private handleCheckRegisterStatus = () => {
-    this.props.userStore.checkIdentityUploadStatus({
-      checkIdentityUploadStatusWillStart: this.checkIdentityUploadStatusWillStart,
-      identityDidUpload: this.identityDidUpload,
-      registerDidFail: this.registerDidFail,
-      checkingDidFail: this.identityUploadCheckingDidFail,
-    }).catch(this.identityUploadCheckingDidFail)
-  }
-
-  private checkIdentityUploadStatusWillStart = () => {
-    if (this.isUnmounted) {
-      return
-    }
-
+  private checkIdentityUploadStatus = async () => {
     this.setRegisterStatus(REGISTER_STATUS.IDENTITY_UPLOADING)
+
+    const { userStore } = this.props
+
+    try {
+      await userStore.checkIdentityUploadStatus()
+      this.uploadPreKeys()
+    } catch (err) {
+      this.handleCheckIdentityUploadStatusFailed(err)
+    }
   }
 
-  private identityDidUpload = async () => {
+  private handleCheckIdentityUploadStatusFailed = async (err: Error) => {
     if (this.isUnmounted) {
       return
     }
 
-    this.setRegisterStatus(REGISTER_STATUS.IDENTITY_UPLOADED)
+    const errMessage = err.message
+    if (errMessage.includes('Timeout')) {
+      this.setRegisterStatus(REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT)
+
+      // retry
+      await sleep(3000)
+      if (this.isUnmounted) {
+        return
+      }
+      this.checkIdentityUploadStatus()
+      return
+    }
+
+    if (errMessage.includes('Taken over')) {
+      this.setRegisterStatus(REGISTER_STATUS.TAKEOVERED)
+      return
+    }
+
+    if (errMessage.includes('Transaction process error')) {
+      this.setRegisterStatus(REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR)
+      return
+    }
+
+    storeLogger.error('Unexpected check identity error: ', err)
+    this.setRegisterStatus(REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR)
+  }
+
+  private uploadPreKeys = async () => {
+    if (!this.isUnmounted) {
+      this.setRegisterStatus(REGISTER_STATUS.PRE_KEYS_UPLOADING)
+    }
 
     try {
       await this.props.userStore.preKeysManager.uploadPreKeys(true)
-      this.preKeysDidUpload()
+      this.handlePreKeysUploaded()
     } catch (err) {
-      this.preKeysUploadDidFail(err)
+      this.handlePreKeysUploadFailed(err)
     }
   }
 
-  private preKeysDidUpload = async () => {
+  private handlePreKeysUploaded = async () => {
     if (!this.isUnmounted) {
-      this.setRegisterStatus(REGISTER_STATUS.DONE)
+      this.setRegisterStatus(REGISTER_STATUS.SUCCESS)
       return
     }
 
@@ -139,97 +157,63 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
     }
   }
 
-  private preKeysUploadDidFail = (err: Error) => {
+  private handlePreKeysUploadFailed = (err: Error) => {
     if (this.isUnmounted) {
       return
     }
 
-    storeLogger.error(err)
-
-    this.setRegisterStatus(REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL)
-  }
-
-  private registerDidFail = (code: REGISTER_FAIL_CODE) => {
-    if (this.isUnmounted) {
-      return
-    }
-
-    let status: REGISTER_STATUS
-    switch (code) {
-      case REGISTER_FAIL_CODE.OCCUPIED:
-        status = REGISTER_STATUS.TAKEOVERED
-        break
-      case REGISTER_FAIL_CODE.TRANSACTION_ERROR:
-        status = REGISTER_STATUS.TRANSACTION_ERROR
-        break
-      default:
-        status = REGISTER_STATUS.UNEXCEPTED_ERROR
-    }
-
-    this.setRegisterStatus(status)
-  }
-
-  private identityUploadCheckingDidFail = (_: Error | null, code = IDENTITY_UPLOAD_CHECKING_FAIL_CODE.UNKNOWN) => {
-    if (this.isUnmounted) {
-      return
-    }
-
-    let status: REGISTER_STATUS
-    switch (code) {
-      case IDENTITY_UPLOAD_CHECKING_FAIL_CODE.TIMEOUT:
-        status = REGISTER_STATUS.TIMEOUT
-        break
-      default:
-        status = REGISTER_STATUS.UNEXCEPTED_ERROR
-    }
-
-    this.setRegisterStatus(status)
+    storeLogger.error('failed to upload pre-keys: ', err)
+    this.setRegisterStatus(REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED)
   }
 }
 
 export function getRegisterStatusByUserStatus(userStatus: USER_STATUS): REGISTER_STATUS {
   switch (userStatus) {
     case USER_STATUS.OK:
-      return REGISTER_STATUS.DONE
-    case USER_STATUS.FAIL:
-      return REGISTER_STATUS.TRANSACTION_ERROR
+      return REGISTER_STATUS.SUCCESS
+    case USER_STATUS.FAILED:
+      return REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR
     default:
-      return REGISTER_STATUS.UNEXCEPTED_ERROR
+      return REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR
+  }
+}
+
+export function getTransactionStatusByRegisterStatus(status: REGISTER_STATUS): TRANSACTION_STATUS {
+  switch (status) {
+    case REGISTER_STATUS.IDENTITY_UPLOADING:
+      return TRANSACTION_STATUS.TRANSACTING
+    case REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT:
+      return TRANSACTION_STATUS.TIMEOUT
+    case REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR:
+      return TRANSACTION_STATUS.UNEXCEPTED_ERROR
+    case REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR:
+      return TRANSACTION_STATUS.TRANSACTION_ERROR
+    default:
+      return TRANSACTION_STATUS.UNEXCEPTED_ERROR
   }
 }
 
 export enum REGISTER_STATUS {
-  PENDING = 0,
   IDENTITY_UPLOADING,
-  IDENTITY_UPLOADED,
-  DONE,
-  TIMEOUT,
-  UPLOAD_PRE_KEYS_FAIL,
-  UNEXCEPTED_ERROR,
+  PRE_KEYS_UPLOADING,
+  SUCCESS,
+  CHECK_IDENTITY_TIMEOUT,
   TAKEOVERED,
-  TRANSACTION_ERROR,
+  IDENTITY_UPLOAD_TRANSACTION_ERROR,
+  PRE_KEYS_UPLOAD_FAILED,
+  UNEXCEPTED_IDENTITY_UPLOAD_ERROR,
 }
 
-const REGISTER_STATUS_SUMMARY_TEXT = Object.freeze({
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: 'Transacting',
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: 'Uploading identity',
-  [REGISTER_STATUS.TIMEOUT]: 'Transaction timeout',
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: 'Failed to upload data',
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Unexpected error',
+const SUMMARY_TEXT = Object.freeze({
   [REGISTER_STATUS.TAKEOVERED]: 'Address registered by another device',
-  [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction failed',
+  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: 'Uploading data',
+  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: 'Failed to upload data',
 })
 
 const HELP_MESSAGES = Object.freeze({
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: 'Transaction confirms in about 1 minute (Rinkeby)',
-  [REGISTER_STATUS.IDENTITY_UPLOADED]: 'Uploading your public keys to cloud server',
-
-  [REGISTER_STATUS.TIMEOUT]: 'Transaction was not mined within 50 blocks',
-  [REGISTER_STATUS.UPLOAD_PRE_KEYS_FAIL]: 'Failed to upload your public keys',
-  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'Unexpected error',
-
   [REGISTER_STATUS.TAKEOVERED]: 'Another device had taken over this address',
-  [REGISTER_STATUS.TRANSACTION_ERROR]: 'Transaction failed. Please make sure you have enough fund',
+  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: 'Uploading your public keys to cloud server',
+  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: 'Failed to upload your public keys',
 })
 
 interface IProps {
@@ -240,7 +224,7 @@ interface IProps {
 }
 
 interface IState {
-  status: REGISTER_STATUS
+  status?: REGISTER_STATUS
 }
 
 export default AccountRegisterStatus

@@ -21,10 +21,10 @@ import { sleep } from '../../utils'
 import {
   publicKeyToIdentityKey,
 } from '../../utils/proteus'
+import { transactionPromiEventToPromise } from '../../utils/transaction'
 
 import PreKeyBundle, { IPreKey } from '../../PreKeyBundle'
 import { getPreKeysPackage } from '../../PreKeysPackage'
-import { transactionPromiEventToPromise } from '@keymesh/trustmesh'
 
 export default class ChatContext {
   private readonly session: ISession
