@@ -181,6 +181,7 @@ function processUserInfo(data: IUserInfo[]): IProcessedUserInfo[] {
     processedUserInfo.verifications.push({
       platformName,
       username,
+      info: platformName === 'twitter' ? twitterOAuthInfo : undefined,
     })
 
     if (processedUserInfo.avatarImgURL == null) {
