@@ -54,11 +54,7 @@ class ProfileCard extends React.Component<IProps> {
         </div>
         <Divider />
         {this.renderVerifications(userInfo)}
-        <Button className={classes.messageButton} type="primary">
-          <Link to={`/messages?to=${userAddress}`}>
-            Message
-          </Link>
-        </Button>
+        {this.renderMessageButton(userAddress)}
       </section>
     )
   }
@@ -239,6 +235,21 @@ class ProfileCard extends React.Component<IProps> {
     }
 
     return null
+  }
+
+  private renderMessageButton(userAddress: string) {
+    const { isSelf } = this.props
+    if (isSelf) {
+      return
+    }
+
+    return (
+      <Button className={classes.messageButton} type="primary">
+        <Link to={`/messages?to=${userAddress}`}>
+          Message
+        </Link>
+      </Button>
+    )
   }
 
   private getCurrentStatus(isVerifying: boolean, verifiedStatus?: IVerifiedStatus): STATUS {

@@ -34,7 +34,7 @@ import { hexToUtf8, uint8ArrayFromHex, utf8ToHex } from '../utils/hex'
 import { isBeforeOneDay } from '../utils/time'
 
 export class UserProofsStateStore {
-  @observable public verifications: IUserCachesVerifications = getNewVerifications()
+  @observable.ref public verifications: IUserCachesVerifications = getNewVerifications()
   @observable public isVerifying = {
     [PLATFORMS.TWITTER]: false,
     [PLATFORMS.GITHUB]: false,
@@ -200,7 +200,7 @@ export class UserProofsStateStore {
         continue
       }
 
-      if ( this.isNewVerification(platformName, signedSocialProof.socialProof)) {
+      if (this.isNewVerification(platformName, signedSocialProof.socialProof)) {
         this.updateVerification(platformName, {socialProof: signedSocialProof.socialProof})
 
         this.verify(platformName, signedSocialProof.socialProof.proofURL)
@@ -212,7 +212,7 @@ export class UserProofsStateStore {
   }
   private isNewVerification(platform: PLATFORMS, newSocialProof: ISocialProof) {
     const verification = this.verifications[platform]
-    if (! verification.socialProof) {
+    if (!verification.socialProof) {
       return true
     }
 
@@ -221,7 +221,7 @@ export class UserProofsStateStore {
 
   @action
   private updateVerification(platform: PLATFORMS, verification: IUserCachesVerification) {
-    const fullVerification = Object.assign(verification, this.verifications[platform])
+    const fullVerification = Object.assign({}, this.verifications[platform], verification)
     this.verifications[platform] = fullVerification
     this.verifications = Object.assign({}, this.verifications)
   }
