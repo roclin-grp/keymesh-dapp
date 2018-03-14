@@ -14,7 +14,7 @@
 @media screen and (max-width: 1024px) {
   .container {
     width: 100%;
-    margin: 2rem .75rem;
+    margin: 2rem 0;
   }
 }
 
