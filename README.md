@@ -26,16 +26,10 @@ For testing & developing this app, get free test tokens from https://faucet.rink
   <summary><em>Under development</em></summary>
 
   ### Basic features
-  - [ ] Chat
-    - [ ] Delete session(s)
+  - [ ] Messages
+    - [ ] Delete conversation(s)
     - [ ] Delete (selected) message(s).
-    - [ ] Search user by proving
   - [ ] Pre-keys
     - [ ] Auto-upload pre-keys when not sufficient
     - [ ] Force replace pre-keys
-
-  ### Enhancements/features
-  - [x] Ethereum network/account detect.
-  - [x] Identicon
-  - [x] Message sending from same browser
 </details>
