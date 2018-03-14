@@ -201,22 +201,16 @@ class Header extends React.Component<IProps> {
           title={userAddress}
           className={composeClass(classes.userOptionsButton, 'ant-dropdown-link')}
         >
-          {this.renderUserAvatar(userAddress)}
+          <UserAvatar
+            key={userAddress}
+            className={classes.userAvatar}
+            shape="square"
+            size="small"
+            userAddress={userAddress}
+          />
           <Icon type="down" className={classes.userAvatarDownIcon} />
         </a>
       </Dropdown>
-    )
-  }
-
-  private renderUserAvatar(userAddress: string) {
-    return (
-      <UserAvatar
-        key={userAddress}
-        className={classes.userAvatar}
-        shape="square"
-        size="small"
-        userAddress={userAddress}
-      />
     )
   }
 
