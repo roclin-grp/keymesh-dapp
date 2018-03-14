@@ -23,7 +23,7 @@ function MetaMaskConnectFailPage(props: IProps) {
             <a className={classes.metaMaskLink} target="_blank" href="https://metamask.io/">
               MetaMask
             </a>
-            before using this app.
+            to use this app
           </h2>
         </div>
       )
