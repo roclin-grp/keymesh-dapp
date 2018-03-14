@@ -34,7 +34,7 @@ function MetaMaskConnectFailPage(props: IProps) {
           <div className={composeClass('center-align-column-container', 'block')}>
             <Icon type="lock" className={classes.warningIcon} />
             <h2 className={classes.warningText}>
-              Please unlock MetaMask.
+              Please unlock MetaMask
             </h2>
           </div>
           <Collapse bordered={false}>
@@ -45,9 +45,8 @@ function MetaMaskConnectFailPage(props: IProps) {
             >
               <div className={classes.collapseContent}>
                 <p>
-                  MetaMask locks your account after a certain period of time
-                  automatically. To unlock simply click on the MetaMask
-                  extension and type in your password.
+                  Your account is locked automatically after a period of inactivity.
+                  Enter your password again to unlock.
                 </p>
                 <img
                   src={metaMaskLockedScreenshot}
@@ -66,19 +65,21 @@ function MetaMaskConnectFailPage(props: IProps) {
           <div className={composeClass('center-align-column-container', 'block')}>
             <Icon type="api" className={classes.warningIcon} />
             <h2 className={classes.warningText}>
-              Plase switch to Rinkeby Test Network
+              Please switch to the Rinkeby Test Network
             </h2>
-            <p>You are on the wrong network. The KeyMesh BETA runs on the Rinkeby Test Network</p>
+            <p>
+              KeyMesh BETA runs on Rinkeby, which uses test ethers that are not real money.
+            </p>
           </div>
           <Collapse bordered={false}>
             <Panel
               className={classes.collapsePanel}
-              header={<h3>How to select network?</h3>}
+              header={<h3>How to switch network to Rinkeby?</h3>}
               key="select-network"
             >
               <div className={classes.collapseContent}>
                 <p>
-                  To switch network simply click on the MetaMask extension.
+                  To switch network click on the MetaMask extension.
                 </p>
                 <img
                   src={howToSelectNetwork}
