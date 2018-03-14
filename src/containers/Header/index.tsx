@@ -61,6 +61,12 @@ class Header extends React.Component<IProps> {
                 </Link>
               </Menu.Item>
             ) : null}
+            <Menu.Item key="/support">
+              <a href="https://t.me/keymesh" className={classes.menuItem} target="blank">
+                <Icon type="global" className={classes.menuIcon} />
+                Community
+              </a>
+            </Menu.Item>
           </Menu>
           {this.renderGettingStarted(stores)}
           {/* {this.renderNetworkStatus()} */}
