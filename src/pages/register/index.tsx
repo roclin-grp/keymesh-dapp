@@ -61,6 +61,10 @@ class Register extends React.Component<IProps, IState> {
 
   public render() {
     const { metaMaskStore } = this.injectedProps
+    const { isActive } = metaMaskStore
+    if (!isActive) {
+      return null
+    }
     const { walletAddress } = metaMaskStore
 
     return (
