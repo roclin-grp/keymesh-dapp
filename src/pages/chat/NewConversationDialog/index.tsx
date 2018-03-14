@@ -13,7 +13,7 @@ import composeClass from 'classnames'
 // state management
 import { IUser } from '../../../stores/UserStore'
 import { SessionsStore } from '../../../stores/SessionsStore'
-import { IProcessedUserInfo, searchUserByAddress, searchUser } from '../../../stores/UserCachesStore'
+import { IProcessedUserInfo, getUserInfoByAddress, searchUserInfos } from '../../../stores/UserCachesStore'
 
 // helper
 import debounce from 'lodash.debounce'
@@ -204,7 +204,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
           inputValue,
         )
 
-        const userInfo = await searchUserByAddress(networkId, inputValue)
+        const userInfo = await getUserInfoByAddress(networkId, inputValue)
         if (userInfo == null) {
           return
         }
@@ -217,9 +217,9 @@ class NewConversationDialog extends React.Component<IProps, IState> {
       }
     }
 
-    const searchUserInfos = await searchUser(networkId, inputValue)
+    const userInfos = await searchUserInfos(networkId, inputValue)
     const { userAddress } = this.props.user
-    const excludedSelfUserInfos = searchUserInfos.filter((info) => info.userAddress !== userAddress)
+    const excludedSelfUserInfos = userInfos.filter((info) => info.userAddress !== userAddress)
     this.setResultUsers(excludedSelfUserInfos, inputValue)
   }
   // tslint:disable-next-line member-ordering

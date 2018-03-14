@@ -89,16 +89,23 @@ export class SocialProofsStore {
   }
 }
 
-export function signedClaimToClaimText(signedClaim: ISignedClaim): string {
-  return `Verifying myself:
-${ENV.DEPLOYED_ADDRESS}/profile/${hexToBase58(signedClaim.userAddress)}
+export function signedClaimToClaimText(signedClaim: ISignedClaim, twitterUsername?: string): string {
+  const base58encodedUserAddress = hexToBase58(signedClaim.userAddress)
+  const base58encodedSignature = hexToBase58(signedClaim.signature)
 
-Signature:
-${hexToBase58(signedClaim.signature)}`
+  if (!twitterUsername) {
+    return ''
+  }
+
+  return `Verifying myself: I am ${twitterUsername} on https://Keymesh.io.
+
+${base58encodedUserAddress}-${base58encodedSignature}
+
+${ENV.DEPLOYED_ADDRESS}/${twitterUsername}`
 }
 
 export function claimTextToSignedClaim(claimText: string): ISignedClaim {
-  const parts = new RegExp(`${ENV.DEPLOYED_ADDRESS}/profile/(\\w+)\\s+Signature:\\s+(\\w+)`).exec(claimText)
+  const parts = new RegExp(`Keymesh.io.\\s+(\\w+)-(\\w+)`).exec(claimText)
   if (parts === null) {
     throw new Error('Invalid claim text')
   }

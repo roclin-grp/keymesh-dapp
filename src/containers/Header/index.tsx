@@ -4,7 +4,7 @@ import { Link, withRouter, RouteComponentProps } from 'react-router-dom'
 // component
 import { Tooltip, Icon, Dropdown, Menu, message, Button } from 'antd'
 import SwitchUserOption from './SwitchUserOption'
-import HashAvatar from '../../components/HashAvatar'
+import UserAvatar from '../../components/UserAvatar'
 import UserAddress from '../../components/UserAddress'
 
 // style
@@ -189,6 +189,7 @@ class Header extends React.Component<IProps> {
     }
 
     const { user } = currentUserStore
+    const { userAddress } = user
 
     return (
       <Dropdown
@@ -197,25 +198,19 @@ class Header extends React.Component<IProps> {
         placement="bottomRight"
       >
         <a
-          title={user.userAddress}
+          title={userAddress}
           className={composeClass(classes.userOptionsButton, 'ant-dropdown-link')}
         >
-          {this.renderUserAvatar(currentUserStore.avatarHash)}
+          <UserAvatar
+            key={userAddress}
+            className={classes.userAvatar}
+            shape="square"
+            size="small"
+            userAddress={userAddress}
+          />
           <Icon type="down" className={classes.userAvatarDownIcon} />
         </a>
       </Dropdown>
-    )
-  }
-
-  // TODO: render UserAvatar
-  private renderUserAvatar(avatarHash: string) {
-    return (
-      <HashAvatar
-        className={classes.userAvatar}
-        shape="square"
-        size="small"
-        hash={avatarHash}
-      />
     )
   }
 

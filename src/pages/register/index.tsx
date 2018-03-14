@@ -41,7 +41,7 @@ class Register extends React.Component<IProps, IState> {
   private isUnmounted = false
 
   private get isCreatingTransaction() {
-    return this.state.transactionCreationStatus != null
+    return this.state.transactionCreationStatus === TRANSACTION_CREATION_STATUS.PENDING
   }
 
   public componentDidMount() {

@@ -69,7 +69,7 @@ class AccountRegisterStatus extends React.Component<IProps, IState> {
           <>
             {SUMMARY_TEXT[status]}
             <Tooltip title={HELP_MESSAGES[status]}>
-              <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
+              <Icon className={classes.helpIcon} type="question-circle-o" />
             </Tooltip>
           </>
         )

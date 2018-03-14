@@ -1,0 +1,9 @@
+.notFoundIcon {
+  color: #ccc;
+  font-size: 3rem;
+}
+
+.notFoundText {
+  text-align: center;
+  color: #ccc;
+}

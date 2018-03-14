@@ -27,6 +27,7 @@ class FacebookProving extends React.Component<IProps> {
       buttonDisabled,
       proofStatusType,
       proofStatusContent,
+      proofStatusHelpContent,
     } = data
 
     if (currentStep === PROVING_STEPS.CONNECT) {
@@ -37,6 +38,7 @@ class FacebookProving extends React.Component<IProps> {
         <StatusButton
           statusType={proofStatusType}
           statusContent={proofStatusContent}
+          helpContent={proofStatusHelpContent}
           buttonClassName="ant-btn ant-btn-primary ant-btn-lg"
           renderButton={(props) => (
             <FacebookLogin
@@ -74,6 +76,7 @@ class FacebookProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.checkProof.bind(data)}
           >
             Check Proof
@@ -103,6 +106,7 @@ class FacebookProving extends React.Component<IProps> {
             disabled={buttonDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
+            helpContent={proofStatusHelpContent}
             onClick={data.uploadBindingProof.bind(data)}
           >
             Record Proof

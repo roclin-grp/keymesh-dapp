@@ -2,7 +2,7 @@ import { getDatabases } from '../databases'
 import { ETHEREUM_NETWORKS, MetaMaskStore } from './MetaMaskStore'
 import { UsersStore } from './UsersStore'
 import { IVerifiedStatus, ISocialProof, PLATFORMS, platformNames } from './SocialProofsStore'
-import { sha3 } from '../utils/cryptos'
+import { sha3, isAddress } from '../utils/cryptos'
 import { isHexZeroValue } from '../utils/hex'
 import ENV from '../config'
 
@@ -100,7 +100,7 @@ export function getNewVerifications() {
   return verifications as IUserCachesVerifications
 }
 
-export async function searchUser(networkID: ETHEREUM_NETWORKS, prefix: string): Promise<IProcessedUserInfo[]> {
+export async function searchUserInfos(networkID: ETHEREUM_NETWORKS, prefix: string): Promise<IProcessedUserInfo[]> {
   const response = await fetch(
     `${ENV.SEARCH_USERS_API}?networkID=${networkID}&usernamePrefix=${encodeURIComponent(prefix)}`,
   )
@@ -110,35 +110,59 @@ export async function searchUser(networkID: ETHEREUM_NETWORKS, prefix: string): 
 
 export const cachedUserInfo: ICachedUserInfo = {}
 
+// FIXME: refactor
 interface ICachedUserInfo {
-  [userAddress: string]: {
-    data: IProcessedUserInfo,
+  [userAddressOrUsername: string]: {
+    promi: Promise<IProcessedUserInfo[]>,
     lastUpdate: number,
   },
 }
 
-export async function searchUserByAddress(
-  networkID: ETHEREUM_NETWORKS, userAddress: string,
-): Promise<IProcessedUserInfo | undefined> {
-  const cache = cachedUserInfo[userAddress]
+export async function getUserInfos(
+  networkID: ETHEREUM_NETWORKS,
+  userAddressOrUsername: string,
+) {
+  const cache = cachedUserInfo[userAddressOrUsername]
   if (cache && Date.now() - cache.lastUpdate < 5 * 60 * 1000) {
-    return cache.data
+    return cache.promi
   }
 
-  const response = await fetch(`${ENV.GET_USERS_API}?networkID=${networkID}&userAddress=${userAddress}`)
-  const rawData = await response.json()
-  const infos = processUserInfo(rawData)
+  const isUserAddress = isAddress(userAddressOrUsername)
+  const query = `?networkID=${networkID}&${isUserAddress ? 'userAddress' : 'username'}=${userAddressOrUsername}`
+
+  const fetchInfosPromise = fetchUserInfos(query)
+  cachedUserInfo[userAddressOrUsername] = {
+    promi: fetchInfosPromise,
+    lastUpdate: Date.now(),
+  }
+
+  return fetchInfosPromise
+}
+
+export async function getUserInfoByAddress(
+  networkID: ETHEREUM_NETWORKS,
+  userAddress: string,
+): Promise<IProcessedUserInfo | undefined> {
+  const infos = await getUserInfos(networkID, userAddress)
   if (infos.length === 0) {
     return
   }
 
-  const info = infos[0]
-  cachedUserInfo[userAddress] = {
-    data: info,
-    lastUpdate: Date.now(),
-  }
+  return infos[0]
+}
 
-  return info
+export function getUserInfosByUsername(
+  networkID: ETHEREUM_NETWORKS,
+  username: string,
+): Promise<IProcessedUserInfo[]> {
+  return getUserInfos(networkID, username)
+}
+
+async function fetchUserInfos(query: string): Promise<IProcessedUserInfo[]> {
+  const response = await fetch(`${ENV.GET_USERS_API}${query}`)
+  const rawData = await response.json()
+  const infos = processUserInfo(rawData)
+  return infos
 }
 
 // TODO: cache processed user info
@@ -167,9 +191,13 @@ function processUserInfo(data: IUserInfo[]): IProcessedUserInfo[] {
 
     if (processedUserInfo.description == null) {
       if (platformName === 'twitter') {
-        const { description } = twitterOAuthInfo!
+        const { description, name } = twitterOAuthInfo!
         if (description !== '') {
           processedUserInfo.description = description
+        }
+
+        if (name !== '') {
+          processedUserInfo.displayUsername = name
         }
       }
 
@@ -213,26 +241,32 @@ export function getTwitterProfileImgURL(twitterOAuthInfo: ITwitterOAuth): string
 interface ITwitterOAuth {
   description: string
   profile_image_url_https: string
+  friends_count: number
+  followers_count: number
+  name: string
 }
 
 export interface IUserInfo {
   userAddress: string
   username: string
   platformName: string
+  proofURL: string
   twitterOAuthInfo?: ITwitterOAuth
   gravatarHash?: string
 }
 
 export interface IProcessedUserInfo {
   userAddress: string
-  verifications: Array<{
-    platformName: string
-    username: string
-    info?: ITwitterOAuth,
-  }>,
+  verifications: IUserInfoVerications[]
   displayUsername?: string
   description?: string
   avatarImgURL?: string
+}
+
+export interface IUserInfoVerications {
+  platformName: string
+  username: string
+  info?: ITwitterOAuth,
 }
 
 export interface IUserCachesIdentity {

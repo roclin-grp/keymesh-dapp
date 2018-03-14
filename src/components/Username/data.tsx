@@ -6,7 +6,7 @@ import composeClass from 'classnames'
 import * as classes from './index.css'
 
 import { observable, action } from 'mobx'
-import { searchUserByAddress, IProcessedUserInfo } from '../../stores/UserCachesStore'
+import { getUserInfoByAddress, IProcessedUserInfo } from '../../stores/UserCachesStore'
 import { PALTFORM_MODIFIER_CLASSES } from '../../stores/SocialProofsStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 
@@ -23,7 +23,7 @@ class UsernameData {
 
   public async fetchUserInfoUsername(userAddress: string, showAllUsernames?: boolean) {
     // TODO: use cache
-    const userInfo = await searchUserByAddress(this.metaMaskStore.networkID, userAddress)
+    const userInfo = await getUserInfoByAddress(this.metaMaskStore.networkID, userAddress)
     if (userInfo == null) {
       return
     }
@@ -42,11 +42,17 @@ export function getUserName(
     return userInfo.userAddress
   }
 
+  const displayName = (
+    <span className={classes.displayName} key="displayName">
+      {userInfo.displayUsername!}
+    </span>
+  )
+
   if (!showAllUsernames) {
-    return <span>{userInfo.displayUsername!}</span>
+    return displayName
   }
 
-  const userNameComponent: JSX.Element[] = []
+  const userNameComponent: JSX.Element[] = [displayName]
   for (const verification of verifications) {
     const { platformName, username } = verification
     userNameComponent.push((
@@ -55,6 +61,7 @@ export function getUserName(
         className={composeClass(classes.platformUserName, 'vertical-align-container')}
       >
         <Icon
+          key={platformName} // weird unique 'key' props warning
           type={platformName}
           className={composeClass(classes.socialIcon, PALTFORM_MODIFIER_CLASSES[platformName])}
         />

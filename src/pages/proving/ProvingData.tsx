@@ -1,9 +1,6 @@
 import * as React from 'react'
 
 import { STATUS_TYPE } from '../../components/StatusButton'
-import { Icon, Tooltip } from 'antd'
-
-import * as classes from './index.css'
 
 import {
   observable,
@@ -29,7 +26,8 @@ export default abstract class ProvingData {
   @observable public currentStep: PROVING_STEPS = PROVING_STEPS.CONNECT
   @observable.ref public steps: string[] = []
   @observable public proofStatusType: STATUS_TYPE | undefined
-  @observable public proofStatusContent: JSX.Element | string | undefined
+  @observable public proofStatusContent: React.ReactNode
+  @observable public proofStatusHelpContent: React.ReactNode
   @observable public buttonDisabled = false
   @observable public proof: ISocialProof | undefined
 
@@ -51,14 +49,8 @@ export default abstract class ProvingData {
 
     const bindingSocial = await this.getBindingSocial()
     if (bindingSocial == null) {
-      this.setProofStatusContent(
-        <>
-          <span>Cannot find proof</span>
-          <Tooltip title={this.findProofHelpText}>
-            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>,
-      )
+      this.setProofStatusContent('Cannot find proof')
+      this.setProofHelpContent(this.findProofHelpText)
       this.setProofStatusType(STATUS_TYPE.WARN, false)
       return
     }
@@ -120,8 +112,13 @@ export default abstract class ProvingData {
   }
 
   @action
-  protected setProofStatusContent(content: JSX.Element | string | undefined) {
+  protected setProofStatusContent(content: React.ReactNode) {
     this.proofStatusContent = content
+  }
+
+  @action
+  protected setProofHelpContent(content: React.ReactNode) {
+    this.proofStatusHelpContent = content
   }
 
   @action
@@ -136,7 +133,7 @@ export default abstract class ProvingData {
       return null
     }
 
-    const claimText = signedClaimToClaimText(signedClaim)
+    const claimText = signedClaimToClaimText(signedClaim, this.username)
     const proofURL = await this.getProofURL(claimText)
     if (proofURL === null) {
       return null
@@ -168,37 +165,19 @@ export default abstract class ProvingData {
     const checkTransactionTimeout = (err as Error).message.includes('Timeout')
 
     if (checkTransactionTimeout) {
-      this.setProofStatusContent(
-        <>
-          <span>Transaction taking too long</span>
-          <Tooltip title="Transaction was not mined within 50 blocks.">
-            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>,
-      )
+      this.setProofStatusContent('Transaction taking too long')
+      this.setProofHelpContent('Transaction was not mined within 50 blocks')
       return
     }
 
     const hasfetchError = (err as Error).message.includes('Failed to fetch')
     if (hasfetchError) {
-      this.setProofStatusContent(
-        <>
-          <span>Failed to connect to Ethereum network</span>
-          <Tooltip title="Please check your internet connection.">
-            <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-          </Tooltip>
-        </>,
-      )
+      this.setProofStatusContent('Failed to connect to Ethereum network')
+      this.setProofHelpContent('Please check your internet connection')
     }
 
-    this.setProofStatusContent(
-      <>
-        <span>Oops! Something unexpected happened</span>
-        <Tooltip title="Sorry! You can retry later or report bugs to us if any">
-          <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
-        </Tooltip>
-      </>,
-    )
+    this.setProofStatusContent('Unexpected error')
+    this.setProofHelpContent('Sorry! You can retry later')
   }
 
   @action

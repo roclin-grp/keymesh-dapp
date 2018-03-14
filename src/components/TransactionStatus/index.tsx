@@ -15,7 +15,7 @@ function TransactionStatus(props: IProps) {
   const helpMessages = getHelpMessage(status, props)
   const helpIcon = shouldHideHelp || helpMessages == null ? null : (
     <Tooltip title={getHelpMessage(status, props)}>
-      <Icon key="helpIcon" className={classes.helpIcon} type="question-circle-o" />
+      <Icon className={classes.helpIcon} type="question-circle-o" />
     </Tooltip>
   )
 

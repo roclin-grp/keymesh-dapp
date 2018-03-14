@@ -6,7 +6,7 @@ import { UsersStore } from '../../stores/UsersStore'
 import { BroadcastMessagesStore } from '../../stores/BroadcastMessagesStore'
 import { MetaMaskStore } from '../../stores/MetaMaskStore'
 import { BroadcastForm } from './BroadcastForm'
-import HashAvatar from '../../components/HashAvatar'
+import UserAvatar from '../../components/UserAvatar'
 
 import * as styles from './index.css'
 import BroadcastMessage from './BroadcastMessage'
@@ -48,17 +48,19 @@ class Broadcast extends React.Component<IProps> {
   }
 
   private renderPostForm() {
-    const { hasUser } = this.props.usersStore
-    if (!hasUser) {
+    const { currentUserStore } = this.props.usersStore
+    if (currentUserStore == null) {
       return null
     }
 
+    const { userAddress } = currentUserStore.user
     return (
       <section className={classnames(styles.postForm, 'block')}>
-        <HashAvatar
+        <UserAvatar
+          key={userAddress}
           className={styles.avatar}
           shape="circle"
-          hash={this.props.usersStore.currentUserStore!.avatarHash}
+          userAddress={userAddress}
         />
         <BroadcastForm
           broadcastMessagesStore={this.props.broadcastMessagesStore}
