@@ -97,15 +97,13 @@ export function signedClaimToClaimText(signedClaim: ISignedClaim, twitterUsernam
     return ''
   }
 
-  return `Verifying myself: I am ${twitterUsername} on https://Keymesh.io.
+  return `Verifying myself: I am ${ENV.DEPLOYED_ADDRESS}/${twitterUsername}.
 
-${base58encodedUserAddress}-${base58encodedSignature}
-
-${ENV.DEPLOYED_ADDRESS}/${twitterUsername}`
+${base58encodedUserAddress}-${base58encodedSignature}`
 }
 
 export function claimTextToSignedClaim(claimText: string): ISignedClaim {
-  const parts = new RegExp(`Keymesh.io.\\s+(\\w+)-(\\w+)`).exec(claimText)
+  const parts = new RegExp(`\\s+(\\w+)-(\\w+)`).exec(claimText)
   if (parts === null) {
     throw new Error('Invalid claim text')
   }
