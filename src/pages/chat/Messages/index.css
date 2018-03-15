@@ -2,7 +2,7 @@
   overflow: auto;
   flex-grow: 1;
   padding: 0 0.625rem;
-  background-color: rgba(247, 247, 247, .5);
+  background-color: #f4f4f4;
 }
 
 .newUnreadCount {
