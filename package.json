@@ -42,7 +42,7 @@
     "typescript": "^2.7.1"
   },
   "dependencies": {
-    "@keymesh/trustmesh": "^0.0.9",
+    "@keymesh/trustmesh": "^0.0.10",
     "antd": "^3.0.3",
     "bs58check": "^2.1.1",
     "classnames": "^2.2.5",
