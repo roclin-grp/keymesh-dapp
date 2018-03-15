@@ -18,6 +18,7 @@ import {
   IVerifiedStatus,
   VERIFIED_SOCIAL_STATUS,
 } from '../../stores/SocialProofsStore'
+import { UserStore } from '../../stores/UserStore'
 
 @observer
 class ProfileCard extends React.Component<IProps> {
@@ -30,9 +31,10 @@ class ProfileCard extends React.Component<IProps> {
   }
 
   public render() {
-    const { userInfo, isFirstCard } = this.props
+    const { userInfo, isFirstCard, currentUserStore } = this.props
     const { userAddress } = userInfo
     const isFirstDecoratorClass = { [classes.isFrist]: isFirstCard }
+    const isSelf = this.props.isSelf || (currentUserStore != null && currentUserStore.user.userAddress === userAddress)
     return (
       <section
         className={composeClass(
@@ -54,7 +56,7 @@ class ProfileCard extends React.Component<IProps> {
         </div>
         <Divider />
         {this.renderVerifications(userInfo)}
-        {this.renderMessageButton(userAddress)}
+        {this.renderMessageButton(userAddress, isSelf)}
       </section>
     )
   }
@@ -171,9 +173,11 @@ class ProfileCard extends React.Component<IProps> {
 
     const isVerifying = isVerifyings[platformName]
     const verification = verifications[platformName]
-    const { verifiedStatus } = verification
+    const { verifiedStatus, socialProof } = verification
+    const proofNotFound = !isVerifying && socialProof == null
 
-    const status = this.getCurrentStatus(isVerifying, verifiedStatus)
+    const status = proofNotFound ? STATUS.INVALID : this.getCurrentStatus(isVerifying, verifiedStatus)
+
     let verificationStatusText = (
       <span className={composeClass(classes.verificationStatusText, STATUS_MODIFIER[status])} >
         {VERIFICATION_STATUS_TEXT[status]}
@@ -197,7 +201,7 @@ class ProfileCard extends React.Component<IProps> {
       <a
         role="button"
         onClick={
-          isVerifying ? undefined
+          proofNotFound ? undefined
           : () => proofsStateStore.verify(platformName, verification.socialProof!.proofURL)
         }
       >
@@ -208,7 +212,7 @@ class ProfileCard extends React.Component<IProps> {
       </a>
     )
 
-    if (!isVerifying) {
+    if (!proofNotFound) {
       verificationStatusIcon = (
         <Tooltip title="Click to re-check" placement="right">
           {verificationStatusIcon}
@@ -237,14 +241,16 @@ class ProfileCard extends React.Component<IProps> {
     return null
   }
 
-  private renderMessageButton(userAddress: string) {
-    const { isSelf } = this.props
+  private renderMessageButton(userAddress: string, isSelf: boolean) {
     if (isSelf) {
       return
     }
 
+    const { currentUserStore } = this.props
+    const shouldDisable = currentUserStore != null && currentUserStore.isDisabled
+
     return (
-      <Button className={classes.messageButton} type="primary">
+      <Button disabled={shouldDisable} className={classes.messageButton} type="primary">
         <Link to={`/messages?to=${userAddress}`}>
           Message
         </Link>
@@ -288,6 +294,7 @@ const STATUS_MODIFIER = {
 interface IProps {
   isFirstCard: boolean,
   isSelf: boolean,
+  currentUserStore?: UserStore,
   userInfo: IProcessedUserInfo,
   proofsStateStore: UserProofsStateStore,
 }

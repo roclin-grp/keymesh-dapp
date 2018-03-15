@@ -35,6 +35,11 @@ export class UserCachesDB {
       .then(() => this.table.get([userCache.networkId, userCache.userAddress])) as Dexie.Promise<IUserCaches>
   }
 
+  public async getAllAddresses(): Promise<string[]> {
+    const allUserCaches = await this.table.toArray()
+    return allUserCaches.map(({ userAddress }) => userAddress)
+  }
+
   private get table() {
     return this.dexieDB.userCaches
   }

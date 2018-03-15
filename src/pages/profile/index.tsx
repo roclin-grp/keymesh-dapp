@@ -11,6 +11,8 @@ import { IStores } from '../../stores'
 import ProfileData from './data'
 import { IProcessedUserInfo } from '../../stores/UserCachesStore'
 import { UserProofsStatesStore } from '../../stores/UserProofsStatesStore'
+import { UsersStore } from '../../stores/UsersStore'
+import { UserStore } from '../../stores/UserStore'
 
 @inject(mapStoreToProps)
 @observer
@@ -23,7 +25,11 @@ class Profile extends React.Component<IProps> {
   }
 
   public render() {
-    const { data, isSelf } = this.injectedProps
+    const { userAddress, twitterUsername } = this.injectedProps.match.params
+    const { data, usersStore } = this.injectedProps
+    const { currentUserStore } = usersStore
+    const noParams = twitterUsername == null && userAddress == null
+    const isSelf = noParams || currentUserStore != null && currentUserStore.user.userAddress === userAddress
     const { isLoading } = data
     if (isLoading) {
       return <LoadingPage message={isSelf ? 'Loading data...' : 'Finding user...'} />
@@ -36,12 +42,12 @@ class Profile extends React.Component<IProps> {
 
     return (
       <div className={'page-container'}>
-        {this.renderUserCards(userInfos, isSelf)}
+        {this.renderUserCards(userInfos, isSelf, currentUserStore)}
       </div>
     )
   }
 
-  private renderUserCards(userInfos: IProcessedUserInfo[], isSelf: boolean) {
+  private renderUserCards(userInfos: IProcessedUserInfo[], isSelf: boolean, currentUserStore?: UserStore) {
     const cards: JSX.Element[] = []
 
     const { userProofsStatesStore } = this.injectedProps
@@ -54,6 +60,7 @@ class Profile extends React.Component<IProps> {
           isFirstCard={isFrist}
           userInfo={userInfo}
           isSelf={isSelf}
+          currentUserStore={currentUserStore}
           proofsStateStore={proofsStateStore}
         />
       ))
@@ -75,7 +82,7 @@ function mapStoreToProps(stores: IStores, ownProps: IProps & RouteComponentProps
   const { userAddress, twitterUsername } = ownProps.match.params
   return {
     data: new ProfileData(usersStore, metaMaskStore, twitterUsername, userAddress),
-    isSelf: userAddress == null && twitterUsername == null,
+    usersStore,
     userProofsStatesStore: usersStore.userProofsStatesStore,
   }
 }
@@ -90,7 +97,7 @@ interface IProps extends RouteComponentProps<IParams> {
 
 interface IInjectedProps {
   data: ProfileData
-  isSelf: boolean
+  usersStore: UsersStore,
   userProofsStatesStore: UserProofsStatesStore
 }
 

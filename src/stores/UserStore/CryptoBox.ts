@@ -151,7 +151,7 @@ export default class CryptoBox {
 
     if (messageData.messageType === MESSAGE_TYPE.HELLO) {
       // hack wire's cryptobox, reload data in order to re-use pre-key
-      this.loadWireCryptoBox()
+      await this.loadWireCryptoBox()
     }
 
     // validate message
@@ -192,7 +192,7 @@ export default class CryptoBox {
 
   private async getWireCryptoBox(): Promise<WireCryptoBox> {
     if (this.wireCryptoBox == null) {
-      return await this.waitForCryptoBox()
+      return this.waitForCryptoBox()
     }
 
     return this.wireCryptoBox

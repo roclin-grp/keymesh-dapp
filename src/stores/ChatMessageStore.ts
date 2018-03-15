@@ -43,7 +43,7 @@ export class ChatMessageStore {
     }
   }
 
-  public async checkMessageStatus() {
+  public async checkMessageStatus(): Promise<void> {
     const { transactionHash } = this.message.meta
     if (transactionHash == null) {
       throw new Error('no transaction hash')
@@ -65,8 +65,7 @@ export class ChatMessageStore {
         storeLogger.warn('failed to check message:', err)
         // retry
         await sleep(3000)
-        this.checkMessageStatus()
-        return
+        return this.checkMessageStatus()
       }
 
       storeLogger.error('failed to send message:', err)

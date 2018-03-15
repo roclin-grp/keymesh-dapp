@@ -20,6 +20,7 @@ class TwitterProving extends React.Component<IProps> {
   public render() {
     const { data } = this.props
     const {
+      userStore,
       username,
       currentStep,
       buttonDisabled,
@@ -35,7 +36,7 @@ class TwitterProving extends React.Component<IProps> {
             You will be redirected to Twitter for authentication
           </h3>
           <StatusButton
-            disabled={buttonDisabled}
+            disabled={buttonDisabled || userStore.isDisabled}
             statusType={proofStatusType}
             statusContent={proofStatusContent}
             helpContent={proofStatusHelpContent}

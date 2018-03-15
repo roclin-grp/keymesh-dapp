@@ -63,6 +63,7 @@ class Broadcast extends React.Component<IProps> {
           userAddress={userAddress}
         />
         <BroadcastForm
+          disabled={currentUserStore.isDisabled}
           broadcastMessagesStore={this.props.broadcastMessagesStore}
         />
       </section>

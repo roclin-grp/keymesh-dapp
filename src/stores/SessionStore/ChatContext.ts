@@ -17,7 +17,6 @@ import {
   IMessageConfigurableMeta,
 } from '../../databases/MessagesDB'
 
-import { sleep } from '../../utils'
 import {
   publicKeyToIdentityKey,
 } from '../../utils/proteus'
@@ -29,13 +28,6 @@ import { getPreKeysPackage } from '../../PreKeysPackage'
 export default class ChatContext {
   private readonly session: ISession
   private readonly receiverAddress: string
-  /**
-   * don't access this directly, use `await this.getWireCryptoBox()`
-   *
-   * TODO: save receiver public key to database,
-   * close session if receiver public key has changed
-   */
-  private receiverPublicKey: proteusKeys.PublicKey | undefined
 
   constructor(
     private readonly userStore: UserStore,
@@ -45,8 +37,6 @@ export default class ChatContext {
     const session = sessionStore.session
     this.session = session
     this.receiverAddress = session.data.contact
-
-    this.loadReceiverPublicKey()
   }
 
   public async send(messageData: IMessageData) {
@@ -87,24 +77,7 @@ export default class ChatContext {
   }
 
   private async getReceiverPublicKey(): Promise<proteusKeys.PublicKey> {
-    if (this.receiverPublicKey == null) {
-      return await this.waitForReceiverPublicKey()
-    }
-
-    return this.receiverPublicKey
-  }
-
-  private async loadReceiverPublicKey() {
-    // TODO: cache public keys store or use exist one in `CachedUserDataStore`
-    this.receiverPublicKey = await getUserPublicKey(this.receiverAddress, this.contractStore)
-  }
-
-  private async waitForReceiverPublicKey(interval = 300): Promise<proteusKeys.PublicKey> {
-    while (this.receiverPublicKey == null) {
-      await sleep(interval)
-    }
-
-    return this.receiverPublicKey
+    return getUserPublicKey(this.receiverAddress, this.contractStore)
   }
 
   private async getPreKeyBundle(publicKey: proteusKeys.PublicKey): Promise<PreKeyBundle> {

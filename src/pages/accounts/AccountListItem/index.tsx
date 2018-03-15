@@ -74,6 +74,7 @@ class AccountListItem extends React.Component<IProps, IState> {
 
     switch (status) {
       case REGISTER_STATUS.SUCCESS:
+      case REGISTER_STATUS.TAKEOVERED:
         if (isUsing) {
           return [deleteButton]
         }
@@ -88,8 +89,7 @@ class AccountListItem extends React.Component<IProps, IState> {
           </Button>,
           deleteButton,
         ]
-      case REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED:
-      case REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR:
+      case REGISTER_STATUS.UNEXCEPTED_ERROR:
         return [
           <Button
             key={`retry-${user.userAddress}`}
@@ -100,7 +100,7 @@ class AccountListItem extends React.Component<IProps, IState> {
           </Button>,
           deleteButton,
         ]
-      case REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR:
+      case REGISTER_STATUS.TRANSACTION_ERROR:
       default:
         return [deleteButton]
     }
@@ -175,21 +175,18 @@ class AccountListItem extends React.Component<IProps, IState> {
 }
 
 const REGISTER_STATUS_ICON_TYPES = Object.freeze({
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: 'loading',
-  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: 'loading',
-  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: 'exclamation-circle',
-  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: 'exclamation-circle',
-  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: 'exclamation-circle',
+  [REGISTER_STATUS.TRANSACTING]: 'loading',
+  [REGISTER_STATUS.TRANSACTION_TIMEOUT]: 'exclamation-circle',
+  [REGISTER_STATUS.UNEXCEPTED_ERROR]: 'exclamation-circle',
   [REGISTER_STATUS.TAKEOVERED]: 'exclamation-circle',
-  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: 'close-circle',
+  [REGISTER_STATUS.TRANSACTION_ERROR]: 'close-circle',
 })
 
 const REGISTER_STATUS_ICON_MODIFIERS = Object.freeze({
-  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: classes.warn,
-  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: classes.warn,
-  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: classes.warn,
+  [REGISTER_STATUS.TRANSACTION_TIMEOUT]: classes.warn,
+  [REGISTER_STATUS.UNEXCEPTED_ERROR]: classes.warn,
   [REGISTER_STATUS.TAKEOVERED]: classes.warn,
-  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: classes.error,
+  [REGISTER_STATUS.TRANSACTION_ERROR]: classes.error,
 })
 
 // typing

@@ -9,6 +9,7 @@ import {
 import Web3 from 'web3'
 
 import { sleep } from '../utils'
+import ENV from '../config'
 
 function getMetaMaskProvider(): { isMetaMask: true } | null {
   const win = window as any
@@ -78,13 +79,13 @@ export class MetaMaskStore {
   public get isWrongNetwork() {
     if (process.env.NODE_ENV === 'development') {
       return (
-        this.currentEthereumNetwork !== ETHEREUM_NETWORKS.RINKEBY &&
+        this.currentEthereumNetwork !== ENV.DEPLOYED_NETWORK_ID &&
         // allow custom network
         Object.values(ETHEREUM_NETWORKS).includes(this.currentEthereumNetwork)
       )
     }
 
-    return this.currentEthereumNetwork !== ETHEREUM_NETWORKS.RINKEBY
+    return this.currentEthereumNetwork !== ENV.DEPLOYED_NETWORK_ID
   }
 
   constructor(private web3: Web3) {
