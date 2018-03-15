@@ -60,7 +60,7 @@ class Dialog extends React.Component<IProps, IState> {
       <div className={styles.dialog}>
         <div className={styles.header}>
           <h3 className={styles.title}>
-            {session.data.subject || <Username userAddress={session.data.contact} />}
+            {session.data.subject || <Username key={session.data.contact} userAddress={session.data.contact} />}
           </h3>
           {/* <Button
             onClick={this.showDeleteSessionConfirm}

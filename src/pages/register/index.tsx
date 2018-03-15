@@ -62,6 +62,9 @@ class Register extends React.Component<IProps, IState> {
 
   public render() {
     const { metaMaskStore, usersStore } = this.injectedProps
+    if (!metaMaskStore.isActive) {
+      return null
+    }
     const { walletAddress, networkID, signMessage } = metaMaskStore
 
     const showAccountInfoForm = usersStore.users.length === 0 && ! this.state.isSubmittedEmail
