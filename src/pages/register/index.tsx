@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
 } from 'antd'
+import AccountInfoForm from './AccountInfoForm'
 import UserAddress from '../../components/UserAddress'
 import StatusButton, { STATUS_TYPE } from '../../components/StatusButton'
 import AccountRegisterStatus, { REGISTER_STATUS } from '../../components/AccountRegisterStatus'
@@ -61,34 +62,36 @@ class Register extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const { metaMaskStore } = this.injectedProps
-    const { isActive } = metaMaskStore
-    if (!isActive) {
+    const { metaMaskStore, usersStore } = this.injectedProps
+    if (!metaMaskStore.isActive) {
       return null
     }
-    const { walletAddress } = metaMaskStore
+    const { walletAddress, networkID, signMessage } = metaMaskStore
 
+    const showAccountInfoForm = usersStore.users.length === 0 && ! this.state.isSubmittedEmail
     return (
       <div className="page-container">
-        <Alert
-          className={classes.ethPrompt}
-          closable={true}
-          message={<h3>Do you need some Rinkeby test tokens?</h3>}
-          description={
-            <>
-              <p>
-                The KeyMesh BETA runs on the Rinkeby Test Network, so you can’t use real $ETH to pay for transactions.
-              </p>
-              <p>
-                You can get free tokens from {' '}
-                <a href="https://faucet.rinkeby.io" target="_blank">
-                  https://faucet.rinkeby.io
-                </a>
-              </p>
-            </>
-          }
-          type="info"
-        />
+        { showAccountInfoForm ? null :
+          <Alert
+            className={classes.ethPrompt}
+            closable={true}
+            message={<h3>Do you need some Rinkeby test tokens?</h3>}
+            description={
+              <>
+                <p>
+                  The KeyMesh BETA runs on the Rinkeby Test Network, so you can’t use real $ETH to pay for transactions.
+                </p>
+                <p>
+                  You can get free tokens from {' '}
+                  <a href="https://faucet.rinkeby.io" target="_blank">
+                    https://faucet.rinkeby.io
+                  </a>
+                </p>
+              </>
+            }
+            type="info"
+          />
+        }
         <section className={composeClass(classes.signupSection, 'block')}>
           <h2 className="title">
             Power Up Your Ethereum Address
@@ -99,12 +102,25 @@ class Register extends React.Component<IProps, IState> {
           </p>
           <h3>Your Ethereum Address</h3>
           <UserAddress className={classes.userAddress} userAddress={walletAddress} />
-          {this.renderRegisterStatusButton()}
-          <Divider />
-          <RestoreUserButton />
+          {
+            showAccountInfoForm ?
+              <AccountInfoForm
+                signMessage={signMessage}
+                userAddress={walletAddress}
+                networkID={networkID}
+                onEmailSubmitted={this.hanleSubmittedEmail}
+              /> :
+              this.renderRegisterStatusButton()
+            }
         </section>
       </div>
     )
+  }
+  private hanleSubmittedEmail = () => {
+    setEmailSubmitted()
+    this.setState({
+      isSubmittedEmail: true,
+    })
   }
 
   private renderRegisterStatusButton() {
@@ -129,16 +145,20 @@ class Register extends React.Component<IProps, IState> {
     )
 
     return (
-      <StatusButton
-        buttonClassName={classes.registerButton}
-        disabled={shouldDisableButton}
-        statusType={type}
-        statusContent={content}
-        helpContent={help}
-        onClick={handleClick}
-      >
-        Sign Up With MetaMask
-      </StatusButton>
+      <>
+        <StatusButton
+          buttonClassName={classes.registerButton}
+          disabled={shouldDisableButton}
+          statusType={type}
+          statusContent={content}
+          helpContent={help}
+          onClick={handleClick}
+        >
+          Sign Up With MetaMask
+        </StatusButton>
+        <Divider />
+        <RestoreUserButton />
+      </>
     )
   }
 
@@ -352,7 +372,19 @@ function mapStoreToProps({
   }
 }
 
+<<<<<<< HEAD
 enum REGISTER_TRANSACTION_CREATION_STATUS {
+=======
+function getEmailSubmittedStatus(): boolean {
+  return Boolean(localStorage.getItem('keymesh.io_submitted_email'))
+}
+
+function setEmailSubmitted() {
+  localStorage.setItem('keymesh.io_submitted_email', 'submitted')
+}
+
+enum TRANSACTION_CREATION_STATUS {
+>>>>>>> origin/master
   PENDING,
   REJECTED,
   FAILED,
@@ -392,6 +424,7 @@ const defaultState: Readonly<IState> = {
   transactionCreationStatus: undefined,
   transactionHash: undefined,
   registerStatus: undefined,
+  isSubmittedEmail: getEmailSubmittedStatus(),
 }
 
 interface IInjectedProps {
@@ -403,6 +436,7 @@ interface IState {
   transactionCreationStatus?: REGISTER_TRANSACTION_CREATION_STATUS
   transactionHash?: string
   registerStatus?: REGISTER_STATUS
+  isSubmittedEmail: boolean
 }
 
 export default Register
