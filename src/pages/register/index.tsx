@@ -372,9 +372,6 @@ function mapStoreToProps({
   }
 }
 
-<<<<<<< HEAD
-enum REGISTER_TRANSACTION_CREATION_STATUS {
-=======
 function getEmailSubmittedStatus(): boolean {
   return Boolean(localStorage.getItem('keymesh.io_submitted_email'))
 }
@@ -383,8 +380,7 @@ function setEmailSubmitted() {
   localStorage.setItem('keymesh.io_submitted_email', 'submitted')
 }
 
-enum TRANSACTION_CREATION_STATUS {
->>>>>>> origin/master
+enum REGISTER_TRANSACTION_CREATION_STATUS {
   PENDING,
   REJECTED,
   FAILED,
