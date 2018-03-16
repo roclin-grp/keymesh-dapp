@@ -6,7 +6,7 @@ import { sha3, isAddress } from '../utils/cryptos'
 import { isHexZeroValue } from '../utils/hex'
 import ENV from '../config'
 import { observable, computed, action } from 'mobx'
-import { sleep } from '../../../trustmesh/lib/utils'
+import { sleep } from '../utils'
 import { storeLogger } from '../utils/loggers'
 import { ContractStore } from './ContractStore'
 
