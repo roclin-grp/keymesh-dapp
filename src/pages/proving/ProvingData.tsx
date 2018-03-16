@@ -33,7 +33,7 @@ export default abstract class ProvingData {
 
   protected abstract findProofHelpText: string
 
-  constructor(protected readonly userStore: UserStore) {
+  constructor(public readonly userStore: UserStore) {
     this.init()
   }
 

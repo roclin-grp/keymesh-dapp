@@ -29,6 +29,7 @@ import { getDatabases } from '../databases'
 import { UsersDB, ICreateUserArgs } from '../databases/UsersDB'
 
 import IndexedDBStore from '../IndexedDBStore'
+import { uploadPreKeys } from './UserStore/PreKeysManager'
 
 export class UsersStore {
   @observable.ref public users: IUser[] = []
@@ -51,7 +52,7 @@ export class UsersStore {
     this.usersDB = getDatabases().usersDB
 
     // FIXME: move to outside
-    this.userCachesStore = new UserCachesStore(this, metaMaskStore)
+    this.userCachesStore = new UserCachesStore(this, metaMaskStore, contractStore)
     // FIXME: move to outside
     this.userProofsStatesStore = new UserProofsStatesStore({
       usersStore: this,
@@ -143,14 +144,17 @@ export class UsersStore {
       identityKeyPair.public_key,
     )
 
+    // create crytobox data
+    const indexedDBStore = new IndexedDBStore(`${ethereumNetworkId}@${ethereumAddress}`)
+    await indexedDBStore.delete_all()
+    await indexedDBStore.save_identity(identityKeyPair)
+    const lastResortPreKey = proteusKeys.PreKey.last_resort()
+    await indexedDBStore.save_prekey(lastResortPreKey)
+    // upload pre-keys first
+    await uploadPreKeys(ethereumNetworkId, indexedDBStore)
+
     const promiEvent = identitiesContract.register(userPublicKeyFingerprint)
     const transactionHash = await transactionPromiEventToPromise(promiEvent)
-
-    // create crytobox data
-    const store = new IndexedDBStore(`${ethereumNetworkId}@${ethereumAddress}`)
-    await store.save_identity(identityKeyPair)
-    const lastResortPreKey = proteusKeys.PreKey.last_resort()
-    await store.save_prekey(lastResortPreKey)
 
     await this.createUser({
       networkId: ethereumNetworkId,
@@ -254,18 +258,24 @@ export class UsersStore {
       return
     }
 
-    if (this.hasWalletCorrespondingAvailableUser) {
+    const { walletCorrespondingUserStore } = this
+    if (walletCorrespondingUserStore != null) {
       this.setHasRegisterRecordOnChain(userAddress, true)
-      return
     }
 
-    const {
-      publicKey,
-    } = await this.contractStore.identitiesContract.getIdentity(userAddress)
-
+    const { publicKey } = await this.contractStore.identitiesContract.getIdentity(userAddress)
     const hasRegisterRecordOnChain = !isHexZeroValue(publicKey)
-    // TODO: disable existed local user if public key has changed
     this.setHasRegisterRecordOnChain(userAddress, hasRegisterRecordOnChain)
+
+    if (walletCorrespondingUserStore != null) {
+      const identity = await walletCorrespondingUserStore.cryptoBox.getIdentityKeyPair()
+      const publicKeyInStore = getPublicKeyFingerPrint(identity.public_key)
+      if (publicKeyInStore !== publicKey) {
+        await walletCorrespondingUserStore.updateUser({
+          status: USER_STATUS.TAKEN_OVER,
+        })
+      }
+    }
   }
 
   @action
@@ -337,7 +347,6 @@ export class UsersStore {
 export function getAvatarHashByUser(user: IUser): string {
   switch (user.status) {
     case USER_STATUS.OK:
-    case USER_STATUS.IDENTITY_UPLOADED:
       return sha3(`${user.userAddress}${user.blockHash}`)
     default:
       return ''

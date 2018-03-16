@@ -2,11 +2,11 @@ import * as React from 'react'
 
 // component
 import {
-  // Button,
-  // Modal,
+  Button,
+  Modal,
   message,
 } from 'antd'
-// const {confirm} = Modal
+const {confirm} = Modal
 import Messages from '../Messages'
 import DialogTextArea from '../DialogTextArea'
 import Username from '../../../components/Username'
@@ -62,14 +62,15 @@ class Dialog extends React.Component<IProps, IState> {
           <h3 className={styles.title}>
             {session.data.subject || <Username key={session.data.contact} userAddress={session.data.contact} />}
           </h3>
-          {/* <Button
-            onClick={this.showDeleteSessionConfirm}
-            shape="circle"
-            icon="delete"
-            size="small"
-            type="danger"
-            ghost={true}
-          /> */}
+          { session.meta.isNewSession ? null
+            :
+            <Button
+              onClick={this.showDeleteSessionConfirm}
+              shape="circle"
+              icon="delete"
+              size="small"
+            />
+          }
         </div>
         <Messages sessionStore={this.props.sessionStore} getScrollToBottom={this.getMessagesScrollToBottom}/>
         <DialogTextArea
@@ -147,20 +148,19 @@ class Dialog extends React.Component<IProps, IState> {
     message.error('Fail to send message, please retry.')
   }
 
-  // private showDeleteSessionConfirm = () => {
-  //   confirm({
-  //     title: 'Are you sure delete this conversation?',
-  //     content: 'You will NOT able to receive messages of this conversation after deleted!',
-  //     okText: 'Delete',
-  //     okType: 'danger',
-  //     cancelText: 'Cancel',
-  //     onOk: this.handleDeleteSession,
-  //   })
-  // }
+  private showDeleteSessionConfirm = () => {
+    confirm({
+      content: 'You will NOT able to receive messages of this conversation after deleted!',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: this.handleDeleteSession,
+    })
+  }
 
-  // private handleDeleteSession = () => {
-  //   // TODO
-  // }
+  private handleDeleteSession = () => {
+    this.props.sessionStore.deleteSession()
+  }
 
   private getMessagesScrollToBottom = (messagesScrollToBottom: () => void) => {
     this.messagesScrollToBottom = messagesScrollToBottom

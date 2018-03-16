@@ -16,9 +16,9 @@
     esutils "^2.0.2"
     js-tokens "^3.0.0"
 
-"@keymesh/trustmesh@^0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@keymesh/trustmesh/-/trustmesh-0.0.9.tgz#b61bba28c798ac68c16f5dc2a3c2c1e008dfb1c2"
+"@keymesh/trustmesh@^0.0.10":
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/@keymesh/trustmesh/-/trustmesh-0.0.10.tgz#205bc2b4ea1430a8d4e48c77ce15f74059dc57de"
 
 "@types/classnames@^2.2.3":
   version "2.2.3"

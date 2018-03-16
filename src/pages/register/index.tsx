@@ -30,6 +30,7 @@ import { UserStore, USER_STATUS } from '../../stores/UserStore'
 
 // helper
 import { sleep } from '../../utils'
+import { storeLogger } from '../../utils/loggers'
 
 @inject(mapStoreToProps)
 @observer
@@ -42,7 +43,7 @@ class Register extends React.Component<IProps, IState> {
   private isUnmounted = false
 
   private get isCreatingTransaction() {
-    return this.state.transactionCreationStatus === TRANSACTION_CREATION_STATUS.PENDING
+    return this.state.transactionCreationStatus === REGISTER_TRANSACTION_CREATION_STATUS.PENDING
   }
 
   public componentDidMount() {
@@ -236,10 +237,8 @@ class Register extends React.Component<IProps, IState> {
     const statusType = registerStatus == null ? undefined : REGISTER_STATUS_ICON_TYPES[registerStatus]
 
     if (walletCorrespondingUserStore != null) {
-      const canRetry = (
-        registerStatus === REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED ||
-        registerStatus === REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR
-      )
+      const canRetry = registerStatus === REGISTER_STATUS.UNEXCEPTED_ERROR
+
       const retryButton = (
         <a
           role="button"
@@ -303,13 +302,13 @@ class Register extends React.Component<IProps, IState> {
   }
 
   private handleRegister = async () => {
-    this.setState({ transactionCreationStatus: TRANSACTION_CREATION_STATUS.PENDING })
+    this.setState({ transactionCreationStatus: REGISTER_TRANSACTION_CREATION_STATUS.PENDING })
 
     try {
       await this.injectedProps.usersStore.register()
       this.handleTransactionCreated()
     } catch (err) {
-      this.handleTransactionFailed(err)
+      this.handleTransactionCreationFailed(err)
     }
   }
 
@@ -320,8 +319,13 @@ class Register extends React.Component<IProps, IState> {
       okText: 'Take Over',
       cancelText: 'Cancel',
       okType: 'danger',
-      onOk: this.handleRegister,
+      onOk: this.handleTakeOver,
     })
+  }
+
+  // avoid display loading status button
+  private handleTakeOver = () => {
+    this.handleRegister()
   }
 
   private handleTransactionCreated = async () => {
@@ -335,20 +339,21 @@ class Register extends React.Component<IProps, IState> {
     })
   }
 
-  private handleTransactionFailed = (err: Error) => {
+  private handleTransactionCreationFailed = (err: Error) => {
     if (this.isUnmounted) {
       return
     }
 
     if (err.message.includes('User denied transaction signature')) {
       this.setState({
-        transactionCreationStatus: TRANSACTION_CREATION_STATUS.REJECTED,
+        transactionCreationStatus: REGISTER_TRANSACTION_CREATION_STATUS.REJECTED,
       })
       return
     }
 
+    storeLogger.error('failed to create register transaction: ', err)
     this.setState({
-      transactionCreationStatus: TRANSACTION_CREATION_STATUS.FAILED,
+      transactionCreationStatus: REGISTER_TRANSACTION_CREATION_STATUS.FAILED,
     })
   }
 
@@ -367,6 +372,9 @@ function mapStoreToProps({
   }
 }
 
+<<<<<<< HEAD
+enum REGISTER_TRANSACTION_CREATION_STATUS {
+=======
 function getEmailSubmittedStatus(): boolean {
   return Boolean(localStorage.getItem('keymesh.io_submitted_email'))
 }
@@ -376,38 +384,37 @@ function setEmailSubmitted() {
 }
 
 enum TRANSACTION_CREATION_STATUS {
+>>>>>>> origin/master
   PENDING,
   REJECTED,
   FAILED,
 }
 
-function getTransactionStatus(creationStatus: TRANSACTION_CREATION_STATUS): TRANSACTION_STATUS {
+function getTransactionStatus(creationStatus: REGISTER_TRANSACTION_CREATION_STATUS): TRANSACTION_STATUS {
   switch (creationStatus) {
-    case TRANSACTION_CREATION_STATUS.PENDING:
+    case REGISTER_TRANSACTION_CREATION_STATUS.PENDING:
       return TRANSACTION_STATUS.PENDING
-    case TRANSACTION_CREATION_STATUS.REJECTED:
+    case REGISTER_TRANSACTION_CREATION_STATUS.REJECTED:
       return TRANSACTION_STATUS.REJECTED
-    case TRANSACTION_CREATION_STATUS.FAILED:
+    case REGISTER_TRANSACTION_CREATION_STATUS.FAILED:
     default:
       return TRANSACTION_STATUS.UNEXCEPTED_ERROR
   }
 }
 
 const TRANSACTION_CREATION_ICON_TYPES = Object.freeze({
-  [TRANSACTION_CREATION_STATUS.PENDING]: STATUS_TYPE.LOADING,
-  [TRANSACTION_CREATION_STATUS.REJECTED]: STATUS_TYPE.WARN,
-  [TRANSACTION_CREATION_STATUS.FAILED]: STATUS_TYPE.ERROR,
+  [REGISTER_TRANSACTION_CREATION_STATUS.PENDING]: STATUS_TYPE.LOADING,
+  [REGISTER_TRANSACTION_CREATION_STATUS.REJECTED]: STATUS_TYPE.WARN,
+  [REGISTER_TRANSACTION_CREATION_STATUS.FAILED]: STATUS_TYPE.ERROR,
 })
 
 const REGISTER_STATUS_ICON_TYPES = Object.freeze({
-  [REGISTER_STATUS.IDENTITY_UPLOADING]: STATUS_TYPE.LOADING,
-  [REGISTER_STATUS.PRE_KEYS_UPLOADING]: STATUS_TYPE.LOADING,
+  [REGISTER_STATUS.TRANSACTING]: STATUS_TYPE.LOADING,
   [REGISTER_STATUS.SUCCESS]: STATUS_TYPE.SUCCESS,
-  [REGISTER_STATUS.CHECK_IDENTITY_TIMEOUT]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.UNEXCEPTED_IDENTITY_UPLOAD_ERROR]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.PRE_KEYS_UPLOAD_FAILED]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.TRANSACTION_TIMEOUT]: STATUS_TYPE.WARN,
+  [REGISTER_STATUS.UNEXCEPTED_ERROR]: STATUS_TYPE.WARN,
   [REGISTER_STATUS.TAKEOVERED]: STATUS_TYPE.WARN,
-  [REGISTER_STATUS.IDENTITY_UPLOAD_TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
+  [REGISTER_STATUS.TRANSACTION_ERROR]: STATUS_TYPE.ERROR,
 })
 
 // typing
@@ -426,7 +433,7 @@ interface IInjectedProps {
 }
 
 interface IState {
-  transactionCreationStatus?: TRANSACTION_CREATION_STATUS
+  transactionCreationStatus?: REGISTER_TRANSACTION_CREATION_STATUS
   transactionHash?: string
   registerStatus?: REGISTER_STATUS
   isSubmittedEmail: boolean

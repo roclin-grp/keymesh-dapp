@@ -15,6 +15,7 @@ import {
   IUserPrimaryKeys,
 } from '../stores/UserStore'
 import { hexFromUint8Array } from '../utils/hex'
+import IndexedDBStore from '../IndexedDBStore'
 
 export class SessionsDB {
   constructor(private dexieDB: TypeDexieWithTables, private dataBases: Databases) {}
@@ -151,11 +152,15 @@ export class SessionsDB {
     return updatedSession!
   }
 
-  public deleteSession(session: ISession) {
+  public async deleteSession(session: ISession) {
     const { sessions } = this.dexieDB
 
+    const { networkId, userAddress, sessionTag } = session
+    const indexedDBStore = new IndexedDBStore(`${networkId}@${userAddress}`)
+    await indexedDBStore.delete_session(sessionTag)
+
     return this.dexieDB.transaction('rw', sessions, this.dexieDB.messages, async () => {
-      await sessions.delete([session.sessionTag, session.userAddress])
+      await sessions.delete([sessionTag, userAddress])
       await this.dataBases.messagesDB.deleteMessagesOfSession(session, { isDeleteSession: true })
     })
   }

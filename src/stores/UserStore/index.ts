@@ -64,12 +64,17 @@ export class UserStore {
   @computed
   public get isRegisterCompleted(): boolean {
     const { status } = this.user
-    return status === USER_STATUS.OK || status === USER_STATUS.FAILED
+    return status !== USER_STATUS.PENDING
   }
 
   @computed
   public get confirmationCounter(): number | undefined {
     return this._confirmationCounter
+  }
+
+  @computed
+  public get isDisabled(): boolean {
+    return this.user.status === USER_STATUS.TAKEN_OVER
   }
 
   @computed
@@ -154,7 +159,7 @@ export class UserStore {
 
       await this.updateUser({
         blockHash,
-        status: USER_STATUS.IDENTITY_UPLOADED,
+        status: USER_STATUS.OK,
       })
     } catch (err) {
       const errorMessage = (err as Error).message
@@ -167,8 +172,7 @@ export class UserStore {
         storeLogger.warn('failed to check identity upload status:', err)
         // retry
         await sleep(3000)
-        this.checkIdentityUploadStatus()
-        return
+        return this.checkIdentityUploadStatus()
       }
 
       if (errorMessage.includes('Transaction process error')) {
@@ -268,9 +272,10 @@ export enum IDENTITY_UPLOAD_CHECKING_FAIL_CODE {
 
 export enum USER_STATUS {
   PENDING = 0,
-  IDENTITY_UPLOADED,
+  IDENTITY_UPLOADED, // don't remove this for compatibility reason
   OK,
   FAILED,
+  TAKEN_OVER,
 }
 
 export interface IUserPrimaryKeys {

@@ -168,7 +168,7 @@ const RESTORE_BUTTON_STATUS_CONTENT = Object.freeze({
   [RESTORE_USER_STATUS.PROCESSING]: 'Restoring...',
   [RESTORE_USER_STATUS.SUCCESS]: 'Backup restored!',
   [RESTORE_USER_STATUS.NETWORK_MISMATCH]: 'Network mismatch',
-  [RESTORE_USER_STATUS.DUPLICATE]: 'Duplicated account',
+  [RESTORE_USER_STATUS.DUPLICATE]: 'Duplicate account',
   [RESTORE_USER_STATUS.UNKNOWN_ERROR]: 'Restore failed',
 })
 

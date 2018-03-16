@@ -1,7 +1,7 @@
 import { observable, action, runInAction, computed } from 'mobx'
 
 import { ContractStore } from './ContractStore'
-import { UsersStore } from './UsersStore'
+import { UsersStore, getUserPublicKey } from './UsersStore'
 import { UserStore } from './UserStore'
 import { SessionStore } from './SessionStore'
 
@@ -16,7 +16,6 @@ import { IMessage, IAddMessageOptions } from '../databases/MessagesDB'
 import { getPreKeysPackage } from '../PreKeysPackage'
 
 import { sleep } from '../utils'
-import { publicKeyFromHexStr } from '../utils/proteus'
 
 export class SessionsStore {
   @observable.ref public sessions: ISession[] = []
@@ -35,7 +34,7 @@ export class SessionsStore {
 
   constructor(
     private readonly userStore: UserStore,
-    private readonly usersStore: UsersStore,
+    _usersStore: UsersStore,
     private readonly contractStore: ContractStore,
   ) {
     this.sessionsDB = getDatabases().sessionsDB
@@ -53,10 +52,7 @@ export class SessionsStore {
   }
 
   public async validateReceiver(receiverAddress: string) {
-    const {
-      publicKey: publicKeyHex,
-    } = await this.usersStore.userCachesStore.getIdentityByUserAddress(receiverAddress)
-    const publicKey = publicKeyFromHexStr(publicKeyHex)
+    const publicKey = await getUserPublicKey(receiverAddress, this.contractStore)
     // try to get user's pre-keys
     await getPreKeysPackage(this.userStore.user.networkId, publicKey)
   }
@@ -121,6 +117,7 @@ export class SessionsStore {
     }
 
     await sessionsDB.deleteSession(session)
+    await this.userStore.cryptoBox.loadWireCryptoBox()
     this.removeSession(session)
   }
 

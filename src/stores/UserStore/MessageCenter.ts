@@ -61,12 +61,12 @@ export class MessageCenter {
 
     const newLastFetchBlock = lastBlock < 3 ? 0 : lastBlock - 3
     if (trustmeshRawMessages.length === 0) {
-      this.updateUserLastFetchBlockOfChatMessages(newLastFetchBlock)
+      await this.updateUserLastFetchBlockOfChatMessages(newLastFetchBlock)
       return
     }
 
     const decryptedMessages = await this.decryptMessages(trustmeshRawMessages)
-    this.saveReceivedMessages(decryptedMessages)
+    await this.saveReceivedMessages(decryptedMessages)
 
     await this.updateUserLastFetchBlockOfChatMessages(newLastFetchBlock)
   }
@@ -87,35 +87,30 @@ export class MessageCenter {
   private async decryptMessages(
     messages: ITrustmeshRawMessage[],
   ): Promise<Array<IChatMessage | null>> {
-    const decryptMessagesPromises: Array<Promise<IChatMessage | null>> = []
+    const decryptedMessages: Array<IChatMessage | null> = []
     for (const trustmeshRawMessage of messages) {
-      const decryptMessagePromise = this.userStore.cryptoBox
+      const message = await this.userStore.cryptoBox
         .decryptMessage(trustmeshRawMessage)
         .catch(() => {
           // some decrypt errors is expected (Duplicate messages, unmatched receiver)
           // TODO: handle unexpected decrypt errors, avoid message lost
           return null
         })
-      decryptMessagesPromises.push(decryptMessagePromise)
+      decryptedMessages.push(message)
     }
-    return Promise.all(decryptMessagesPromises)
+    return decryptedMessages
   }
 
   private async saveReceivedMessages(messages: Array<IChatMessage | null>) {
-    const processMessagePromises: Array<Promise<void>> = []
     for (const chatMessage of messages) {
       if (chatMessage == null) {
         continue
       }
 
-      const processMessagePromise = this.saveMessage(chatMessage)
-        .catch((err) => {
-          storeLogger.error('saving message error:', err)
-        })
-      processMessagePromises.push(processMessagePromise)
+      await this.saveMessage(chatMessage).catch((err) => {
+        storeLogger.error('saving message error:', err)
+      })
     }
-
-    await Promise.all(processMessagePromises)
   }
 
   private async saveMessage(chatMessage: IChatMessage) {

@@ -11,15 +11,24 @@ import * as classes from './index.css'
 import composeClass from 'classnames'
 
 // state management
-import { IUser } from '../../../stores/UserStore'
+import { IUser, USER_STATUS } from '../../../stores/UserStore'
 import { SessionsStore } from '../../../stores/SessionsStore'
-import { IProcessedUserInfo, getUserInfoByAddress, searchUserInfos } from '../../../stores/UserCachesStore'
+import {
+  IProcessedUserInfo,
+  getUserInfoByAddress,
+  searchUserInfos,
+  UserCachesStore,
+} from '../../../stores/UserCachesStore'
 
 // helper
 import debounce from 'lodash.debounce'
 import { isAddress } from '../../../utils/cryptos'
 import { storeLogger } from '../../../utils/loggers'
+import { inject, observer } from 'mobx-react'
+import { IStores } from '../../../stores'
 
+@inject(mapStoreToProps)
+@observer
 class NewConversationDialog extends React.Component<IProps, IState> {
   public readonly state: Readonly<IState> = {
     users: [],
@@ -27,6 +36,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     isTyping: false,
   }
 
+  private readonly injectedProps = this.props as Readonly<IProps & IInjectedProps>
   private userAddressInput: Input | null = null
   private isUnmounted = false
 
@@ -38,6 +48,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     return (
       <div className={classes.dialog}>
         <Input
+          disabled={this.props.user.status === USER_STATUS.TAKEN_OVER}
           autoFocus={true}
           className={classes.searchInputWrapper}
           spellCheck={false}
@@ -70,25 +81,14 @@ class NewConversationDialog extends React.Component<IProps, IState> {
     const { users, searchText, inputValue, isTyping } = this.state
 
     if (inputValue === '') {
+      const { keyMeshTeamUserInfo } = this.injectedProps.userCachesStore
       return (
-        <>
-          {/* <p className={classes.recommandationText}>Feeling lonely around here? Say hi to us :)</p>
-          {this.renderUser({
-            userAddress: '0x861551981a6Ec84FD70c421fDfA759B148a11Be7',
-            displayUsername: 'KeyMesh',
-            description: 'The KeyMesh Team',
-            verifications: [
-              {
-                platformName: 'twitter',
-                username: 'KeyMesh',
-              },
-              {
-                platformName: 'facebook',
-                username: 'realKeyMesh',
-              },
-            ],
-          })} */}
-        </>
+        keyMeshTeamUserInfo != null ?
+          <>
+            <p className={classes.recommandationText}>Feeling lonely around here? Say hi to us :)</p>
+            {this.renderUser(keyMeshTeamUserInfo)}
+          </>
+        : null
       )
     }
 
@@ -281,10 +281,22 @@ class NewConversationDialog extends React.Component<IProps, IState> {
   }
 }
 
+function mapStoreToProps({
+  usersStore,
+}: IStores): IInjectedProps {
+  return {
+    userCachesStore: usersStore.userCachesStore,
+  }
+}
+
 interface IProps {
   user: IUser
   sessionsStore: SessionsStore
   tryCreateNewConversation: (receiverAddress: string, skipCheck?: boolean) => void
+}
+
+interface IInjectedProps {
+  userCachesStore: UserCachesStore
 }
 
 interface IState {

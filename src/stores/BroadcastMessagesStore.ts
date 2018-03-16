@@ -66,6 +66,11 @@ export class BroadcastMessagesStore {
     const transactionHash = await transactionPromiEventToPromise(promiEvent)
     transactionDidCreate(transactionHash)
 
+    const { gettingStartedQuests } = currentUserStore!
+    if (!gettingStartedQuests.questStatues[QUESTS.FIRST_BROADCAST]) {
+      gettingStartedQuests.setQuest(QUESTS.FIRST_BROADCAST, true)
+    }
+
     runInAction(() => {
       this.broadcastMessages = [
         {
@@ -97,11 +102,6 @@ export class BroadcastMessagesStore {
         this.broadcastMessages = messages
       })
       publishDidComplete()
-
-      const { gettingStartedQuests } = currentUserStore!
-      if (!gettingStartedQuests.questStatues[QUESTS.FIRST_BROADCAST]) {
-        gettingStartedQuests.setQuest(QUESTS.FIRST_BROADCAST, true)
-      }
     } catch (err) {
       const _messages = this.broadcastMessages.map((_message) => {
         if (isCurrentMessage(_message)) {

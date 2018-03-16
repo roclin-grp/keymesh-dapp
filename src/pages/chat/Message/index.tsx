@@ -126,7 +126,7 @@ class Message extends React.Component<IProps> {
 
     const confirmationCounterStr = isFailed
       ? null
-      : `(${displayConfirmationCounter}/${ENV.REQUIRED_CONFIRMATION_NUMBER})`
+      : ` (${displayConfirmationCounter}/${ENV.REQUIRED_CONFIRMATION_NUMBER})`
 
     let statusContent: JSX.Element
     if (explorerURL == null) {

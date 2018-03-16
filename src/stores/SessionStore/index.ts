@@ -43,10 +43,15 @@ export class SessionStore {
     return this.sessionsStore.isCurrentSession(this.session.sessionTag)
   }
 
+  @computed
+  public get isDisabled(): boolean {
+    return this.userStore.isDisabled
+  }
+
   constructor(
     session: ISession,
     private readonly sessionsStore: SessionsStore,
-    userStore: UserStore,
+    private readonly userStore: UserStore,
     private readonly contractStore: ContractStore,
   ) {
     this.session = this.sessionRef = session
@@ -194,7 +199,7 @@ export class SessionStore {
       ...options,
     })
 
-    this.addMessage(message)
+    await this.addMessage(message)
   }
 
   public async clearNewUnreadCount() {
@@ -280,7 +285,7 @@ export class SessionStore {
   }
 
   @action
-  private addMessage(message: IMessage) {
+  private async addMessage(message: IMessage) {
     if (this.isCurrentSession) {
       this.messages = this.messages.concat(message)
       if (!message.meta.isFromYourself && this.shouldAddUnread) {
@@ -288,7 +293,7 @@ export class SessionStore {
       }
     }
 
-    this.refreshMemorySession()
+    await this.refreshMemorySession()
   }
 
   @action

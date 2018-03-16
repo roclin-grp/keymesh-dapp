@@ -24,23 +24,12 @@ import {
 } from '../../stores/SessionStore'
 
 @observer
-class DialogTextArea extends React.Component<IProps, IState> {
-  public static initialState = {
-    newSessionDraftMessage: '',
-  }
-
-  public readonly state: Readonly<IState> = DialogTextArea.initialState
-
+class DialogTextArea extends React.Component<IProps> {
   private textAreaElement: HTMLTextAreaElement | null = null
-
-  private get hasSession() {
-    return this.props.sessionStore != null
-  }
 
   public componentDidUpdate({sessionStore: prevSessionStore}: IProps) {
     const currentSessionStore = this.props.sessionStore
     if (prevSessionStore !== currentSessionStore) {
-      this.setState(DialogTextArea.initialState)
       if (currentSessionStore && this.textAreaElement) {
         this.textAreaElement.focus()
       }
@@ -48,8 +37,8 @@ class DialogTextArea extends React.Component<IProps, IState> {
   }
 
   public render() {
-    const isSessionClosed = this.hasSession && this.props.sessionStore!.session.meta.isClosed
-    const disabled = this.props.isSending || isSessionClosed
+    const isSessionClosed = this.props.sessionStore.session.meta.isClosed
+    const disabled = this.props.isSending || isSessionClosed || this.props.sessionStore.isDisabled
 
     return (
       <Form className={this.props.className} onSubmit={this.props.isSending ? this.noopSubmit : this.handleSubmit}>
@@ -57,14 +46,15 @@ class DialogTextArea extends React.Component<IProps, IState> {
           <TextArea
             // hack: antd's type definition is wrong
             ref={this.getTextArea as () => void}
-            autoFocus={this.hasSession}
+            autoFocus={true}
             spellCheck={false}
             rows={6}
             disabled={disabled}
-            value={this.hasSession ? this.props.sessionStore!.draftMessage : this.state.newSessionDraftMessage}
+            value={this.props.sessionStore.draftMessage}
             onChange={this.handleChange}
             placeholder="Write a message"
             className={styles.textArea}
+            onKeyUp={this.handleKeyboardSend}
           />
         </FormItem>
         <FormItem className={styles.submitButtonWrapper}>
@@ -82,27 +72,29 @@ class DialogTextArea extends React.Component<IProps, IState> {
     )
   }
 
+  private handleKeyboardSend: React.KeyboardEventHandler<HTMLTextAreaElement> = (event) => {
+    const { ctrlKey, metaKey, key } = event
+
+    if (key === 'Enter' && (ctrlKey || metaKey)) {
+      event.preventDefault()
+      this.handleSubmit()
+    }
+  }
+
   private handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const {
       value: message,
     } = event.target
 
-    if (this.hasSession) {
-      this.props.sessionStore!.setDraft(message)
-    } else {
-      this.setState({
-        newSessionDraftMessage: message,
-      })
-    }
+    this.props.sessionStore.setDraft(message)
   }
 
-  private handleSubmit = (event: React.FormEvent<HTMLTextAreaElement>) => {
-    event.preventDefault()
+  private handleSubmit = (event?: React.FormEvent<HTMLTextAreaElement>) => {
+    if (event) {
+      event.preventDefault()
+    }
 
-    const content = (this.hasSession
-      ? this.props.sessionStore!.draftMessage
-      : this.state.newSessionDraftMessage
-    ).trimRight()
+    const content = this.props.sessionStore.draftMessage.trimRight()
 
     if (content === '') {
       return
@@ -124,12 +116,8 @@ interface IProps {
   className?: string
   isSending: boolean
   buttonContent: React.ReactNode
-  sessionStore?: SessionStore
+  sessionStore: SessionStore
   onSubmit: (message: string) => void
-}
-
-interface IState {
-  newSessionDraftMessage: string
 }
 
 export default DialogTextArea
