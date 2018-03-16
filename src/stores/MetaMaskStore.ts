@@ -128,6 +128,10 @@ export class MetaMaskStore {
     return block.hash
   }
 
+  public signMessage = async (message: string): Promise<string> => {
+    return this.web3.eth.personal.sign(message, this.walletAddress)
+  }
+
   /**
    * Update MetaMask status at regular intervals
    */
