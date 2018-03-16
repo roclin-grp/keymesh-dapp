@@ -19,8 +19,15 @@ export class UserCachesStore {
     [userAddress: string]: Promise<IUserCachesIdentity>,
   } = {}
 
-  public get networkID(): ETHEREUM_NETWORKS {
-    return this.metaMaskStore.currentEthereumNetwork!
+  @computed
+  private get networkID(): ETHEREUM_NETWORKS | undefined {
+    const { metaMaskStore } = this
+    const { isActive } = metaMaskStore
+    if (!isActive) {
+      return
+    }
+
+    return metaMaskStore.networkID
   }
 
   @computed
@@ -29,7 +36,7 @@ export class UserCachesStore {
   }
 
   constructor(
-    private usersStore: UsersStore,
+    _usersStore: UsersStore,
     private metaMaskStore: MetaMaskStore,
     private readonly contractsStore: ContractStore,
   ) {
@@ -38,7 +45,12 @@ export class UserCachesStore {
   }
 
   public async getVerifications(userAddress: string): Promise<IUserCachesVerifications> {
-    const user = await this.userCachesDB.get(this.networkID, userAddress)
+    const { networkID } = this
+    if (networkID == null) {
+      return getNewVerifications()
+    }
+
+    const user = await this.userCachesDB.get(networkID, userAddress)
     if (user && user.verifications) {
       return user.verifications
     }
@@ -50,11 +62,13 @@ export class UserCachesStore {
     let lastFetchBlock = 0
     while (true) {
       const { isAvailable } = this.contractsStore
-      const { isActive } = this.metaMaskStore
+      const { metaMaskStore } = this
+      const { isActive } = metaMaskStore
       if (!isAvailable || !isActive) {
         await sleep(3000)
         continue
       }
+      const { networkID } = metaMaskStore
 
       const cachedAddresses = await this.userCachesDB.getAllAddresses()
 
@@ -74,7 +88,7 @@ export class UserCachesStore {
       lastFetchBlock = lastBlock
 
       const processedAddresses: { [userAddress: string]: boolean } = {}
-      const updateCachesPromises: Array<Promise<IUserCaches>> = []
+      const updateCachesPromises: Array<Promise<void>> = []
       for (const identity of result) {
         const { userAddress, publicKey } = identity
         if (processedAddresses[userAddress]) {
@@ -82,7 +96,7 @@ export class UserCachesStore {
         }
         processedAddresses[userAddress] = true
 
-        const user = await this.userCachesDB.get(this.networkID, userAddress)
+        const user = await this.userCachesDB.get(networkID, userAddress)
         if (!user || !user.identity) {
           continue
         }
@@ -92,12 +106,10 @@ export class UserCachesStore {
           continue
         }
 
-        const newIdentity = {
-          ...oldIdentity,
-          publicKey,
-        }
-
-        updateCachesPromises.push(this.userCachesDB.update(userAddress, this.networkID, { identity: newIdentity }))
+        const updateCacheIdentityPromise = this.updateCacheIdentity(userAddress).catch((err) => {
+          storeLogger.warn(`failed to update identity(${userAddress}):`, err)
+        })
+        updateCachesPromises.push(updateCacheIdentityPromise)
       }
 
       await Promise.all(updateCachesPromises)
@@ -107,7 +119,13 @@ export class UserCachesStore {
   }
 
   public async setVerifications(userAddress: string, verifications: IUserCachesVerifications) {
-    return this.userCachesDB.update(userAddress, this.networkID, { verifications })
+    const { metaMaskStore } = this
+    const { isActive } = metaMaskStore
+    if (!isActive) {
+      return
+    }
+
+    await this.userCachesDB.update(userAddress, metaMaskStore.networkID, { verifications })
   }
 
   public getAvatarHashByUserAddress = (userAddress: string): Promise<string> => {
@@ -119,14 +137,19 @@ export class UserCachesStore {
   }
 
   public async getIdentityByUserAddress(userAddress: string): Promise<IUserCachesIdentity> {
-    const user = await this.userCachesDB.get(this.networkID, userAddress)
+    const { networkID } = this
+    if (networkID == null) {
+      throw new Error('MetaMask is not connected')
+    }
+
+    const user = await this.userCachesDB.get(networkID, userAddress)
     if (user && user.identity) {
       return user.identity
     }
 
     let cachedPromise = this.cachedUserIdentityPromises[userAddress]
     if (!cachedPromise) {
-      cachedPromise = this._getIdentityByUserAddress(userAddress).catch((err) => {
+      cachedPromise = this.fetchIdentityByUserAddress(userAddress).catch((err) => {
         storeLogger.error('failed to fetch identity: ', err)
         delete this.cachedUserIdentityPromises[userAddress]
         throw err
@@ -136,19 +159,60 @@ export class UserCachesStore {
     return cachedPromise
   }
 
-  public _getIdentityByUserAddress = async (userAddress: string): Promise<IUserCachesIdentity> => {
-    const userIdentity = await this.usersStore.getIdentityByUserAddress(userAddress)
-    if (isHexZeroValue(userIdentity.publicKey)) {
+  private async updateCacheIdentity(userAddress: string) {
+    const { networkID, contractsStore } = this
+    if (networkID == null) {
+      throw new Error('MetaMask is not connected')
+    }
+
+    if (!contractsStore.isAvailable) {
+      throw new Error('contracts are not available')
+    }
+
+    const { publicKey, blockNumber } = await this.contractsStore.identitiesContract.getIdentity(userAddress)
+    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
+    if (isHexZeroValue(blockHash)) {
+      storeLogger.warn('cannot fetch blockHash')
+    }
+
+    const newIdentity: IUserCachesIdentity = {
+      blockNumber,
+      publicKey,
+      blockHash,
+    }
+
+    await this.userCachesDB.update(userAddress, networkID, { identity: newIdentity })
+  }
+
+  private async fetchIdentityByUserAddress(userAddress: string): Promise<IUserCachesIdentity> {
+    const { networkID, contractsStore } = this
+    if (networkID == null) {
+      throw new Error('MetaMask is not connected')
+    }
+
+    if (!contractsStore.isAvailable) {
+      throw new Error('contracts are not available')
+    }
+
+    const { publicKey, blockNumber } = await this.contractsStore.identitiesContract.getIdentity(userAddress)
+    if (isHexZeroValue(publicKey)) {
       throw new Error('cannot find user')
     }
-    const identity = {
-      publicKey: userIdentity.publicKey,
-      blockNumber: userIdentity.blockNumber,
-      blockHash: await this.metaMaskStore.getBlockHash(userIdentity.blockNumber),
+    const blockHash = await this.metaMaskStore.getBlockHash(blockNumber)
+
+    if (isHexZeroValue(blockHash)) {
+      throw new Error('cannot fetch blockHash')
     }
+
+    const identity = {
+      publicKey,
+      blockNumber,
+      blockHash,
+    }
+
     const newUser = await this.userCachesDB.create({
       userAddress,
-      networkId: this.networkID,
+      networkId: networkID,
       identity,
     })
 
