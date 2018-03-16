@@ -35,7 +35,9 @@ import { storeLogger } from '../../utils/loggers'
 @inject(mapStoreToProps)
 @observer
 class Register extends React.Component<IProps, IState> {
-  public readonly state = defaultState
+  public readonly state: Readonly<IState> = {
+    isSubmittedEmail: getEmailSubmittedStatus(),
+  }
 
   private readonly injectedProps = this.props as Readonly<IInjectedProps & IProps>
   private disposeWalletAccountReaction: Lambda | undefined
@@ -358,7 +360,11 @@ class Register extends React.Component<IProps, IState> {
   }
 
   private resetState = () => {
-    this.setState(defaultState)
+    this.setState({
+      transactionCreationStatus: undefined,
+      transactionHash: undefined,
+      registerStatus: undefined,
+    })
   }
 }
 
@@ -415,13 +421,6 @@ const REGISTER_STATUS_ICON_TYPES = Object.freeze({
 
 // typing
 interface IProps extends RouteComponentProps<{}> { }
-
-const defaultState: Readonly<IState> = {
-  transactionCreationStatus: undefined,
-  transactionHash: undefined,
-  registerStatus: undefined,
-  isSubmittedEmail: getEmailSubmittedStatus(),
-}
 
 interface IInjectedProps {
   metaMaskStore: MetaMaskStore
