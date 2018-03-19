@@ -151,7 +151,7 @@ class NewConversationDialog extends React.Component<IProps, IState> {
                   userAddress={userAddress}
                   userInfo={userInfo}
                   className={classes.userItemAvatar}
-                />}
+                />
               </Link>
             }
             title={<Username userAddress={userAddress} userInfo={userInfo} showAllUsernames={true} />}
