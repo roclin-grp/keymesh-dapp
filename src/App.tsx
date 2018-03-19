@@ -20,6 +20,7 @@ import Proving from './pages/proving'
 import GettingStarted from './pages/getting-started'
 import Register from './pages/register'
 import NotFound from './pages/NotFound'
+import GoogleAnalytics from './GoogleAnalytics'
 
 import { Provider, observer } from 'mobx-react'
 import { IStores } from './stores'
@@ -32,6 +33,7 @@ class App extends React.Component<IProps> {
     const content = (
       <Router>
         <>
+          <Route component={GoogleAnalytics} />
           <Header stores={stores} />
           <main className="main">{this.renderContent(stores)}</main>
         </>
