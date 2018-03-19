@@ -7,19 +7,13 @@ class AWSAPIs {
     private networkID: ETHEREUM_NETWORKS,
   ) { }
 
-  public async uploadAccountInfo(userAddress: string, name: string, email: string, msg: string, sig: string) {
+  public async uploadAccountInfo(accountInfo: IAccountInfo) {
     return await this.fetch('/account-info', undefined, {
       cache: 'no-cache',
       headers: {
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        userAddress,
-        name,
-        email,
-        msg,
-        sig,
-      }),
+      body: JSON.stringify(accountInfo),
       method: 'PUT',
       mode: 'cors',
     })
@@ -49,4 +43,13 @@ export function getAWSAPIs(networkID: ETHEREUM_NETWORKS): AWSAPIs {
   }
 
   return awsAPIsInstance
+}
+
+export interface IAccountInfo {
+  userAddress: string
+  name: string
+  email: string
+  msg: string
+  sig: string
+  ref?: string
 }

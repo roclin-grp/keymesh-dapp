@@ -3,6 +3,8 @@ import 'font-awesome/css/font-awesome.css'
 
 import './global.css'
 
+import './recordRef'
+
 import * as React from 'react'
 import { render } from 'react-dom'
 

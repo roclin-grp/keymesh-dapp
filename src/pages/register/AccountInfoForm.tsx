@@ -4,7 +4,8 @@ import * as classes from './AccountInfoForm.css'
 import { Input } from 'antd'
 import StatusButton from '../../components/StatusButton'
 import { ETHEREUM_NETWORKS } from '../../stores/MetaMaskStore'
-import { getAWSAPIs } from '../../aws/AWSAPIs'
+import { getAWSAPIs, IAccountInfo } from '../../aws/AWSAPIs'
+import { getRef } from '../../recordRef'
 
 class EmailForm extends React.Component<IProps, IState> {
   public readonly state = defaultState
@@ -44,11 +45,12 @@ class EmailForm extends React.Component<IProps, IState> {
     const {email, name} = this.state
 
     const msg = `I am ${name} and my Email is ${email}`
+    const ref = getRef()
     try {
       const sig = await this.props.signMessage(msg)
 
-      const response = await getAWSAPIs(networkID)
-      .uploadAccountInfo(userAddress, name, email, msg, sig)
+      const accountInfo: IAccountInfo = { userAddress, name, email, msg, sig, ref }
+      const response = await getAWSAPIs(networkID).uploadAccountInfo(accountInfo)
       if (response.status !== 201) {
         throw new Error('http status code is not 201')
       }
