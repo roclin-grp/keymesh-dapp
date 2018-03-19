@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+
+  install:
+    commands:
+      - sudo apt-get update -y && sudo apt-get install -y make apt-transport-https
+      - curl -sL https://deb.nodesource.com/setup_9.x | sudo -E bash -
+      - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+      - echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+      - sudo apt-get update -y
+      - sudo apt-get install -y nodejs yarn
+
+  build:
+    commands:
+      - yarn install
+      - yarn build
+
+  post_build:
+    commands:
+      - yarn syncS3 s3://${BUCKET}/
+      - aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths '/*'

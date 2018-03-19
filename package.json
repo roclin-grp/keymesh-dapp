@@ -6,7 +6,7 @@
   "scripts": {
     "start": "parcel serve src/index.html",
     "build": "NODE_ENV='production' parcel build src/index.html --public-url='/'",
-    "syncS3": "aws s3 sync --delete ./dist/  s3://aws-website-keymail-dev-3ni40/",
+    "syncS3": "aws s3 sync --delete ./dist/",
     "release": "yarn build && yarn syncS3",
     "css-types": "tcm src",
     "postinstall": "yarn css-types",
